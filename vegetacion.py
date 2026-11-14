@@ -26,9 +26,9 @@ TIPO_VENENOSO = "Venenoso"
 TIPO_FRUTAL = "Frutal"
 
 CANTIDADES = {
-    TIPO_ESCONDITE: (20, 60),
-    TIPO_VENENOSO: (15, 30),
-    TIPO_FRUTAL: (5, 10),
+    TIPO_ESCONDITE: (35, 80),
+    TIPO_VENENOSO: (25, 45),
+    TIPO_FRUTAL: (10, 16),
 }
 
 DIAMETRO_MIN = 50
@@ -47,7 +47,7 @@ TIEMPO_REAPARICION_FRUTAL = 60.0
 TIEMPO_CRECIMIENTO_FRUTAL = 60.0   # Cada fase del frutal reaparecido dura 1 minuto
 
 # Matorrales: conjuntos densos de arbustos
-PROB_MATORRAL = 0.10
+PROB_MATORRAL = 0.40
 MATORRAL_MIN_ARBUSTOS = 5
 MATORRAL_MAX_ARBUSTOS = 8
 
