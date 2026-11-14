@@ -252,7 +252,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     titulo = fuente_titulo.render("FICHA PERSONAJE", True, (255, 215, 0))
     pantalla.blit(titulo, (x + 14, y + 15))
 
-    sub = fuente_sub.render("Atributos y Equipo", True, (130, 140, 160))
+    color_pts = (120, 255, 150) if jugador.puntos_mejora > 0 else (130, 140, 160)
+    sub = fuente_sub.render(f"Nivel {jugador.nivel}  ·  Puntos: {jugador.puntos_mejora}", True, color_pts)
     pantalla.blit(sub, (x + 14, y + 38))
 
     pygame.draw.line(pantalla, (45, 52, 68), (x + 14, y + 58), (x + ancho - 14, y + 58), 1)
@@ -298,23 +299,40 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     pct_vel = int(round((jugador.velocidad / jugador.velocidad_base - 1.0) * 100))
     str_pct = f" ({pct_vel:+d}%)" if pct_vel != 0 else ""
 
+    # Cada stat: (etiqueta, valor, color, clave_mejora). clave None = no se puede subir.
     stats = [
-        ("Tamaño (Nivel)", f"{jugador.tamano}", (200, 220, 255)),
-        ("Vida", f"{jugador.vida} / {jugador.vida_max}", (255, 95, 95)),
-        ("Fuerza Base", f"{jugador.fuerza_base:.1f}", (200, 190, 180)),
-        ("Fuerza Actual", f"{jugador.fuerza:.2f}", (255, 120, 60) if jugador.fuerza > jugador.fuerza_base else (220, 220, 220)),
-        ("Velocidad Base", f"{jugador.velocidad_base:.1f}", (170, 190, 210)),
-        ("Velocidad Actual", f"{jugador.velocidad:.2f}{str_pct}", (90, 220, 255) if pct_vel > 0 else ((255, 100, 70) if pct_vel < 0 else (220, 220, 220))),
-        ("Energía", f"{jugador.energia} / {jugador.energia_max}", (180, 130, 255)),
-        ("Defensa", f"{jugador.defensa}", (120, 255, 150))
+        ("Tamaño (Nivel)", f"{jugador.tamano}", (200, 220, 255), None),
+        ("Vida", f"{jugador.vida} / {jugador.vida_max}", (255, 95, 95), "vida"),
+        ("Fuerza Base", f"{jugador.fuerza_base:.1f}", (200, 190, 180), "fuerza"),
+        ("Fuerza Actual", f"{jugador.fuerza:.2f}", (255, 120, 60) if jugador.fuerza > jugador.fuerza_base else (220, 220, 220), None),
+        ("Velocidad Base", f"{jugador.velocidad_base:.1f}", (170, 190, 210), "velocidad"),
+        ("Velocidad Actual", f"{jugador.velocidad:.2f}{str_pct}", (90, 220, 255) if pct_vel > 0 else ((255, 100, 70) if pct_vel < 0 else (220, 220, 220)), None),
+        ("Energía", f"{jugador.energia} / {jugador.energia_max}", (180, 130, 255), "energia"),
+        ("Defensa", f"{jugador.defensa}", (120, 255, 150), "defensa")
     ]
 
-    for etiqueta, valor, color_val in stats:
-        txt_etiq = fuente_mini.render(f"{etiqueta}:", True, (160, 170, 190))
-        txt_val = fuente_val.render(str(valor), True, color_val)
+    botones = {}
+    puede_subir = jugador.puntos_mejora > 0
 
+    for etiqueta, valor, color_val, clave in stats:
+        txt_etiq = fuente_mini.render(f"{etiqueta}:", True, (160, 170, 190))
         pantalla.blit(txt_etiq, (x + 14, offset_y))
-        pantalla.blit(txt_val, (x + ancho - 14 - txt_val.get_width(), offset_y))
+
+        if clave is not None and puede_subir:
+            # Botón [+] a la derecha; el valor se corre a su izquierda
+            bsize = 16
+            rect_btn = pygame.Rect(x + ancho - 14 - bsize, offset_y - 1, bsize, bsize)
+            pygame.draw.rect(pantalla, (34, 78, 44), rect_btn, border_radius=4)
+            pygame.draw.rect(pantalla, (100, 230, 130), rect_btn, width=1, border_radius=4)
+            signo = fuente_val.render("+", True, (150, 255, 180))
+            pantalla.blit(signo, signo.get_rect(center=rect_btn.center))
+            botones[clave] = rect_btn
+
+            txt_val = fuente_val.render(str(valor), True, color_val)
+            pantalla.blit(txt_val, (rect_btn.x - 6 - txt_val.get_width(), offset_y))
+        else:
+            txt_val = fuente_val.render(str(valor), True, color_val)
+            pantalla.blit(txt_val, (x + ancho - 14 - txt_val.get_width(), offset_y))
 
         # Barra de progreso de Energía
         if etiqueta == "Energía":
@@ -331,13 +349,18 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 
         offset_y += 26
 
-    # Pie de página con indicador de Hitboxes
+    # Pie de página con indicadores
+    txt_lvl = fuente_mini.render("[L] Subir nivel (debug)", True, (150, 200, 255))
+    pantalla.blit(txt_lvl, (x + 14, alto - 68))
+
     color_hb = (100, 255, 140) if mostrar_hitboxes else (120, 130, 150)
     txt_hb = fuente_mini.render(f"[H] Hitboxes: {'ACTIVAS' if mostrar_hitboxes else 'OCULTAS'}", True, color_hb)
     pantalla.blit(txt_hb, (x + 14, alto - 48))
 
     txt_salir = fuente_mini.render("[ESC] Salir del juego", True, (110, 120, 140))
     pantalla.blit(txt_salir, (x + 14, alto - 28))
+
+    return botones
 
 
 # -----------------------------
@@ -409,6 +432,7 @@ def iniciar_mundo(config):
     reloj = pygame.time.Clock()
     ejecutando = True
     mostrar_hitboxes = False  # Alternable con la tecla [H]
+    botones_stats = {}        # Botones [+] del panel (clave_stat -> Rect), se actualizan cada frame
 
     # Cámara: punto del mundo que queda en el centro del área visible
     camara = pygame.Vector2(jugador.posicion)
@@ -442,6 +466,10 @@ def iniciar_mundo(config):
                     if jugador.herramienta:
                         jugador.herramienta.toggle()
 
+                # [L] (debug) Subir de nivel: otorga 3 puntos de mejora
+                elif evento.key == pygame.K_l:
+                    jugador.subir_nivel()
+
                 # Teclas dinámicas [2], [3] y [4] para Habilidades
                 else:
                     for hab in jugador.habilidades:
@@ -451,8 +479,18 @@ def iniciar_mundo(config):
             elif evento.type == pygame.MOUSEBUTTONDOWN:
                 if evento.button == 1:
                     mouse_x, mouse_y = evento.pos
+
+                    # ¿Clic en un botón [+] del panel de estadísticas?
+                    stat_click = None
+                    for nombre_stat, rect_btn in botones_stats.items():
+                        if rect_btn.collidepoint(mouse_x, mouse_y):
+                            stat_click = nombre_stat
+                            break
+
+                    if stat_click:
+                        jugador.subir_stat(stat_click)
                     # Movimiento exclusivo dentro del área del mundo
-                    if mundo_x <= mouse_x <= (mundo_x + mundo_w):
+                    elif mundo_x <= mouse_x <= (mundo_x + mundo_w):
                         # Convertir clic de pantalla a coordenadas del mundo según la cámara
                         vista = vista_camara()
                         jugador.destino = pygame.Vector2(
@@ -594,7 +632,7 @@ def iniciar_mundo(config):
 
         # 2. Dibujar Interfaces Laterales (Fuera del mundo)
         # Panel Izquierdo: Ficha del Personaje y Estado del Arma
-        dibujar_panel_estadisticas(pantalla, 0, 0, ancho_panel_izq, alto_pantalla, jugador, fuentes, mostrar_hitboxes)
+        botones_stats = dibujar_panel_estadisticas(pantalla, 0, 0, ancho_panel_izq, alto_pantalla, jugador, fuentes, mostrar_hitboxes)
 
         # Panel Derecho: Habilidades y Manual
         dibujar_panel_habilidades(pantalla, ancho_pantalla - ancho_panel_der, 0, ancho_panel_der, alto_pantalla, jugador.habilidades, jugador, fuentes)

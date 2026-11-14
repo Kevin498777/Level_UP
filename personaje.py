@@ -26,6 +26,10 @@ class Personaje:
         self.energia = energia                     # Energía actual
         self.defensa = defensa                     # Defensa (0 a 10)
         self.color = color
+
+        # Progresión: nivel del personaje y puntos de mejora (empieza con 3)
+        self.nivel = 1
+        self.puntos_mejora = 3
         self.habilidades = habilidades if habilidades is not None else []
         self.herramienta = herramienta if herramienta is not None else EspadaLigera()
 
@@ -68,6 +72,36 @@ class Personaje:
         if self.herramienta and self.herramienta.activa:
             return self.herramienta.calcular_dano(self)
         return round(self.fuerza, 2)
+
+    def subir_stat(self, nombre):
+        """Gasta 1 punto de mejora en la estadística indicada (incrementos fijos)."""
+        if self.puntos_mejora <= 0:
+            return False
+        if nombre == "vida":
+            self.vida_max += 2
+            self.vida += 2
+        elif nombre == "fuerza":
+            self.fuerza_base = round(self.fuerza_base + 0.2, 2)
+            # Si no hay un Burst activo, reflejar el cambio en la fuerza actual
+            if not any(h.nombre == "Burst de Fuerza" and h.estado == "ACTIVA" for h in self.habilidades):
+                self.fuerza = self.fuerza_base
+        elif nombre == "velocidad":
+            self.velocidad_base = round(self.velocidad_base + 0.1, 2)
+        elif nombre == "energia":
+            self.energia_max += 2
+            self.energia = min(self.energia_max, self.energia + 2)
+        elif nombre == "defensa":
+            self.defensa += 1
+        else:
+            return False
+        self.puntos_mejora -= 1
+        return True
+
+    def subir_nivel(self):
+        """(Debug) Sube de nivel al personaje y otorga 3 puntos de mejora."""
+        self.nivel += 1
+        self.puntos_mejora += 3
+        return self.nivel
 
     def actualizar_regeneracion(self, dt):
         """
