@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-import random
 import pygame
 from habilidades import HABILIDADES_DISPONIBLES, crear_habilidad
 from herramientas import HERRAMIENTAS_DISPONIBLES, crear_herramienta
@@ -23,13 +22,14 @@ COLORES = {
 # GENERACIÓN DE VALORES ALEATORIOS
 # -----------------------------
 def generar_estadisticas():
+    # Estadísticas FIJAS de nivel 1 (sin aleatoriedad). Se mejoran con los puntos de nivel.
     return {
-        "vida": random.randint(15, 25),
-        "fuerza": random.randint(1, 5),
-        "velocidad": random.randint(1, 4),
-        "energia": random.randint(1, 100),
-        "defensa": random.randint(0, 10),
-        "tamano": 1  # Estático en 1 por ahora
+        "vida": 20,
+        "fuerza": 2,
+        "velocidad": 1,
+        "energia": 100,
+        "defensa": 10,
+        "tamano": 1
     }
 
 
@@ -303,7 +303,7 @@ def iniciar_aplicacion():
     # -----------------------------
     frame_stats = tk.LabelFrame(
         ventana,
-        text="  Estadísticas Iniciales (Aleatorias / Fijas)  ",
+        text="  Estadísticas Iniciales (Fijas · Nivel 1)  ",
         font=("Segoe UI", 10, "bold"),
         fg="#ABB2BF",
         bg="#282C34",
@@ -322,12 +322,12 @@ def iniciar_aplicacion():
         stats_vista = aplicar_stats_pruebas(nombre_var.get(), stats_actuales)
 
         filas = [
-            ("Vida (15 a 25):", stats_vista["vida"], "#E06C75"),
-            ("Fuerza (1 a 5):", stats_vista["fuerza"], "#D19A66"),
-            ("Velocidad (1 a 4):", stats_vista["velocidad"], "#56B6C2"),
-            ("Energía (1 a 100):", stats_vista["energia"], "#C678DD"),
-            ("Defensa (0 a 10):", stats_vista["defensa"], "#98C379"),
-            ("Tamaño (Estático):", stats_vista["tamano"], "#E5C07B")
+            ("Vida:", stats_vista["vida"], "#E06C75"),
+            ("Fuerza:", stats_vista["fuerza"], "#D19A66"),
+            ("Velocidad:", stats_vista["velocidad"], "#56B6C2"),
+            ("Energía:", stats_vista["energia"], "#C678DD"),
+            ("Defensa:", stats_vista["defensa"], "#98C379"),
+            ("Tamaño:", stats_vista["tamano"], "#E5C07B")
         ]
 
         for idx, (etiqueta, valor, color_destaque) in enumerate(filas):
@@ -352,25 +352,6 @@ def iniciar_aplicacion():
                 relief="solid",
                 bd=1
             ).grid(row=fila, column=col + 1, sticky="w", pady=2, padx=(0, 10))
-
-    def reroll_stats():
-        nonlocal stats_actuales
-        stats_actuales = generar_estadisticas()
-        renderizar_stats()
-
-    btn_reroll = tk.Button(
-        ventana,
-        text="🎲 Tirar nuevos valores aleatorios",
-        font=("Segoe UI", 8),
-        bg="#3B4048",
-        fg="#FFFFFF",
-        activebackground="#4B5263",
-        activeforeground="#FFFFFF",
-        relief="flat",
-        cursor="hand2",
-        command=reroll_stats
-    )
-    btn_reroll.pack(pady=(0, 3))
 
     # -----------------------------
     # BOTÓN: COMENZAR MUNDO

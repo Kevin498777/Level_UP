@@ -72,6 +72,24 @@ class HabilidadBase:
         self.mensaje_alerta = ""
         self.tiempo_alerta = 0.0
 
+        # Progresión por nivel (máx 20). escalable=False -> no sube de nivel (ej. Disparo Veloz)
+        self.nivel = 1
+        self.nivel_max = 20
+        self.escalable = True
+        self._aplicar_nivel()
+
+    def _aplicar_nivel(self):
+        """Recalcula los valores que dependen del nivel. Las subclases lo sobrescriben."""
+        pass
+
+    def subir_nivel(self):
+        """Sube la habilidad un nivel (máx nivel_max) y recalcula sus valores."""
+        if not self.escalable or self.nivel >= self.nivel_max:
+            return False
+        self.nivel += 1
+        self._aplicar_nivel()
+        return True
+
     def asignar_tecla(self, tecla, tecla_str):
         """Asigna dinámicamente la tecla (2, 3 o 4) según la selección de habilidades."""
         self.tecla = tecla
@@ -177,8 +195,22 @@ class Destello(HabilidadBase):
             tecla=pygame.K_2,
             tecla_str="2"
         )
-        self.porcentaje_buff = 0.50
-        self.porcentaje_debuff = 0.20
+
+    def _aplicar_nivel(self):
+        """
+        Escalado de Destello (nivel 1 a 20):
+        - buff velocidad: +50% +2% por nivel
+        - duración: 10s, +2s cada 5 niveles
+        - cooldown: 5s, -1s cada 5 niveles (mín. 1s)
+        - debuff de fatiga: -20%, -5% cada 5 niveles (mín. 0)
+        - costo: 10 energía, +5 cada 3 niveles
+        """
+        n = self.nivel
+        self.porcentaje_buff = round(0.50 + 0.02 * n, 3)
+        self.porcentaje_debuff = max(0.0, round(0.20 - 0.05 * (n // 5), 3))
+        self.duracion_activa = 10.0 + 2.0 * (n // 5)
+        self.duracion_cooldown = max(1.0, 5.0 - 1.0 * (n // 5))
+        self.costo_energia = 10 + 5 * (n // 3)
 
     def aplicar_efecto_activo(self, jugador):
         jugador.velocidad = jugador.velocidad_base * (1.0 + self.porcentaje_buff)
@@ -204,7 +236,20 @@ class BurstDeFuerza(HabilidadBase):
             tecla=pygame.K_3,
             tecla_str="3"
         )
-        self.porcentaje_buff = 0.20
+
+    def _aplicar_nivel(self):
+        """
+        Escalado de Burst de Fuerza (nivel 1 a 20):
+        - buff fuerza: +20% +1% por nivel
+        - duración: 6s, +1s cada 5 niveles
+        - cooldown: 12s, -1s cada 5 niveles (mín. 1s)
+        - costo: 15 energía, +5 cada 5 niveles
+        """
+        n = self.nivel
+        self.porcentaje_buff = round(0.20 + 0.01 * n, 3)
+        self.duracion_activa = 6.0 + 1.0 * (n // 5)
+        self.duracion_cooldown = max(1.0, 12.0 - 1.0 * (n // 5))
+        self.costo_energia = 15 + 5 * (n // 5)
 
     def aplicar_efecto_activo(self, jugador):
         jugador.fuerza = round(jugador.fuerza_base * (1.0 + self.porcentaje_buff), 2)
@@ -232,6 +277,7 @@ class DisparoVeloz(HabilidadBase):
         )
         self.velocidad_proyectil = 10.0
         self.porcentaje_dano = 0.20  # 20% del daño total del personaje
+        self.escalable = False       # Disparo Veloz no escala con nivel (por ahora)
 
     def obtener_costo_base(self, jugador):
         """Cuesta exactamente el 15% de la energía total del personaje (redondeada)."""
@@ -299,11 +345,12 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
     pygame.draw.line(pantalla, (45, 52, 68), (x + 15, y + 54), (x + ancho - 15, y + 54), 1)
 
     cur_y = y + 60
+    botones = {}  # Botones [+] de subida de nivel (clave "__hab__<idx>" -> Rect)
 
     # Altura ajustada dinámicamente si hay 3 habilidades
     tarjeta_h = 105 if len(habilidades) >= 3 else 125
 
-    for hab in habilidades:
+    for idx, hab in enumerate(habilidades):
         tarjeta_w = ancho - 26
         tarjeta_x = x + 13
 
@@ -324,13 +371,31 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         txt_nom = fuente_sub.render(hab.nombre, True, (255, 255, 255))
         pantalla.blit(txt_nom, (tarjeta_x + 10, cur_y + 6))
 
-        txt_tecla = fuente_mini.render(f"Tecla [{hab.tecla_str}]", True, (255, 220, 80))
-        pantalla.blit(txt_tecla, (tarjeta_x + tarjeta_w - txt_tecla.get_width() - 10, cur_y + 7))
+        txt_tecla = fuente_mini.render(f"[{hab.tecla_str}]", True, (255, 220, 80))
+        tecla_x = tarjeta_x + tarjeta_w - txt_tecla.get_width() - 10
+        pantalla.blit(txt_tecla, (tecla_x, cur_y + 7))
 
-        # Costo
+        # Botón [+] para subir nivel (gasta un punto de mejora compartido)
+        if hab.escalable and hab.nivel < hab.nivel_max and jugador.puntos_mejora > 0:
+            bsize = 16
+            rect_btn = pygame.Rect(tecla_x - bsize - 8, cur_y + 6, bsize, bsize)
+            pygame.draw.rect(pantalla, (34, 78, 44), rect_btn, border_radius=4)
+            pygame.draw.rect(pantalla, (100, 230, 130), rect_btn, width=1, border_radius=4)
+            signo = fuente_sub.render("+", True, (150, 255, 180))
+            pantalla.blit(signo, signo.get_rect(center=rect_btn.center))
+            botones[f"__hab__{idx}"] = rect_btn
+
+        # Nivel y Costo
+        if hab.escalable:
+            color_nv = (255, 215, 120) if hab.nivel >= hab.nivel_max else (160, 200, 255)
+            txt_nivel = fuente_mini.render(f"Nv {hab.nivel}/{hab.nivel_max}", True, color_nv)
+        else:
+            txt_nivel = fuente_mini.render("Nv —", True, (120, 130, 150))
+        pantalla.blit(txt_nivel, (tarjeta_x + 10, cur_y + 26))
+
         costo_mostrado = hab.obtener_costo_base(jugador)
         txt_costo = fuente_mini.render(f"Costo: {costo_mostrado} En.", True, (180, 140, 255))
-        pantalla.blit(txt_costo, (tarjeta_x + 10, cur_y + 26))
+        pantalla.blit(txt_costo, (tarjeta_x + 92, cur_y + 26))
 
         # Estado y Cuenta Regresiva
         if hab.estado == "LISTA":
@@ -371,11 +436,11 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             if ancho_l > 0:
                 pygame.draw.rect(pantalla, (255, 140, 50), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
 
-        # Resumen del efecto
+        # Resumen del efecto (valores reales según el nivel)
         if hab.nombre == "Destello":
-            detalles = "10s (+50% Vel) | CD 5s (-20%)"
+            detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Burst de Fuerza":
-            detalles = "6s (+20% Fuerza) | CD 12s"
+            detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:.0f}s"
         else:
             detalles = "Disparo recto vel 10 | CD 2s"
 
@@ -405,10 +470,9 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         ("  +5% energía actual al lanzar", (180, 190, 205)),
         ("  habilidad con otra ya activa.", (255, 120, 80)),
         ("", None),
-        ("• [1] Espada Ligera:", (220, 225, 235)),
-        ("  Daño = Fuerza x2 | -20% Vel", (170, 180, 200)),
-        ("• Habilidades asignadas:", (255, 215, 0)),
-        ("  Slots en teclas [2], [3] y [4]", (180, 190, 205)),
+        ("• Mejora con [+] verde:", (255, 215, 0)),
+        ("  gasta puntos de nivel del", (180, 190, 205)),
+        ("  personaje (compartidos).", (180, 190, 205)),
         ("• Hitbox: [H] Activar/Desactivar visor", (120, 220, 255))
     ]
 
@@ -420,6 +484,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         surf = fuente_mini.render(linea, True, color)
         pantalla.blit(surf, (x + 15, my))
         my += 15
+
+    return botones
 
 
 # -----------------------------

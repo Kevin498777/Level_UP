@@ -248,6 +248,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 
     pygame.draw.line(pantalla, (45, 52, 68), (x + ancho, y), (x + ancho, y + alto), 2)
 
+    botones = {}  # Botones [+] (clave -> Rect): claves de stat y "__arma__"
+
     # Cabecera
     titulo = fuente_titulo.render("FICHA PERSONAJE", True, (255, 215, 0))
     pantalla.blit(titulo, (x + 14, y + 15))
@@ -298,10 +300,21 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         else:
             color_nv = (255, 215, 120) if arma.nivel_maximo() else (160, 200, 255)
             txt_nv = fuente_mini.render(f"Nv {arma.nivel}/{arma.nivel_max}", True, color_nv)
-        pantalla.blit(txt_nv, (x + ancho - 20 - txt_nv.get_width(), arma_y + 8))
+        nv_x = x + ancho - 20 - txt_nv.get_width()
+        pantalla.blit(txt_nv, (nv_x, arma_y + 8))
+
+        # Botón [+] del arma (gasta un punto de mejora compartido; repara o sube de nivel)
+        if jugador.puntos_mejora > 0 and (arma.roto or arma.nivel < arma.nivel_max):
+            bsize = 16
+            rect_btn_arma = pygame.Rect(nv_x - bsize - 8, arma_y + 6, bsize, bsize)
+            pygame.draw.rect(pantalla, (34, 78, 44), rect_btn_arma, border_radius=4)
+            pygame.draw.rect(pantalla, (100, 230, 130), rect_btn_arma, width=1, border_radius=4)
+            signo_arma = fuente_val.render("+", True, (150, 255, 180))
+            pantalla.blit(signo_arma, signo_arma.get_rect(center=rect_btn_arma.center))
+            botones["__arma__"] = rect_btn_arma
 
         if arma.roto:
-            txt_est_arma = fuente_mini.render("ROTA — [K] para reparar", True, (255, 110, 100))
+            txt_est_arma = fuente_mini.render("ROTA — [+] para reparar", True, (255, 110, 100))
             txt_dano = fuente_mini.render("Daño inactivo", True, (120, 130, 150))
         elif arma.activa:
             pct_deb = int(round(arma.debuff_velocidad * 100))
@@ -342,7 +355,6 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         ("Defensa", f"{jugador.defensa}", (120, 255, 150), "defensa")
     ]
 
-    botones = {}
     puede_subir = jugador.puntos_mejora > 0
 
     for etiqueta, valor, color_val, clave in stats:
@@ -381,7 +393,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         offset_y += 26
 
     # Pie de página con indicadores
-    txt_lvl = fuente_mini.render("[L] nivel · [K] arma+ · [J] golpe (debug)", True, (150, 200, 255))
+    txt_lvl = fuente_mini.render("[L] subir nivel · [J] golpe (debug)", True, (150, 200, 255))
     pantalla.blit(txt_lvl, (x + 14, alto - 68))
 
     color_hb = (100, 255, 140) if mostrar_hitboxes else (120, 130, 150)
@@ -501,12 +513,7 @@ def iniciar_mundo(config):
                 elif evento.key == pygame.K_l:
                     jugador.subir_nivel()
 
-                # [K] (debug) Subir de nivel el arma equipada (repara durabilidad)
-                elif evento.key == pygame.K_k:
-                    if jugador.herramienta:
-                        jugador.herramienta.subir_nivel()
-
-                # [J] (debug) Simular un golpe del arma (desgasta 1 de durabilidad)
+                # [J] (debug) Simular un golpe del arma (desgasta 1) para probar la rotura
                 elif evento.key == pygame.K_j:
                     if jugador.herramienta:
                         jugador.herramienta.desgastar()
@@ -521,15 +528,24 @@ def iniciar_mundo(config):
                 if evento.button == 1:
                     mouse_x, mouse_y = evento.pos
 
-                    # ¿Clic en un botón [+] del panel de estadísticas?
-                    stat_click = None
-                    for nombre_stat, rect_btn in botones_stats.items():
+                    # ¿Clic en un botón [+] (stats, arma o habilidad)? Todos gastan puntos de mejora.
+                    click_btn = None
+                    for nombre_btn, rect_btn in botones_stats.items():
                         if rect_btn.collidepoint(mouse_x, mouse_y):
-                            stat_click = nombre_stat
+                            click_btn = nombre_btn
                             break
 
-                    if stat_click:
-                        jugador.subir_stat(stat_click)
+                    if click_btn:
+                        if click_btn == "__arma__":
+                            if jugador.puntos_mejora > 0 and jugador.herramienta and jugador.herramienta.subir_nivel():
+                                jugador.puntos_mejora -= 1
+                        elif click_btn.startswith("__hab__"):
+                            indice = int(click_btn.split("_")[-1])
+                            if jugador.puntos_mejora > 0 and 0 <= indice < len(jugador.habilidades):
+                                if jugador.habilidades[indice].subir_nivel():
+                                    jugador.puntos_mejora -= 1
+                        else:
+                            jugador.subir_stat(click_btn)
                     # Movimiento exclusivo dentro del área del mundo
                     elif mundo_x <= mouse_x <= (mundo_x + mundo_w):
                         # Convertir clic de pantalla a coordenadas del mundo según la cámara
@@ -675,8 +691,10 @@ def iniciar_mundo(config):
         # Panel Izquierdo: Ficha del Personaje y Estado del Arma
         botones_stats = dibujar_panel_estadisticas(pantalla, 0, 0, ancho_panel_izq, alto_pantalla, jugador, fuentes, mostrar_hitboxes)
 
-        # Panel Derecho: Habilidades y Manual
-        dibujar_panel_habilidades(pantalla, ancho_pantalla - ancho_panel_der, 0, ancho_panel_der, alto_pantalla, jugador.habilidades, jugador, fuentes)
+        # Panel Derecho: Habilidades y Manual (sus botones [+] se suman a los del panel izquierdo)
+        botones_hab = dibujar_panel_habilidades(pantalla, ancho_pantalla - ancho_panel_der, 0, ancho_panel_der, alto_pantalla, jugador.habilidades, jugador, fuentes)
+        if botones_hab:
+            botones_stats.update(botones_hab)
 
         pygame.display.flip()
 
