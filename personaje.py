@@ -38,6 +38,10 @@ class Personaje:
         # Terreno: True si el personaje está pisando un charco de agua (-50% vel)
         self.en_agua = False
         self.debuff_agua = 0.50
+        # Zona profunda de los lagos grandes (-80% vel y daño por segundo)
+        self.en_agua_profunda = False
+        self.debuff_agua_profunda = 0.80
+        self.tiempo_dano_lago = 0.0
 
         # Vegetación: arbusto en el que está metido (None si no está en ninguno)
         self.arbusto_actual = None
@@ -101,8 +105,10 @@ class Personaje:
         if self.herramienta and self.herramienta.activa:
             modificador -= self.herramienta.debuff_velocidad
 
-        # Charco de agua: -50% acumulable
-        if self.en_agua:
+        # Charco de agua: -50% (zona profunda de un lago grande: -80%)
+        if self.en_agua_profunda:
+            modificador -= self.debuff_agua_profunda
+        elif self.en_agua:
             modificador -= self.debuff_agua
 
         # Velocidad final con umbral mínimo seguro
@@ -213,11 +219,17 @@ class Personaje:
             cantidad, normal = min(empujes, key=lambda e: e[0])
             self.posicion += normal * cantidad
 
-    def actualizar_proyectiles(self, dt, limites_mundo):
-        """Actualiza la posición y ciclo de vida de los proyectiles."""
+    def actualizar_proyectiles(self, dt, limites_mundo, rocas=None):
+        """Actualiza la posición y ciclo de vida de los proyectiles. Las balas chocan con las rocas."""
         for p in self.proyectiles:
             p.actualizar(dt, limites_mundo)
-        # Filtrar proyectiles inactivos (que salieron del mundo)
+            # Las balas no atraviesan las rocas: se destruyen al impactar
+            if rocas and p.activo:
+                for roca in rocas:
+                    if p.hitbox.colliderect(roca.rect):
+                        p.activo = False
+                        break
+        # Filtrar proyectiles inactivos (que salieron del mundo o chocaron)
         self.proyectiles = [p for p in self.proyectiles if p.activo]
 
     def dibujar(self, pantalla, fuente_nombre, desplazamiento=(0, 0)):

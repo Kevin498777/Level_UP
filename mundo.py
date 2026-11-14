@@ -9,16 +9,17 @@ from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
 # -----------------------------
-RADIO_MUNDO = 3000          # Límite circular del mapa
+RADIO_MUNDO = 5000          # Límite circular del mapa
 MARGEN_MUNDO = 150          # Espacio extra alrededor del círculo (zona oscura fuera del mapa)
 TAMANO_MUNDO = (RADIO_MUNDO + MARGEN_MUNDO) * 2
 CENTRO_MUNDO = pygame.Vector2(RADIO_MUNDO + MARGEN_MUNDO, RADIO_MUNDO + MARGEN_MUNDO)
 
-MIN_ROCAS = 30
-MAX_ROCAS = 100
-CANTIDAD_CHARCOS = 3
-RADIO_CHARCO_MIN = 30
-RADIO_CHARCO_MAX = 200
+MIN_ROCAS = 100
+MAX_ROCAS = 250
+MIN_CHARCOS = 4
+MAX_CHARCOS = 6
+RADIO_CHARCO_MIN = 100
+RADIO_CHARCO_MAX = 500
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
 ZONA_SEGURA_SPAWN = 140     # Radio alrededor del centro sin obstáculos (para no aparecer atrapado)
 SUAVIZADO_CAMARA = 8.0      # Más alto = la cámara sigue más pegada al personaje
@@ -31,6 +32,13 @@ COLOR_BORDE_MAPA = (90, 105, 130)
 COLOR_BARRO = (128, 98, 66)
 COLOR_AGUA = (38, 104, 182)
 COLOR_AGUA_CLARA = (62, 136, 214)
+COLOR_AGUA_PROFUNDA = (16, 52, 104)   # Centro oscuro de los lagos grandes (zona de peligro)
+
+# Lagos grandes: si el radio supera este umbral, su centro es una zona peligrosa
+RADIO_LAGO_PELIGRO = 300
+DEBUFF_LAGO_PROFUNDO = 0.80           # -80% de movilidad en la zona central
+DANO_LAGO_PROFUNDO = 10               # Vida perdida por segundo en la zona central
+FACTOR_ZONA_PELIGRO = 0.35            # Tamaño de la zona central respecto al radio del lago
 
 
 # -----------------------------
@@ -69,19 +77,32 @@ class Charco:
             pygame.draw.circle(self.superficie, COLOR_AGUA_CLARA,
                                (round(c.x - r * 0.15), round(c.y - r * 0.15)), round(r * 0.6))
 
+        # Lago profundo: zona central oscura con efectos peligrosos (-80% vel y daño por segundo)
+        self.es_lago_profundo = radio > RADIO_LAGO_PELIGRO
+        self.radio_peligro = radio * FACTOR_ZONA_PELIGRO if self.es_lago_profundo else 0
+        if self.es_lago_profundo:
+            centro_local = self.centro - origen
+            pygame.draw.circle(self.superficie, COLOR_AGUA_PROFUNDA,
+                               (round(centro_local.x), round(centro_local.y)), round(self.radio_peligro))
+
     def contiene(self, punto):
         """True si el punto (centro del jugador) está sobre el agua."""
         return any((punto - c).length() <= r for c, r in self.circulos)
+
+    def en_zona_peligro(self, punto):
+        """True si el punto está en la zona central peligrosa de un lago grande."""
+        return self.es_lago_profundo and (punto - self.centro).length() <= self.radio_peligro
 
     def dibujar(self, pantalla, desplazamiento):
         pantalla.blit(self.superficie, (self.rect.x - desplazamiento[0], self.rect.y - desplazamiento[1]))
 
 
 def generar_charcos():
-    """Genera 3 charcos con radio aleatorio de 30 a 200 dentro del círculo, sin solaparse."""
+    """Genera de 4 a 6 charcos con radio aleatorio de 100 a 500 dentro del círculo, sin solaparse."""
     charcos = []
+    objetivo = random.randint(MIN_CHARCOS, MAX_CHARCOS)
     intentos = 0
-    while len(charcos) < CANTIDAD_CHARCOS and intentos < 1000:
+    while len(charcos) < objetivo and intentos < 1000:
         intentos += 1
         radio = random.randint(RADIO_CHARCO_MIN, RADIO_CHARCO_MAX)
         extension = radio + ANCHO_BARRO + 10
@@ -125,7 +146,7 @@ class Roca:
 
 def generar_rocas(zonas_ocupadas=()):
     """
-    Genera entre 30 y 100 rocas pequeñas y grandes dentro del círculo, sin solaparse
+    Genera entre 100 y 250 rocas (pequeñas, grandes y gigantes) dentro del círculo, sin solaparse
     ni caer sobre zonas ocupadas (charcos, arbustos: cualquier objeto con .rect).
     """
     charcos = zonas_ocupadas
@@ -133,11 +154,17 @@ def generar_rocas(zonas_ocupadas=()):
     rocas = []
     intentos = 0
 
-    while len(rocas) < cantidad and intentos < 2000:
+    while len(rocas) < cantidad and intentos < 8000:
         intentos += 1
 
-        # 60% pequeñas, 40% grandes
-        lado = random.randint(22, 45) if random.random() < 0.6 else random.randint(70, 130)
+        # 60% pequeñas (22-45), 35% grandes (70-130), 5% gigantes (150-300)
+        r = random.random()
+        if r < 0.60:
+            lado = random.randint(22, 45)
+        elif r < 0.95:
+            lado = random.randint(70, 130)
+        else:
+            lado = random.randint(150, 300)
         media_diagonal = lado * 0.75
 
         # Posición aleatoria uniforme dentro del círculo (dejando la roca completa dentro)
@@ -437,8 +464,8 @@ def iniciar_mundo(config):
         if jugador.herramienta:
             jugador.herramienta.actualizar(dt, jugador)
 
-        # Actualizar proyectiles disparados (Disparo Veloz)
-        jugador.actualizar_proyectiles(dt, limites_mundo)
+        # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
+        jugador.actualizar_proyectiles(dt, limites_mundo, rocas)
         # Los proyectiles desaparecen al salir del círculo del mapa
         jugador.proyectiles = [
             p for p in jugador.proyectiles
@@ -452,8 +479,18 @@ def iniciar_mundo(config):
         for hab in jugador.habilidades:
             hab.actualizar(dt, jugador)
 
-        # Terreno: ¿el jugador está pisando agua?
+        # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
         jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
+        jugador.en_agua_profunda = any(c.en_zona_peligro(jugador.posicion) for c in charcos)
+
+        # Zona profunda: 10 de daño por segundo
+        if jugador.en_agua_profunda:
+            jugador.tiempo_dano_lago += dt
+            while jugador.tiempo_dano_lago >= 1.0:
+                jugador.tiempo_dano_lago -= 1.0
+                jugador.vida = max(0, jugador.vida - DANO_LAGO_PROFUNDO)
+        else:
+            jugador.tiempo_dano_lago = 0.0
 
         # Calcular velocidad acumulando debuffs y buffs
         jugador.actualizar_velocidad()
@@ -534,10 +571,17 @@ def iniciar_mundo(config):
         # Coordenadas del jugador respecto al centro (para ver cuánto avanzas)
         rel = jugador.posicion - CENTRO_MUNDO
         dist_centro = rel.length()
-        txt_agua = "  |  EN AGUA: -50% Vel" if jugador.en_agua else ""
+        if jugador.en_agua_profunda:
+            txt_agua = "  |  LAGO PROFUNDO: -80% Vel, -10 Vida/s"
+        elif jugador.en_agua:
+            txt_agua = "  |  EN AGUA: -50% Vel"
+        else:
+            txt_agua = ""
         txt_oculto = "  |  OCULTO EN ARBUSTO" if jugador.oculto else ""
         if jugador.oculto:
             color_info = (140, 230, 140)
+        elif jugador.en_agua_profunda:
+            color_info = (90, 150, 230)
         elif jugador.en_agua:
             color_info = (120, 200, 255)
         else:

@@ -1,0 +1,24 @@
+# Bytecode y cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Archivos de IDE / editor
+.vscode/
+.idea/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivo de prueba de escritura (Acceso controlado a carpetas)
+_prueba_escritura.txt
+
+# Logs y temporales
+*.log
+*.tmp
