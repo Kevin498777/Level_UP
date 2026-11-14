@@ -275,27 +275,58 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     pantalla.blit(mov_surf, (x + 64, avatar_y + 29))
 
     # Tarjeta de Herramienta / Arma
+    arma = jugador.herramienta
     arma_y = avatar_y + 60
-    pygame.draw.rect(pantalla, (28, 33, 44), (x + 12, arma_y, ancho - 24, 60), border_radius=6)
-    color_borde_arma = (100, 255, 140) if (jugador.herramienta and jugador.herramienta.activa) else (50, 60, 80)
-    pygame.draw.rect(pantalla, color_borde_arma, (x + 12, arma_y, ancho - 24, 60), width=1, border_radius=6)
-
-    txt_arma_nom = fuente_sub.render("🗡 [1] Espada Ligera", True, (255, 255, 255))
-    pantalla.blit(txt_arma_nom, (x + 20, arma_y + 8))
-
-    if jugador.herramienta and jugador.herramienta.activa:
-        txt_est_arma = fuente_mini.render("DESENFUNDADA (-20% Vel)", True, (255, 130, 80))
-        dano_arma = jugador.herramienta.calcular_dano(jugador)
-        txt_dano = fuente_mini.render(f"Daño: {dano_arma:.1f} (Fuerza x2)", True, (255, 215, 0))
+    arma_h = 84
+    pygame.draw.rect(pantalla, (28, 33, 44), (x + 12, arma_y, ancho - 24, arma_h), border_radius=6)
+    if arma and arma.roto:
+        color_borde_arma = (210, 80, 70)
+    elif arma and arma.activa:
+        color_borde_arma = (100, 255, 140)
     else:
-        txt_est_arma = fuente_mini.render("GUARDADA (Pulsa [1])", True, (140, 150, 170))
-        txt_dano = fuente_mini.render("Daño inactivo", True, (120, 130, 150))
+        color_borde_arma = (50, 60, 80)
+    pygame.draw.rect(pantalla, color_borde_arma, (x + 12, arma_y, ancho - 24, arma_h), width=1, border_radius=6)
 
-    pantalla.blit(txt_est_arma, (x + 20, arma_y + 26))
-    pantalla.blit(txt_dano, (x + 20, arma_y + 42))
+    nombre_arma = arma.nombre if arma else "Sin arma"
+    txt_arma_nom = fuente_sub.render(f"🗡 [1] {nombre_arma}", True, (255, 255, 255))
+    pantalla.blit(txt_arma_nom, (x + 20, arma_y + 6))
+
+    if arma:
+        # Nivel (o ROTA) a la derecha del nombre
+        if arma.roto:
+            txt_nv = fuente_mini.render("ROTA", True, (255, 90, 80))
+        else:
+            color_nv = (255, 215, 120) if arma.nivel_maximo() else (160, 200, 255)
+            txt_nv = fuente_mini.render(f"Nv {arma.nivel}/{arma.nivel_max}", True, color_nv)
+        pantalla.blit(txt_nv, (x + ancho - 20 - txt_nv.get_width(), arma_y + 8))
+
+        if arma.roto:
+            txt_est_arma = fuente_mini.render("ROTA — [K] para reparar", True, (255, 110, 100))
+            txt_dano = fuente_mini.render("Daño inactivo", True, (120, 130, 150))
+        elif arma.activa:
+            pct_deb = int(round(arma.debuff_velocidad * 100))
+            txt_est_arma = fuente_mini.render(f"DESENFUNDADA (-{pct_deb}% Vel)", True, (255, 130, 80))
+            dano_arma = arma.calcular_dano(jugador)
+            txt_dano = fuente_mini.render(f"Daño: {dano_arma:.1f} (Fza x{arma.multiplicador_dano:.1f})", True, (255, 215, 0))
+        else:
+            txt_est_arma = fuente_mini.render("GUARDADA (Pulsa [1])", True, (140, 150, 170))
+            txt_dano = fuente_mini.render(f"Daño: Fuerza x{arma.multiplicador_dano:.1f}", True, (180, 160, 90))
+
+        pantalla.blit(txt_est_arma, (x + 20, arma_y + 25))
+        pantalla.blit(txt_dano, (x + 20, arma_y + 40))
+
+        # Barra de durabilidad
+        txt_dur = fuente_mini.render(f"Durabilidad: {arma.durabilidad}/{arma.durabilidad_max}", True, (150, 160, 180))
+        pantalla.blit(txt_dur, (x + 20, arma_y + 55))
+        bw = ancho - 40
+        prog_dur = max(0.0, min(1.0, arma.durabilidad / max(1, arma.durabilidad_max)))
+        col_dur = (100, 220, 120) if prog_dur > 0.5 else ((230, 200, 70) if prog_dur > 0.2 else (230, 90, 70))
+        pygame.draw.rect(pantalla, (40, 45, 55), (x + 20, arma_y + 71, bw, 6), border_radius=3)
+        if not arma.roto and prog_dur > 0:
+            pygame.draw.rect(pantalla, col_dur, (x + 20, arma_y + 71, int(bw * prog_dur), 6), border_radius=3)
 
     # Lista de Estadísticas
-    offset_y = arma_y + 72
+    offset_y = arma_y + 96
     pct_vel = int(round((jugador.velocidad / jugador.velocidad_base - 1.0) * 100))
     str_pct = f" ({pct_vel:+d}%)" if pct_vel != 0 else ""
 
@@ -350,7 +381,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         offset_y += 26
 
     # Pie de página con indicadores
-    txt_lvl = fuente_mini.render("[L] Subir nivel (debug)", True, (150, 200, 255))
+    txt_lvl = fuente_mini.render("[L] nivel · [K] arma+ · [J] golpe (debug)", True, (150, 200, 255))
     pantalla.blit(txt_lvl, (x + 14, alto - 68))
 
     color_hb = (100, 255, 140) if mostrar_hitboxes else (120, 130, 150)
@@ -469,6 +500,16 @@ def iniciar_mundo(config):
                 # [L] (debug) Subir de nivel: otorga 3 puntos de mejora
                 elif evento.key == pygame.K_l:
                     jugador.subir_nivel()
+
+                # [K] (debug) Subir de nivel el arma equipada (repara durabilidad)
+                elif evento.key == pygame.K_k:
+                    if jugador.herramienta:
+                        jugador.herramienta.subir_nivel()
+
+                # [J] (debug) Simular un golpe del arma (desgasta 1 de durabilidad)
+                elif evento.key == pygame.K_j:
+                    if jugador.herramienta:
+                        jugador.herramienta.desgastar()
 
                 # Teclas dinámicas [2], [3] y [4] para Habilidades
                 else:

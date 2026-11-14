@@ -3,7 +3,7 @@ from tkinter import ttk
 import random
 import pygame
 from habilidades import HABILIDADES_DISPONIBLES, crear_habilidad
-from herramientas import EspadaLigera
+from herramientas import HERRAMIENTAS_DISPONIBLES, crear_herramienta
 from mundo import iniciar_mundo
 
 # -----------------------------
@@ -196,9 +196,27 @@ def iniciar_aplicacion():
 
     tk.Label(
         frame_equipo,
-        text="🗡 [1] Espada Ligera (Herramienta principal): Sacar/Guardar con [1]. Daño = Fuerza x2 | -20% Vel",
+        text="🗡 [1] Herramienta principal (Sacar/Guardar con [1]). Máx nivel 5, con durabilidad:",
         font=("Segoe UI", 8, "italic"),
         fg="#ABB2BF",
+        bg="#282C34"
+    ).pack(anchor="w", pady=(0, 3))
+
+    herramienta_var = tk.StringVar(value="Espada Ligera")
+    combo_herramienta = ttk.Combobox(
+        frame_equipo,
+        textvariable=herramienta_var,
+        values=list(HERRAMIENTAS_DISPONIBLES.keys()),
+        state="readonly",
+        font=("Segoe UI", 9)
+    )
+    combo_herramienta.pack(anchor="w", fill="x", pady=(0, 4))
+
+    tk.Label(
+        frame_equipo,
+        text="Ligera: Fza x2.2, -17% vel  |  Larga: Fza x3.4, -34%  |  Mandoble: Fza x6.6, -70%",
+        font=("Segoe UI", 7),
+        fg="#6B7280",
         bg="#282C34"
     ).pack(anchor="w", pady=(0, 3))
 
@@ -397,7 +415,7 @@ def iniciar_aplicacion():
             "energia": stats_finales["energia"],
             "defensa": stats_finales["defensa"],
             "habilidades": habilidades_seleccionadas,
-            "herramienta": EspadaLigera()
+            "herramienta": crear_herramienta(herramienta_var.get())
         }
 
         # Destruir ventana de creación
