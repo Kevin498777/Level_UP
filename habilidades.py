@@ -317,12 +317,75 @@ class DisparoVeloz(HabilidadBase):
 
 
 # -----------------------------
-# DIBUJAR PANEL LATERAL DE HABILIDADES Y MANUAL
+# HELPERS DE INTERFAZ: ICONO DE AYUDA (?) Y TOOLTIP
 # -----------------------------
-def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador, fuentes):
+def dibujar_badge_ayuda(pantalla, cx, cy, fuente, activo=False):
+    """Dibuja un pequeño icono circular '?'. Devuelve su Rect (zona clicable)."""
+    r = 8
+    color_fondo = (60, 110, 70) if activo else (45, 52, 68)
+    color_borde = (120, 230, 150) if activo else (95, 105, 125)
+    pygame.draw.circle(pantalla, color_fondo, (cx, cy), r)
+    pygame.draw.circle(pantalla, color_borde, (cx, cy), r, 1)
+    q = fuente.render("?", True, (210, 220, 235))
+    pantalla.blit(q, q.get_rect(center=(cx, cy)))
+    return pygame.Rect(cx - r, cy - r, r * 2, r * 2)
+
+
+def _envolver_texto(texto, fuente, ancho_max):
+    """Parte un texto en varias líneas que caben en ancho_max píxeles."""
+    palabras = texto.split(" ")
+    lineas = []
+    actual = ""
+    for p in palabras:
+        prueba = p if not actual else actual + " " + p
+        if fuente.size(prueba)[0] <= ancho_max:
+            actual = prueba
+        else:
+            if actual:
+                lineas.append(actual)
+            actual = p
+    if actual:
+        lineas.append(actual)
+    return lineas
+
+
+def dibujar_tooltip(pantalla, x, y, titulo, lineas, fuente_titulo, fuente_texto, ancho=250):
+    """Dibuja una caja de información con texto envuelto, ajustada para no salir de la pantalla."""
+    margen = 10
+    ancho_texto = ancho - 2 * margen
+    render = []
+    for ln in lineas:
+        if ln == "":
+            render.append("")
+            continue
+        render.extend(_envolver_texto(ln, fuente_texto, ancho_texto))
+    alto = margen + 22 + len(render) * 15 + margen
+
+    sx, sy = pantalla.get_width(), pantalla.get_height()
+    x = max(4, min(x, sx - ancho - 4))
+    y = max(4, min(y, sy - alto - 4))
+
+    caja = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+    pygame.draw.rect(caja, (24, 28, 38, 245), caja.get_rect(), border_radius=8)
+    pygame.draw.rect(caja, (90, 110, 140), caja.get_rect(), width=1, border_radius=8)
+    pantalla.blit(caja, (x, y))
+
+    t = fuente_titulo.render(titulo, True, (255, 215, 0))
+    pantalla.blit(t, (x + margen, y + margen))
+    yy = y + margen + 22
+    for sub in render:
+        if sub:
+            pantalla.blit(fuente_texto.render(sub, True, (200, 210, 225)), (x + margen, yy))
+        yy += 15
+
+
+# -----------------------------
+# DIBUJAR PANEL LATERAL DE HABILIDADES
+# -----------------------------
+def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador, fuentes, info_abierta=None):
     """
-    Renderiza la interfaz lateral derecha para las habilidades equipadas (teclas 2, 3, 4),
-    sus temporizadores dinámicos y el manual explicativo integrado.
+    Renderiza la interfaz lateral derecha para las habilidades equipadas (teclas 2, 3, 4)
+    y sus temporizadores. El manual se consulta con el icono '?' de la cabecera.
     """
     fuente_titulo = fuentes["titulo"]
     fuente_sub = fuentes["sub"]
@@ -342,10 +405,13 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
     sub = fuente_sub.render(f"Equipadas ({len(habilidades)}/3)", True, (130, 140, 160))
     pantalla.blit(sub, (x + 15, y + 33))
 
-    pygame.draw.line(pantalla, (45, 52, 68), (x + 15, y + 54), (x + ancho - 15, y + 54), 1)
-
     cur_y = y + 60
-    botones = {}  # Botones [+] de subida de nivel (clave "__hab__<idx>" -> Rect)
+    botones = {}  # Botones (clave -> Rect): "__hab__<idx>" y "__info_hab__"
+
+    # Icono de ayuda (?) en la cabecera -> abre el manual como tooltip
+    botones["__info_hab__"] = dibujar_badge_ayuda(pantalla, x + ancho - 24, y + 20, fuente_sub, info_abierta == "hab")
+
+    pygame.draw.line(pantalla, (45, 52, 68), (x + 15, y + 54), (x + ancho - 15, y + 54), 1)
 
     # Altura ajustada dinámicamente si hay 3 habilidades
     tarjeta_h = 105 if len(habilidades) >= 3 else 125
@@ -453,37 +519,17 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
 
         cur_y += tarjeta_h + 8
 
-    # -----------------------------
-    # MANUAL DE REGLAS DE HABILIDADES
-    # -----------------------------
-    manual_y = cur_y + 2
-    pygame.draw.line(pantalla, (45, 52, 68), (x + 15, manual_y), (x + ancho - 15, manual_y), 1)
-
-    txt_man_tit = fuente_sub.render("📖 MANUAL DE REGLAS", True, (255, 215, 0))
-    pantalla.blit(txt_man_tit, (x + 15, manual_y + 6))
-
-    lineas_manual = [
-        ("• Regeneración de Energía:", (220, 225, 235)),
-        ("  - Parado: +1 c/3.0s | Móvil: +1 c/6.0s", (100, 255, 140)),
-        ("", None),
-        ("• Combo Simultáneo:", (220, 225, 235)),
-        ("  +5% energía actual al lanzar", (180, 190, 205)),
-        ("  habilidad con otra ya activa.", (255, 120, 80)),
-        ("", None),
-        ("• Mejora con [+] verde:", (255, 215, 0)),
-        ("  gasta puntos de nivel del", (180, 190, 205)),
-        ("  personaje (compartidos).", (180, 190, 205)),
-        ("• Hitbox: [H] Activar/Desactivar visor", (120, 220, 255))
-    ]
-
-    my = manual_y + 26
-    for linea, color in lineas_manual:
-        if color is None:
-            my += 3
-            continue
-        surf = fuente_mini.render(linea, True, color)
-        pantalla.blit(surf, (x + 15, my))
-        my += 15
+    # Manual de reglas: se muestra como tooltip al pulsar el icono '?' de la cabecera
+    if info_abierta == "hab":
+        lineas_manual = [
+            "Regeneración de energía: +1 cada 3s parado, cada 6s en movimiento.",
+            "Combo: +5% de la energía actual al lanzar una habilidad con otra ya activa.",
+            "",
+            "Mejora con el [+] verde: gasta puntos de nivel (compartidos con stats y arma).",
+            "Hitboxes: tecla [H] activa o desactiva el visor.",
+        ]
+        dibujar_tooltip(pantalla, x - 258, y + 30, "Reglas de habilidades",
+                        lineas_manual, fuente_sub, fuente_mini)
 
     return botones
 

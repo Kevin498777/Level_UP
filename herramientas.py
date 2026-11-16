@@ -22,7 +22,7 @@ class HerramientaBase:
                  mult_dano_base, mult_dano_por_nivel,
                  debuff_base, debuff_reduccion_por_nivel,
                  durabilidad_base, durabilidad_por_nivel,
-                 inclinacion, factor_largo, nivel_max=5):
+                 inclinacion, factor_largo, factor_ancho=1.0, nivel_max=5):
         self.nombre = nombre
         self.tecla = tecla
         self.tecla_str = tecla_str
@@ -47,6 +47,7 @@ class HerramientaBase:
         # Geometría y colores de la hoja
         self.inclinacion = inclinacion          # Grados de apertura de la punta
         self.factor_largo = factor_largo        # 1.0 = largo base de la Espada Ligera
+        self.factor_ancho = factor_ancho        # 1.0 = grosor base de la hoja (solo estético)
         self.color_hoja = (175, 182, 195)       # Gris acero
         self.color_empunadura = (95, 102, 115)  # Gris oscuro
         self.color_filo = (225, 230, 242)       # Brillo metálico
@@ -213,13 +214,21 @@ class HerramientaBase:
         punta_x -= desplazamiento[0]
         punta_y -= desplazamiento[1]
 
+        # Grosores escalados por el factor de ancho (solo estético)
+        fa = self.factor_ancho
+        w_borde = max(1, round(4 * fa))
+        w_hoja = max(1, round(3 * fa))
+        w_filo = max(1, round(1 * fa))
+        w_guarda = max(1, round(2 * fa))
+        ancho_guarda = 3.5 * fa
+
         # 1. Borde de la hoja
         pygame.draw.line(
             pantalla,
             (18, 22, 28),
             (round(pomo_x + derecha_x), round(pomo_y + derecha_y)),
             (round(punta_x + derecha_x), round(punta_y + derecha_y)),
-            4
+            w_borde
         )
 
         # 2. Hoja principal
@@ -228,7 +237,7 @@ class HerramientaBase:
             color_hoja,
             (round(pomo_x), round(pomo_y)),
             (round(punta_x), round(punta_y)),
-            3
+            w_hoja
         )
 
         # 3. Filo con brillo metálico fino
@@ -239,13 +248,12 @@ class HerramientaBase:
             color_filo,
             (round(filo_inicio_x), round(filo_inicio_y)),
             (round(punta_x), round(punta_y)),
-            1
+            w_filo
         )
 
         # 4. Empuñadura / Guarda
         guarda_centro_x = pomo_x + (frente_x * (largo_hoja * 0.25))
         guarda_centro_y = pomo_y + (frente_y * (largo_hoja * 0.25))
-        ancho_guarda = 3.5
 
         g_izq_x = guarda_centro_x - (derecha_x * ancho_guarda)
         g_izq_y = guarda_centro_y - (derecha_y * ancho_guarda)
@@ -257,7 +265,7 @@ class HerramientaBase:
             color_empunadura,
             (round(g_izq_x), round(g_izq_y)),
             (round(g_der_x), round(g_der_y)),
-            2
+            w_guarda
         )
 
 
@@ -274,7 +282,8 @@ class EspadaLigera(HerramientaBase):
             debuff_base=0.20, debuff_reduccion_por_nivel=0.03,  # -17% a -5% de velocidad
             durabilidad_base=200, durabilidad_por_nivel=20,     # 220 a 300 de durabilidad
             inclinacion=15.0,
-            factor_largo=1.0,
+            factor_largo=1.2,    # 20% más grande
+            factor_ancho=1.0,
         )
 
 
@@ -291,7 +300,8 @@ class EspadaLarga(HerramientaBase):
             debuff_base=0.40, debuff_reduccion_por_nivel=0.06,  # -34% a -10% de velocidad
             durabilidad_base=180, durabilidad_por_nivel=10,     # 190 a 230 de durabilidad
             inclinacion=20.0,
-            factor_largo=1.5,   # 50% más larga que la Ligera
+            factor_largo=1.8,   # 50% base + 20% extra
+            factor_ancho=1.10,  # 10% más ancha
         )
 
 
@@ -308,7 +318,8 @@ class Mandoble(HerramientaBase):
             debuff_base=0.80, debuff_reduccion_por_nivel=0.10,  # -70% a -30% de velocidad
             durabilidad_base=140, durabilidad_por_nivel=8,      # 148 a 180 de durabilidad
             inclinacion=20.0,
-            factor_largo=2.2,   # 120% más larga que la Ligera
+            factor_largo=2.64,  # 120% base + 20% extra
+            factor_ancho=1.30,  # 30% más ancha
         )
 
 

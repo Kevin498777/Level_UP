@@ -2,7 +2,7 @@ import math
 import random
 import pygame
 from personaje import Personaje
-from habilidades import dibujar_panel_habilidades
+from habilidades import dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip
 from herramientas import EspadaLigera
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 
@@ -236,7 +236,7 @@ def dibujar_suelo(pantalla, vista, desplazamiento):
 # -----------------------------
 # DIBUJAR PANEL LATERAL IZQUIERDO (ESTADÍSTICAS Y HERRAMIENTA)
 # -----------------------------
-def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mostrar_hitboxes):
+def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mostrar_hitboxes, info_abierta=None):
     fuente_titulo = fuentes["titulo"]
     fuente_sub = fuentes["sub"]
     fuente_mini = fuentes["mini"]
@@ -248,11 +248,14 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 
     pygame.draw.line(pantalla, (45, 52, 68), (x + ancho, y), (x + ancho, y + alto), 2)
 
-    botones = {}  # Botones [+] (clave -> Rect): claves de stat y "__arma__"
+    botones = {}  # Botones (clave -> Rect): claves de stat, "__arma__" y "__info_stats__"
 
     # Cabecera
     titulo = fuente_titulo.render("FICHA PERSONAJE", True, (255, 215, 0))
     pantalla.blit(titulo, (x + 14, y + 15))
+
+    # Icono de ayuda (?) -> explica las estadísticas como tooltip
+    botones["__info_stats__"] = dibujar_badge_ayuda(pantalla, x + ancho - 20, y + 42, fuente_sub, info_abierta == "stats")
 
     color_pts = (120, 255, 150) if jugador.puntos_mejora > 0 else (130, 140, 160)
     sub = fuente_sub.render(f"Nivel {jugador.nivel}  ·  Puntos: {jugador.puntos_mejora}", True, color_pts)
@@ -304,7 +307,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         pantalla.blit(txt_nv, (nv_x, arma_y + 8))
 
         # Botón [+] del arma (gasta un punto de mejora compartido; repara o sube de nivel)
-        if jugador.puntos_mejora > 0 and (arma.roto or arma.nivel < arma.nivel_max):
+        if jugador.puntos_mejora >= 2 and (arma.roto or arma.nivel < arma.nivel_max):
             bsize = 16
             rect_btn_arma = pygame.Rect(nv_x - bsize - 8, arma_y + 6, bsize, bsize)
             pygame.draw.rect(pantalla, (34, 78, 44), rect_btn_arma, border_radius=4)
@@ -384,11 +387,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             prog_en = max(0.0, min(1.0, jugador.energia / max(1, jugador.energia_max)))
             pygame.draw.rect(pantalla, (40, 35, 55), (x + 14, offset_y + 19, bw, bh), border_radius=3)
             pygame.draw.rect(pantalla, (180, 130, 255), (x + 14, offset_y + 19, int(bw * prog_en), bh), border_radius=3)
-
-            t_reg = "+1 c/6s" if jugador.esta_en_movimiento() else "+1 c/3s"
-            txt_t_reg = fuente_mini.render(f"Regen: {t_reg}", True, (130, 140, 160))
-            pantalla.blit(txt_t_reg, (x + 14, offset_y + 26))
-            offset_y += 16
+            offset_y += 10
 
         offset_y += 26
 
@@ -402,6 +401,21 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 
     txt_salir = fuente_mini.render("[ESC] Salir del juego", True, (110, 120, 140))
     pantalla.blit(txt_salir, (x + 14, alto - 28))
+
+    # Tooltip de estadísticas (al pulsar el icono '?' de la cabecera)
+    if info_abierta == "stats":
+        lineas_info = [
+            "Vida: puntos de vida (se cura con orbes de frutales).",
+            "Fuerza: base del daño del arma.",
+            "Velocidad: desplazamiento; cambia con agua, arma y Destello.",
+            "Energía: coste de habilidades. Regenera +1 cada 3s parado, cada 6s en movimiento.",
+            "Defensa: reduce el daño recibido.",
+            "",
+            "Mejora con [+]: cuesta 1 punto (el arma cuesta 2).",
+            "[L] sube de nivel y otorga 3 puntos.",
+        ]
+        dibujar_tooltip(pantalla, x + ancho + 6, y + 40, "Estadísticas",
+                        lineas_info, fuente_sub, fuente_mini)
 
     return botones
 
@@ -475,7 +489,8 @@ def iniciar_mundo(config):
     reloj = pygame.time.Clock()
     ejecutando = True
     mostrar_hitboxes = False  # Alternable con la tecla [H]
-    botones_stats = {}        # Botones [+] del panel (clave_stat -> Rect), se actualizan cada frame
+    botones_stats = {}        # Botones del panel (clave -> Rect), se actualizan cada frame
+    info_abierta = None       # Tooltip de ayuda abierto: None, "stats" o "hab"
 
     # Cámara: punto del mundo que queda en el centro del área visible
     camara = pygame.Vector2(jugador.posicion)
@@ -535,19 +550,27 @@ def iniciar_mundo(config):
                             click_btn = nombre_btn
                             break
 
-                    if click_btn:
-                        if click_btn == "__arma__":
-                            if jugador.puntos_mejora > 0 and jugador.herramienta and jugador.herramienta.subir_nivel():
+                    if click_btn == "__info_stats__":
+                        info_abierta = None if info_abierta == "stats" else "stats"
+                    elif click_btn == "__info_hab__":
+                        info_abierta = None if info_abierta == "hab" else "hab"
+                    elif click_btn == "__arma__":
+                        info_abierta = None
+                        # El arma cuesta 2 puntos por mejora de nivel
+                        if jugador.puntos_mejora >= 2 and jugador.herramienta and jugador.herramienta.subir_nivel():
+                            jugador.puntos_mejora -= 2
+                    elif click_btn and click_btn.startswith("__hab__"):
+                        info_abierta = None
+                        indice = int(click_btn.split("_")[-1])
+                        if jugador.puntos_mejora > 0 and 0 <= indice < len(jugador.habilidades):
+                            if jugador.habilidades[indice].subir_nivel():
                                 jugador.puntos_mejora -= 1
-                        elif click_btn.startswith("__hab__"):
-                            indice = int(click_btn.split("_")[-1])
-                            if jugador.puntos_mejora > 0 and 0 <= indice < len(jugador.habilidades):
-                                if jugador.habilidades[indice].subir_nivel():
-                                    jugador.puntos_mejora -= 1
-                        else:
-                            jugador.subir_stat(click_btn)
-                    # Movimiento exclusivo dentro del área del mundo
+                    elif click_btn:
+                        info_abierta = None
+                        jugador.subir_stat(click_btn)
+                    # Clic fuera de cualquier botón: cerrar tooltip y, si cae en el mundo, mover
                     elif mundo_x <= mouse_x <= (mundo_x + mundo_w):
+                        info_abierta = None
                         # Convertir clic de pantalla a coordenadas del mundo según la cámara
                         vista = vista_camara()
                         jugador.destino = pygame.Vector2(
@@ -689,10 +712,10 @@ def iniciar_mundo(config):
 
         # 2. Dibujar Interfaces Laterales (Fuera del mundo)
         # Panel Izquierdo: Ficha del Personaje y Estado del Arma
-        botones_stats = dibujar_panel_estadisticas(pantalla, 0, 0, ancho_panel_izq, alto_pantalla, jugador, fuentes, mostrar_hitboxes)
+        botones_stats = dibujar_panel_estadisticas(pantalla, 0, 0, ancho_panel_izq, alto_pantalla, jugador, fuentes, mostrar_hitboxes, info_abierta)
 
         # Panel Derecho: Habilidades y Manual (sus botones [+] se suman a los del panel izquierdo)
-        botones_hab = dibujar_panel_habilidades(pantalla, ancho_pantalla - ancho_panel_der, 0, ancho_panel_der, alto_pantalla, jugador.habilidades, jugador, fuentes)
+        botones_hab = dibujar_panel_habilidades(pantalla, ancho_pantalla - ancho_panel_der, 0, ancho_panel_der, alto_pantalla, jugador.habilidades, jugador, fuentes, info_abierta)
         if botones_hab:
             botones_stats.update(botones_hab)
 
