@@ -767,8 +767,12 @@ class CargaDeFuego(HabilidadBase):
     Esfera de fuego con dos modos: pulsar = disparo rápido; mantener = cargar (máx 5s)
     para más daño y mayor tamaño, soltando al liberar la tecla. Al golpear, aplica
     quemadura (1 de daño por segundo durante 5 segundos).
+
+    La energía se cobra en tiempo real: al pulsar se paga el coste base y, cada segundo
+    completo de carga, la diferencia hasta el coste de ese nivel de carga. Si no hay
+    energía para el siguiente segundo, la carga se detiene en el nivel ya pagado.
     """
-    # Bono de daño, coste de energía y radio visual por segundo completo de carga (0 = sin carga)
+    # Bono de daño, coste de energía acumulado y radio visual por segundo completo de carga (0 = sin carga)
     BONO_CARGA = {0: 0.0, 1: 0.05, 2: 0.07, 3: 0.10, 4: 0.15, 5: 0.25}
     COSTO_CARGA = {0: 15, 1: 20, 2: 25, 3: 30, 4: 35, 5: 45}
     RADIO_CARGA = {0: 6, 1: 8, 2: 11, 3: 14, 4: 17, 5: 22}
@@ -788,6 +792,8 @@ class CargaDeFuego(HabilidadBase):
         self.cargable = True
         self.cargando = False
         self.tiempo_carga = 0.0
+        self.tier_pagado = 0            # Nivel de carga cuya energía ya se cobró
+        self.carga_detenida = False     # True si se quedó sin energía para seguir cargando
         self.pos_carga = pygame.Vector2(0, 0)
 
     def _aplicar_nivel(self):
@@ -799,32 +805,43 @@ class CargaDeFuego(HabilidadBase):
         return max(0, min(5, int(tiempo)))
 
     def obtener_costo_base(self, jugador):
-        return self.COSTO_CARGA[0]  # el coste real se cobra al soltar, según la carga
+        return self.COSTO_CARGA[0]  # coste al pulsar; cada segundo de carga cobra su parte
 
     def iniciar_carga(self, jugador):
-        """Al pulsar: comienza a cargar (si está lista y hay energía mínima)."""
+        """Al pulsar: cobra el coste base y comienza a cargar (si está lista y hay energía)."""
         if self.cargando or self.estado != "LISTA":
             return
         if jugador.energia < self.COSTO_CARGA[0]:
             self.mensaje_alerta = "Sin energía"
             self.tiempo_alerta = 1.5
             return
+        jugador.energia -= self.COSTO_CARGA[0]
         self.cargando = True
         self.tiempo_carga = 0.0
+        self.tier_pagado = 0
+        self.carga_detenida = False
+
+    def _cobrar_carga(self, jugador):
+        """Cobra cada segundo completo de carga; si no alcanza la energía, detiene la carga."""
+        while self.tier_pagado < self._tier(self.tiempo_carga):
+            siguiente = self.tier_pagado + 1
+            costo_extra = self.COSTO_CARGA[siguiente] - self.COSTO_CARGA[self.tier_pagado]
+            if jugador.energia < costo_extra:
+                self.carga_detenida = True
+                self.tiempo_carga = float(self.tier_pagado)
+                self.mensaje_alerta = f"Sin energía para cargar (Req. {costo_extra})"
+                self.tiempo_alerta = 2.0
+                return
+            jugador.energia -= costo_extra
+            self.tier_pagado = siguiente
 
     def soltar_carga(self, jugador):
-        """Al soltar: dispara la esfera con el daño/tamaño de la carga acumulada."""
+        """Al soltar: dispara la esfera con el daño/tamaño de la carga ya pagada."""
         if not self.cargando:
             return
         self.cargando = False
-        tier = self._tier(self.tiempo_carga)
-        # Bajar al nivel de carga que la energía permita pagar
-        while tier > 0 and self.COSTO_CARGA[tier] > jugador.energia:
-            tier -= 1
-        costo = self.COSTO_CARGA[tier]
-        if jugador.energia < costo:
-            return
-        jugador.energia = max(0, jugador.energia - costo)
+        self.carga_detenida = False
+        tier = self.tier_pagado
 
         dano = round(self.dano_base * (1.0 + self.BONO_CARGA[tier]), 1)
         radio = self.RADIO_CARGA[tier]
@@ -839,7 +856,9 @@ class CargaDeFuego(HabilidadBase):
     def actualizar(self, dt, jugador):
         super().actualizar(dt, jugador)
         if self.cargando:
-            self.tiempo_carga = min(self.TIEMPO_MAX_CARGA, self.tiempo_carga + dt)
+            if not self.carga_detenida:
+                self.tiempo_carga = min(self.TIEMPO_MAX_CARGA, self.tiempo_carga + dt)
+                self._cobrar_carga(jugador)
             rad = math.radians(jugador.angulo)
             dx, dy = math.sin(rad), -math.cos(rad)
             radio = self.RADIO_CARGA[self._tier(self.tiempo_carga)]
@@ -872,6 +891,8 @@ class AuraElectrica(HabilidadBase):
       (lo amortigua el escudo magico del propio personaje).
     """
     RADIO_AURA = 100  # Radio del aura en pixeles (alcance del dano por segundo)
+    COSTO_BASE = 20       # Coste de energia en nivel 1
+    COSTO_POR_NIVEL = 2   # Coste extra por cada nivel (siempre entero)
 
     def __init__(self):
         super().__init__(
@@ -888,7 +909,7 @@ class AuraElectrica(HabilidadBase):
     def _aplicar_nivel(self):
         """
         Escalado (nivel 1 a 20):
-        - coste: 20 En., +1.5 por nivel
+        - coste: 20 En., +2 por nivel (entero: 20 -> 58 en nivel 20)
         - duracion: 10s, +2.5s cada 5 niveles (tope 20s en nivel 20)
         - cooldown: 40s, +5s cada 5 niveles (tope 60s en nivel 20)
         - buff de velocidad: +5%, +2.5% cada 5 niveles (tope +15% en nivel 20)
@@ -896,7 +917,7 @@ class AuraElectrica(HabilidadBase):
         - autodano magico al portador: 0.5 por segundo (fijo)
         """
         n = self.nivel
-        self.costo_energia = round(20.0 + 1.5 * (n - 1), 1)
+        self.costo_energia = self.COSTO_BASE + self.COSTO_POR_NIVEL * (n - 1)
         self.duracion_activa = min(20.0, 10.0 + 2.5 * (n // 5))
         self.duracion_cooldown = min(60.0, 40.0 + 5.0 * (n // 5))
         self.porcentaje_buff = min(0.15, round(0.05 + 0.025 * (n // 5), 3))
