@@ -100,28 +100,30 @@ def iniciar_aplicacion():
 
     ventana = tk.Tk()
     ventana.title("Creador de Personaje - Level")
-    ventana.resizable(False, False)
     ventana.configure(bg="#1E2229")
 
-    ancho, alto = 720, 880
-    x = (ventana.winfo_screenwidth() - ancho) // 2
-    y = max(0, (ventana.winfo_screenheight() - alto) // 2)
-    ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
+    # Pantalla completa, como el juego. [ESC] sale de pantalla completa por si se necesita.
+    ventana.attributes("-fullscreen", True)
+    ventana.bind("<Escape>", lambda e: ventana.attributes("-fullscreen", False))
+
+    # Contenedor central: mantiene el bloque de creación centrado en la pantalla.
+    contenedor = tk.Frame(ventana, bg="#1E2229")
+    contenedor.place(relx=0.5, rely=0.5, anchor="center")
 
     # Título Principal
     tk.Label(
-        ventana, text="CREACIÓN DE PERSONAJE",
+        contenedor, text="CREACIÓN DE PERSONAJE",
         font=("Segoe UI", 18, "bold"), fg="#FFFFFF", bg="#1E2229"
     ).pack(pady=(12, 2))
     tk.Label(
-        ventana, text="Elige nombre, color, herramienta y habilidades.",
+        contenedor, text="Elige nombre, color, herramienta y habilidades.",
         font=("Segoe UI", 9), fg="#9DA5B4", bg="#1E2229"
     ).pack(pady=(0, 8))
 
     # -----------------------------
     # NOMBRE Y COLOR
     # -----------------------------
-    frame_top = tk.Frame(ventana, bg="#1E2229")
+    frame_top = tk.Frame(contenedor, bg="#1E2229")
     frame_top.pack(padx=30, fill="x")
 
     frame_nombre = tk.Frame(frame_top, bg="#1E2229")
@@ -225,7 +227,7 @@ def iniciar_aplicacion():
     # BLOQUE: EQUIPO Y HABILIDADES
     # -----------------------------
     frame_equipo = tk.LabelFrame(
-        ventana, text="  Equipo y Habilidades  ",
+        contenedor, text="  Equipo y Habilidades  ",
         font=("Segoe UI", 11, "bold"), fg="#61AFEF", bg="#282C34",
         padx=14, pady=10, relief="groove", bd=1
     )
@@ -262,7 +264,7 @@ def iniciar_aplicacion():
     # ESTADÍSTICAS INICIALES
     # -----------------------------
     frame_stats = tk.LabelFrame(
-        ventana, text="  Estadísticas Iniciales (Fijas · Nivel 1)  ",
+        contenedor, text="  Estadísticas Iniciales (Fijas · Nivel 1)  ",
         font=("Segoe UI", 10, "bold"), fg="#ABB2BF", bg="#282C34",
         padx=14, pady=8, relief="groove", bd=1
     )
@@ -322,7 +324,7 @@ def iniciar_aplicacion():
         ventana.destroy()
         iniciar_mundo(config_mundo)
 
-    tk.Button(ventana, text="▶ Comenzar mundo (Pantalla Completa)",
+    tk.Button(contenedor, text="▶ Comenzar mundo (Pantalla Completa)",
               font=("Segoe UI", 13, "bold"), bg="#98C379", fg="#1E2229",
               activebackground="#7FA961", activeforeground="#1E2229", relief="flat",
               cursor="hand2", command=al_comenzar_mundo).pack(fill="x", padx=30, pady=(8, 14), ipady=6)

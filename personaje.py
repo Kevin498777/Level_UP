@@ -127,8 +127,8 @@ class Personaje:
         elif nombre == "velocidad":
             self.velocidad_base = round(self.velocidad_base + 0.1, 2)
         elif nombre == "energia":
-            self.energia_max += 2
-            self.energia = min(self.energia_max, self.energia + 2)
+            self.energia_max += 5
+            self.energia = min(self.energia_max, self.energia + 5)
         elif nombre == "escudo":
             incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_max < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
             self.escudo_max += incremento

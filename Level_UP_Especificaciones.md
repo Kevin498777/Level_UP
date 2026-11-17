@@ -75,19 +75,37 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 | Estadística | Valor inicial | Mejora por punto |
 |---|---|---|
 | Vida | 20 | +2 |
-| Fuerza | 2 | +0.2 |
+| Fuerza (Daño) | 2 | +0.2 |
 | Velocidad | 1 | +0.1 |
-| Defensa | 10 | +1 |
-| Energía | 100 | +2 |
+| Escudo (físico) | 0 | +5 hasta 15, luego +2 |
+| Escudo mágico | 0 | +5 hasta 15, luego +2 |
+| Energía | 100 | +5 |
 | Tamaño | 1 | — (estético) |
 
 ### 6.2 Significado de cada estadística
 
 - **Vida:** puntos de vida; se recupera con los orbes de los frutales.
-- **Fuerza:** base del daño del arma.
+- **Fuerza (Daño):** base del golpe del arma; en el panel de mejora se muestra como **Daño**. Sube con la habilidad Burst de Fuerza.
 - **Velocidad:** desplazamiento; cambia con el agua, el arma desenfundada y la habilidad Destello.
-- **Defensa:** reduce el daño recibido.
+- **Escudo (físico):** reserva que absorbe el **daño físico** (armas y conejos). Se gasta al recibir golpes y se regenera.
+- **Escudo mágico:** reserva que absorbe el **daño mágico** (habilidades que consumen energía). Se gasta y regenera igual que el físico.
 - **Energía:** coste de las habilidades. Regenera **+1 cada 3 s** quieto y **+1 cada 6 s** en movimiento.
+
+### 6.3 Tipos de daño y escudos
+
+El daño se divide en dos tipos:
+
+- **Físico:** el de las herramientas (espadas, dagas, mandoble) y los conejos.
+- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
+
+Cada tipo lo amortigua su propio escudo del personaje:
+
+| Escudo | Bloqueo del daño total | Reparto (escudo / vida) |
+|---|---|---|
+| Físico | 20 % | 70 % / 30 % |
+| Mágico | 10 % | 90 % / 10 % |
+
+El escudo absorbe su parte hasta agotarse; si esa parte supera el escudo disponible, el sobrante pasa también a la vida. Ambos escudos empiezan en **0**, se mejoran **+5 por punto hasta un máximo de 15** y luego **+2 por punto**, y **se regeneran +1 por segundo tras 10 s sin recibir ese tipo de daño** (cada uno con su propio contador). El daño de terreno (lago profundo, hierba venenosa) ignora los escudos y se aplica directo a la vida.
 
 ---
 
@@ -177,8 +195,8 @@ Como aún no hay enemigos, estas reglas están implementadas pero todavía no se
 
 ## 11. Interfaz
 
-- **Pantalla de creación:** nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro.
-- **Panel izquierdo (en juego):** nivel y puntos, tarjeta del arma (nombre, nivel, daño, debuff/buff y barra de durabilidad) y la lista de estadísticas con su botón **[+]**.
+- **Pantalla de creación (a pantalla completa):** nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro.
+- **Panel izquierdo (en juego):** nivel y puntos, tarjeta del arma (nombre, nivel, daño, debuff/buff y barra de durabilidad) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), Energía, **Escudo** y **Escudo M.** (actual / máximo).
 - **Panel derecho (en juego):** una tarjeta por habilidad con tecla, nivel, coste, estado, recarga y botón **[+]**.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
 - **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo u oculto en un arbusto.

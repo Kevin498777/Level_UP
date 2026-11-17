@@ -362,10 +362,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     stats = [
         ("Tamaño (Nivel)", f"{jugador.tamano}", (200, 220, 255), None),
         ("Vida", f"{jugador.vida} / {jugador.vida_max}", (255, 95, 95), "vida"),
-        ("Fuerza Base", f"{jugador.fuerza_base:.1f}", (200, 190, 180), "fuerza"),
-        ("Fuerza Actual", f"{jugador.fuerza:.2f}", (255, 120, 60) if jugador.fuerza > jugador.fuerza_base else (220, 220, 220), None),
-        ("Velocidad Base", f"{jugador.velocidad_base:.1f}", (170, 190, 210), "velocidad"),
-        ("Velocidad Actual", f"{jugador.velocidad:.2f}{str_pct}", (90, 220, 255) if pct_vel > 0 else ((255, 100, 70) if pct_vel < 0 else (220, 220, 220)), None),
+        ("Daño", f"{jugador.fuerza:.2f}", (255, 120, 60) if jugador.fuerza > jugador.fuerza_base else (220, 220, 220), "fuerza"),
+        ("Velocidad", f"{jugador.velocidad:.2f}{str_pct}", (90, 220, 255) if pct_vel > 0 else ((255, 100, 70) if pct_vel < 0 else (220, 220, 220)), "velocidad"),
         ("Energía", f"{jugador.energia} / {jugador.energia_max}", (180, 130, 255), "energia"),
         ("Escudo", f"{jugador.escudo:.1f} / {jugador.escudo_max:.0f}", (120, 255, 150), "escudo"),
         ("Escudo M.", f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}", (90, 200, 255), "escudo_magico")
@@ -419,7 +417,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     if info_abierta == "stats":
         lineas_info = [
             "Vida: puntos de vida (se cura con orbes de frutales).",
-            "Fuerza: base del daño del arma.",
+            "Daño: fuerza del personaje; sube con [+] y con Burst de Fuerza. Es la base del golpe del arma.",
             "Velocidad: desplazamiento; cambia con agua, arma y Destello.",
             "Energía: coste de habilidades. Regenera +1 cada 3s parado, cada 6s en movimiento.",
             "Escudo: absorbe daño físico; se gasta y regenera tras 10s sin recibir golpes.",
