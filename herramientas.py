@@ -36,6 +36,7 @@ class HerramientaBase:
         self.nivel_max = nivel_max
         self.roto = False
         self.es_escudo = False       # True solo en el Escudo (protege, no golpea)
+        self.tipo_dano = "fisico"    # Las armas infligen daño físico
         self.empuje_al_bloquear = 0  # Puntos de empuje que recibe el portador al bloquear con él
 
         # Parámetros de escalado

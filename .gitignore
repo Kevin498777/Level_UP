@@ -22,3 +22,8 @@ _prueba_escritura.txt
 # Logs y temporales
 *.log
 *.tmp
+
+# Respaldos manuales (no versionar)
+*.bak_escudo
+*.bak
+_respaldos/

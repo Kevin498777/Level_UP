@@ -5,11 +5,30 @@ from herramientas import EspadaLigera
 # Píxeles de retroceso que provoca cada punto de empuje
 PIXELES_POR_PUNTO_EMPUJE = 6
 
+# --- Escudo del personaje (reserva que absorbe daño físico) ---
+# Progresión del escudo: inicial 0, +5 por mejora hasta un máximo de 15 y, a partir
+# de ahí, +2 por mejora. El escudo mágico (Fase 2) compartirá este mismo esquema.
+ESCUDO_INICIAL = 0
+ESCUDO_INCREMENTO_GRANDE = 5      # Incremento por mejora mientras el máximo sea < ESCUDO_TOPE_TRAMO
+ESCUDO_TOPE_TRAMO = 15           # A partir de este máximo el incremento baja a +2
+ESCUDO_INCREMENTO_NORMAL = 2     # Incremento por mejora una vez superado el tramo inicial
+
+# Reparto del daño físico: se bloquea un 20% del daño total; del resto, el escudo
+# absorbe el 70% y el 30% pasa a la vida. Si el escudo no alcanza, el sobrante va a vida.
+ESCUDO_BLOQUEO_FISICO = 0.20
+ESCUDO_REPARTO_ESCUDO = 0.70
+ESCUDO_REPARTO_VIDA = 0.30
+
+# Regeneración del escudo: tras REGEN_ESCUDO_RETRASO s sin recibir daño en el escudo,
+# recupera REGEN_ESCUDO_POR_SEGUNDO por segundo hasta su máximo.
+REGEN_ESCUDO_RETRASO = 10.0
+REGEN_ESCUDO_POR_SEGUNDO = 1.0
+
 # -----------------------------
 # CLASE PERSONAJE
 # -----------------------------
 class Personaje:
-    def __init__(self, nombre, x, y, tamano, velocidad, vida, fuerza, energia, defensa, color, habilidades=None, herramienta=None):
+    def __init__(self, nombre, x, y, tamano, velocidad, vida, fuerza, energia, escudo, color, habilidades=None, herramienta=None):
         self.nombre = nombre
         self.posicion = pygame.Vector2(x, y)
         self.destino = pygame.Vector2(x, y)
@@ -27,7 +46,10 @@ class Personaje:
         self.fuerza = float(fuerza)                # Fuerza actual
         self.energia_max = energia                 # Energía máxima inicial (1 a 100)
         self.energia = energia                     # Energía actual
-        self.defensa = defensa                     # Defensa (0 a 10)
+        # Escudo físico: reserva que se gasta al recibir daño físico (reemplaza a la antigua Defensa).
+        self.escudo_max = float(escudo)            # Máximo actual del escudo físico
+        self.escudo = float(escudo)                # Escudo físico disponible
+        self.tiempo_sin_dano_escudo = 0.0          # Segundos sin recibir daño en el escudo (para la regen)
         self.color = color
 
         # Progresión: nivel del personaje y puntos de mejora (empieza con 3)
@@ -96,8 +118,10 @@ class Personaje:
         elif nombre == "energia":
             self.energia_max += 2
             self.energia = min(self.energia_max, self.energia + 2)
-        elif nombre == "defensa":
-            self.defensa += 1
+        elif nombre == "escudo":
+            incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_max < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
+            self.escudo_max += incremento
+            self.escudo = self.escudo_max          # Al mejorarlo, se rellena al nuevo máximo
         else:
             return False
         self.puntos_mejora -= 1
@@ -123,6 +147,19 @@ class Personaje:
                 self.tiempo_regen -= intervalo
         else:
             self.tiempo_regen = 0.0
+
+    def actualizar_regeneracion_escudo(self, dt):
+        """
+        Regeneración del escudo físico: tras REGEN_ESCUDO_RETRASO s sin recibir daño en
+        el escudo, recupera REGEN_ESCUDO_POR_SEGUNDO por segundo hasta su máximo.
+        Recibir daño reinicia el contador (ver recibir_dano).
+        """
+        if self.escudo >= self.escudo_max:
+            self.escudo = self.escudo_max
+            return
+        self.tiempo_sin_dano_escudo += dt
+        if self.tiempo_sin_dano_escudo >= REGEN_ESCUDO_RETRASO:
+            self.escudo = min(self.escudo_max, round(self.escudo + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
 
     def actualizar_velocidad(self):
         """
@@ -286,17 +323,43 @@ class Personaje:
         self.hitbox.x = round(self.posicion.x - self.radio)
         self.hitbox.y = round(self.posicion.y - self.radio)
 
-    def recibir_dano(self, cantidad, direccion_empuje=None):
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         """
-        Aplica daño y, por cada punto de daño recibido, 1 punto de empuje (retroceso).
+        Aplica daño al personaje según su tipo y devuelve el daño total aplicado.
+        - "fisico" (armas, conejos): lo amortigua el escudo. Se bloquea un 20% del daño
+          total; del resto, el 70% lo absorbe el escudo y el 30% pasa a la vida. Si la
+          parte del escudo supera el escudo disponible, el sobrante pasa también a vida.
+        - "magico" (habilidades que consumen energía): por ahora ignora el escudo y pega
+          directo a la vida (el escudo mágico llega en la Fase 2).
+        Por cada punto de daño aplicado se genera 1 punto de empuje (retroceso).
         'direccion_empuje' es el vector que va del atacante hacia este personaje.
-        (La reducción por defensa se definirá cuando exista el combate.)
         """
-        dano = max(0, round(cantidad))
-        self.vida = max(0, self.vida - dano)
+        cantidad = max(0.0, float(cantidad))
+        if cantidad <= 0:
+            return 0.0
+
+        if tipo_dano == "fisico":
+            reducido = cantidad * (1.0 - ESCUDO_BLOQUEO_FISICO)
+            parte_escudo = reducido * ESCUDO_REPARTO_ESCUDO
+            parte_vida = reducido * ESCUDO_REPARTO_VIDA
+
+            absorbido = min(parte_escudo, self.escudo)
+            sobrante = parte_escudo - absorbido          # Lo que el escudo no pudo absorber
+            self.escudo = max(0.0, round(self.escudo - absorbido, 2))
+            dano_vida = parte_vida + sobrante
+            # Recibir daño en el escudo corta su regeneración
+            self.tiempo_sin_dano_escudo = 0.0
+            dano_total = round(absorbido + dano_vida, 2)
+        else:
+            # Daño mágico: directo a la vida (sin escudo mágico todavía)
+            dano_vida = cantidad
+            dano_total = cantidad
+
+        self.vida = max(0.0, round(self.vida - dano_vida, 2))
+
         if direccion_empuje is not None:
-            self.aplicar_empuje(direccion_empuje, dano)
-        return dano
+            self.aplicar_empuje(direccion_empuje, dano_total)
+        return dano_total
 
     def actualizar_proyectiles(self, dt, limites_mundo, rocas=None):
         """Actualiza la posición y ciclo de vida de los proyectiles. Las balas chocan con las rocas."""

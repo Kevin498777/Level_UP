@@ -15,6 +15,7 @@ class ProyectilEnergia:
 
         self.velocidad = velocidad
         self.dano = dano
+        self.tipo_dano = "magico"     # Daño mágico (consume energía)
         self.radio = radio
         self.activo = True
         self.hitbox = pygame.Rect(
@@ -63,6 +64,7 @@ class ProyectilFuego:
         self.direccion = pygame.Vector2(dx, dy).normalize() if (dx != 0 or dy != 0) else pygame.Vector2(0, -1)
         self.velocidad = velocidad
         self.dano = dano
+        self.tipo_dano = "magico"     # Daño mágico (consume energía)
         self.radio = radio
         self.quemadura_dano = quemadura_dano          # daño por segundo de la quemadura
         self.quemadura_duracion = quemadura_duracion  # segundos que dura la quemadura
@@ -636,6 +638,7 @@ class Conejo:
         self.vida_max = vida
         self.velocidad = velocidad
         self.dano = dano
+        self.tipo_dano = "fisico"     # Los conejos infligen daño físico
         self.radio = 8
         self.vivo = True
         self.destino = pygame.Vector2(x, y)

@@ -63,7 +63,7 @@ def generar_estadisticas():
         "fuerza": 2,
         "velocidad": 1,
         "energia": 100,
-        "defensa": 10,
+        "escudo": 0,
         "tamano": 1
     }
 
@@ -78,7 +78,7 @@ STATS_PRUEBAS = {
     "fuerza": 999,      # Daño base = fuerza -> 999 (con Espada Ligera x2)
     "energia": 999,
     "vida": 999,
-    "defensa": 999
+    "escudo": 999
 }
 
 
@@ -275,7 +275,7 @@ def iniciar_aplicacion():
             ("Fuerza:", stats_vista["fuerza"], "#D19A66"),
             ("Velocidad:", stats_vista["velocidad"], "#56B6C2"),
             ("Energía:", stats_vista["energia"], "#C678DD"),
-            ("Defensa:", stats_vista["defensa"], "#98C379"),
+            ("Escudo:", stats_vista["escudo"], "#98C379"),
             ("Tamaño:", stats_vista["tamano"], "#E5C07B")
         ]
         for idx, (etiqueta, valor, color_destaque) in enumerate(filas):
@@ -310,7 +310,7 @@ def iniciar_aplicacion():
             "vida": stats_finales["vida"],
             "fuerza": stats_finales["fuerza"],
             "energia": stats_finales["energia"],
-            "defensa": stats_finales["defensa"],
+            "escudo": stats_finales["escudo"],
             "habilidades": habilidades,
             "herramienta": crear_herramienta(herramienta_var.get())
         }
