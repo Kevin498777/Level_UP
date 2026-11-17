@@ -14,13 +14,13 @@ Se sacan o guardan con **[1]**. Nivel máximo **5**. Cada mejora cuesta **2 punt
 Arma equilibrada: daño moderado y poca penalización de velocidad.
 
 | Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. |
-|-------|-----------------|-------------------|-----------|------------------|
-| 1     | ×2.2            |         4.4       |    -17 %  |         220      |
-| 2     | ×2.4            |         4.8       |    -14 %  |         240      |
-| 3     | ×2.6            |         5.2       |    -11 %  |         260      |
-| 4     | ×2.8            |         5.6       |    -8 %   |         280      |
-| 5     | ×3              |         6         |    -5 %   |         300      |
-------------------------------------------------------------------------------
+|---|---|---|---|---|
+| 1 | ×2.2 | 4.4 | -17 % | 220 |
+| 2 | ×2.4 | 4.8 | -14 % | 240 |
+| 3 | ×2.6 | 5.2 | -11 % | 260 |
+| 4 | ×2.8 | 5.6 | -8 % | 280 |
+| 5 | ×3 | 6 | -5 % | 300 |
+
 ### 1.2 Espada Larga
 
 Más larga y potente que la ligera, a cambio de más lentitud.
@@ -251,3 +251,30 @@ Aura de radio 100 px que sigue al personaje: buff de velocidad y daño por segun
 | 18 | +12.5 % | 4 | 0.5 | 17.5 s | 55 s | 54 |
 | 19 | +12.5 % | 4 | 0.5 | 17.5 s | 55 s | 56 |
 | 20 | +15 % | 5 | 0.5 | 20 s | 60 s | 58 |
+
+### 2.7 Reforzamiento Mágico
+
+Campo de fuerza azul celeste (solo contorno), un 10 % más grande que el personaje, que bloquea daño físico y mágico. Absorbe todo el daño hasta agotar su dureza; si se agota antes de terminar la duración se rompe, entra en recarga y el sobrante pasa a los escudos y a la vida.
+
+| Nivel | Dureza | Duración | Recarga | Coste En. |
+|---|---|---|---|---|
+| 1 | 200 | 1 s | 10 s | 25 |
+| 2 | 215 | 1 s | 10 s | 25 |
+| 3 | 230 | 1 s | 10 s | 25 |
+| 4 | 245 | 1 s | 10 s | 25 |
+| 5 | 260 | 2 s | 15 s | 30 |
+| 6 | 275 | 2 s | 15 s | 30 |
+| 7 | 290 | 2 s | 15 s | 30 |
+| 8 | 305 | 2 s | 15 s | 30 |
+| 9 | 320 | 2 s | 15 s | 30 |
+| 10 | 335 | 3 s | 20 s | 35 |
+| 11 | 350 | 3 s | 20 s | 35 |
+| 12 | 365 | 3 s | 20 s | 35 |
+| 13 | 380 | 3 s | 20 s | 35 |
+| 14 | 395 | 3 s | 20 s | 35 |
+| 15 | 410 | 4 s | 25 s | 40 |
+| 16 | 425 | 4 s | 25 s | 40 |
+| 17 | 440 | 4 s | 25 s | 40 |
+| 18 | 455 | 4 s | 25 s | 40 |
+| 19 | 470 | 4 s | 25 s | 40 |
+| 20 | 500 | 6 s | 35 s | 50 |

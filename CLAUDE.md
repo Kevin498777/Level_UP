@@ -15,7 +15,7 @@ Ejecutar con `python main.py`.
 ## Documentación
 - Reglas de desarrollo: `reglas.md` (raíz).
 - Documentos de información: carpeta `Documentacion/` (índice en `Documentacion/README.md`):
-  `Level_UP_Especificaciones.md`, `Tablas_Escalado.md`, `Tablas_Tipos.xlsx`.
+  `Level_UP_Especificaciones.md`, `Tablas_Escalado.md`, `Tablas_Escalado.xlsx`, `Tablas_Tipos.xlsx`.
   Todo documento nuevo de información va ahí. Este `CLAUDE.md` se queda en la raíz para que Claude Code lo cargue.
 
 ## Archivos

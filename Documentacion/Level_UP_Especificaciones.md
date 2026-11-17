@@ -2,7 +2,7 @@
 
 > Documento de información (no técnico) sobre el estado actual del juego.
 > Pensado como contexto de referencia para la IA y para el equipo.
-> Actualizado: 16 de noviembre de 2026.
+> Actualizado: 17 de noviembre de 2026.
 
 ---
 
@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y cinco habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **El combate contra enemigos todavía no existe**: las zonas de daño (hitboxes), el sistema de puntos de empuje y los efectos como la quemadura ya están preparados para cuando se añada.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y siete habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **El combate contra enemigos todavía no existe**: las zonas de daño (hitboxes), el sistema de puntos de empuje y los efectos como la quemadura ya están preparados para cuando se añada.
 
 ---
 
@@ -52,9 +52,9 @@ Los arbustos tienen forma de nube y los **tres tipos se ven idénticos** a simpl
 
 | Tipo | Cantidad | Efecto |
 |---|---|---|
-| Escondite | 20 – 60 | Solo sirve para ocultarse. |
-| Venenoso | 15 – 30 | Oculta, pero hace 1 de daño cada 2 s (ignora defensa). |
-| Frutal | 5 – 10 | Oculta y contiene 1 – 5 orbes rojos; cada uno cura +2 de vida. |
+| Escondite | 35 – 80 | Solo sirve para ocultarse. |
+| Venenoso | 25 – 45 | Oculta, pero hace 1 de daño cada 2 s (ignora defensa). |
+| Frutal | 10 – 16 | Oculta y contiene 1 – 5 orbes rojos; cada uno cura +2 de vida. |
 
 ### 5.2 Ciclo de los frutales
 
@@ -96,7 +96,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 El daño se divide en dos tipos:
 
 - **Físico:** el de las herramientas (espadas, dagas, mandoble) y los conejos.
-- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
+- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
 
 Cada tipo lo amortigua su propio escudo del personaje:
 
@@ -106,6 +106,8 @@ Cada tipo lo amortigua su propio escudo del personaje:
 | Mágico | 10 % | 90 % / 10 % |
 
 El escudo absorbe su parte hasta agotarse; si esa parte supera el escudo disponible, el sobrante pasa también a la vida. Ambos escudos empiezan en **0**, se mejoran **+5 por punto hasta un máximo de 15** y luego **+2 por punto**, y **se regeneran +1 por segundo tras 10 s sin recibir ese tipo de daño** (cada uno con su propio contador). El daño de terreno (lago profundo, hierba venenosa) ignora los escudos y se aplica directo a la vida.
+
+Si el **Reforzamiento Mágico** está activo, su campo de fuerza recibe primero cualquier daño físico o mágico; solo lo que sobra cuando se rompe llega a los escudos y a la vida (ver 9.7).
 
 ---
 
@@ -173,9 +175,29 @@ Invoca **5 conejos** detrás del personaje (esferas verdes con cara `:3`). No se
 
 ### 9.5 Carga de Fuego
 
-Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **20 → 39** (+1 por nivel). La carga añade daño (hasta **+25 %**) y sube el coste (15 sin carga → **45** a 5 s). Al golpear aplica **quemadura**: 1 de daño por segundo durante 5 segundos.
+Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **20 → 39** (+1 por nivel). La carga añade daño (hasta **+25 %**) y tamaño. Al golpear aplica **quemadura**: 1 de daño por segundo durante 5 segundos.
 
-### 9.6 Regla de combo
+La energía se gasta **en tiempo real**: al pulsar se cobran 15 y cada segundo completo de carga cobra su parte (+5, +5, +5, +5 y +10; 45 en total a 5 s). Si no queda energía para el siguiente segundo, la carga se detiene en el nivel ya pagado y dispara con él al soltar.
+
+### 9.6 Aura Eléctrica
+
+Aura de 100 px de radio que sigue al personaje. Buff de velocidad **+5 % → +15 %** y **1 → 5** de daño por segundo a los enemigos cercanos (preparado para cuando existan). Mientras está activa, el portador recibe **0.5 de daño mágico por segundo** (lo amortigua su escudo mágico). Duración **10 → 20 s**, recarga **40 → 60 s**, coste **20 → 58 En.** (+2 por nivel).
+
+### 9.7 Reforzamiento Mágico
+
+Campo de fuerza **azul celeste** (solo el contorno, delgado) un **10 % más grande** que el personaje. Bloquea **daño físico y mágico**: absorbe todo el daño hasta agotar su **dureza**. Si la dureza se agota antes de terminar la duración, el campo **se rompe**, entra en recarga y el daño sobrante pasa a los escudos y a la vida.
+
+| Nivel | Dureza | Duración | Recarga | Coste En. |
+|---|---|---|---|---|
+| 1 | 200 | 1 s | 10 s | 25 |
+| 5 | 260 | 2 s | 15 s | 30 |
+| 10 | 335 | 3 s | 20 s | 35 |
+| 15 | 410 | 4 s | 25 s | 40 |
+| 20 | **500** | 6 s | 35 s | 50 |
+
+La dureza sube **+15 por nivel** y en el nivel 20 recibe un bono final hasta **500**. Duración, recarga y coste se mantienen por tramos hasta el siguiente nivel de la tabla.
+
+### 9.8 Regla de combo
 
 Lanzar una habilidad mientras otra sigue activa cuesta un **+5 % de la energía actual**.
 

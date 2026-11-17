@@ -429,6 +429,9 @@ def dibujar_tooltip(pantalla, x, y, titulo, lineas, fuente_titulo, fuente_texto,
 # -----------------------------
 # DIBUJAR PANEL LATERAL DE HABILIDADES
 # -----------------------------
+# Habilidades cuya tarjeta activa se pinta en tono frío (cian) en lugar de rojizo
+HABILIDADES_TONO_FRIO = ("Destello", "Aura Electrica", "Reforzamiento Mágico")
+
 def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador, fuentes, info_abierta=None):
     """
     Renderiza la interfaz lateral derecha para las habilidades equipadas (teclas 2, 3, 4)
@@ -468,8 +471,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         tarjeta_x = x + 13
 
         if hab.estado == "ACTIVA":
-            color_borde = (0, 220, 255) if hab.nombre in ("Destello", "Aura Electrica") else (255, 100, 70)
-            color_fondo = (22, 38, 50) if hab.nombre in ("Destello", "Aura Electrica") else (48, 26, 26)
+            color_borde = (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 100, 70)
+            color_fondo = (22, 38, 50) if hab.nombre in HABILIDADES_TONO_FRIO else (48, 26, 26)
         elif hab.estado == "COOLDOWN":
             color_borde = (230, 140, 40)
             color_fondo = (40, 30, 24)
@@ -535,7 +538,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             pygame.draw.rect(pantalla, (100, 255, 140), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
 
         elif hab.estado == "ACTIVA":
-            txt_est = fuente_mini.render("⚡ ACTIVA", True, (0, 220, 255) if hab.nombre in ("Destello", "Aura Electrica") else (255, 120, 80))
+            txt_est = fuente_mini.render("⚡ ACTIVA", True, (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 120, 80))
             pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
 
             seg = max(0.0, hab.tiempo_restante_activo)
@@ -547,7 +550,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
             pygame.draw.rect(pantalla, (35, 45, 55), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
             if ancho_l > 0:
-                pygame.draw.rect(pantalla, (0, 210, 255) if hab.nombre in ("Destello", "Aura Electrica") else (255, 90, 60), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+                pygame.draw.rect(pantalla, (0, 210, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 90, 60), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
 
         elif hab.estado == "COOLDOWN":
             txt_est = fuente_mini.render("⏳ ENFRIAMIENTO", True, (255, 150, 60))
@@ -592,6 +595,9 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
         elif hab.nombre == "Aura Electrica":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Reforzamiento Mágico":
+            dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
+            detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
         else:
             detalles = hab.descripcion[:40]
 
@@ -963,13 +969,106 @@ class AuraElectrica(HabilidadBase):
             pygame.draw.line(pantalla, (200, 240, 255), (round(x1), round(y1)), (round(x2), round(y2)), 2)
 
 
+# -----------------------------
+# HABILIDAD 7: REFORZAMIENTO MÁGICO
+# -----------------------------
+def _valor_por_tramo(nivel, tramos):
+    """Devuelve el valor del último tramo alcanzado. tramos = ((nivel_desde, valor), ...) en orden."""
+    valor = tramos[0][1]
+    for desde, v in tramos:
+        if nivel >= desde:
+            valor = v
+    return valor
+
+
+class ReforzamientoMagico(HabilidadBase):
+    """
+    Campo de fuerza alrededor del personaje que bloquea daño físico y mágico.
+    Absorbe todo el daño recibido hasta agotar su dureza; si se agota antes de que
+    termine la duración, el campo se rompe, entra en recarga y el daño sobrante pasa
+    a los escudos del personaje y a su vida. El daño de terreno no lo atraviesa porque
+    no pasa por recibir_dano (lago profundo y veneno van directo a la vida).
+    """
+    FACTOR_RADIO = 1.10                 # El campo es un 10% más grande que el personaje
+    COLOR_CAMPO = (135, 206, 250)       # Azul celeste
+    GROSOR_CAMPO = 2                    # Solo contorno, delgado (sin relleno)
+    DUREZA_BASE = 200                   # Dureza en nivel 1
+    DUREZA_POR_NIVEL = 15               # Dureza extra por cada nivel
+    DUREZA_NIVEL_MAX = 500              # Bono final: en nivel 20 la dureza llega a 500
+    # Valores por tramos de nivel: (nivel desde el que aplica, valor)
+    TRAMOS_DURACION = ((1, 1.0), (5, 2.0), (10, 3.0), (15, 4.0), (20, 6.0))
+    TRAMOS_COSTE = ((1, 25), (5, 30), (10, 35), (15, 40), (20, 50))
+    TRAMOS_RECARGA = ((1, 10.0), (5, 15.0), (10, 20.0), (15, 25.0), (20, 35.0))
+
+    def __init__(self):
+        super().__init__(
+            nombre="Reforzamiento Mágico",
+            descripcion="Campo de fuerza que bloquea daño físico y mágico hasta agotar su dureza.",
+            costo_energia=25,
+            duracion_activa=1.0,
+            duracion_cooldown=10.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self.dureza = 0.0
+
+    def _aplicar_nivel(self):
+        """
+        Escalado (nivel 1 a 20):
+        - dureza: 200, +15 por nivel (470 en nivel 19) y 500 en nivel 20 (bono final)
+        - duración: 1s (nv1), 2s (nv5), 3s (nv10), 4s (nv15), 6s (nv20)
+        - coste: 25 (nv1), 30 (nv5), 35 (nv10), 40 (nv15), 50 (nv20)
+        - recarga: 10s (nv1), 15s (nv5), 20s (nv10), 25s (nv15), 35s (nv20)
+        """
+        n = self.nivel
+        if n >= self.nivel_max:
+            self.dureza_max = self.DUREZA_NIVEL_MAX
+        else:
+            self.dureza_max = self.DUREZA_BASE + self.DUREZA_POR_NIVEL * (n - 1)
+        self.duracion_activa = _valor_por_tramo(n, self.TRAMOS_DURACION)
+        self.costo_energia = _valor_por_tramo(n, self.TRAMOS_COSTE)
+        self.duracion_cooldown = _valor_por_tramo(n, self.TRAMOS_RECARGA)
+
+    def aplicar_efecto_activo(self, jugador):
+        self.dureza = float(self.dureza_max)
+
+    def aplicar_efecto_cooldown(self, jugador):
+        self.dureza = 0.0
+
+    def absorber_dano(self, cantidad, jugador):
+        """
+        Absorbe daño (físico o mágico) con la dureza del campo y devuelve el sobrante.
+        Si la dureza llega a 0, el campo se rompe y pasa a recarga.
+        """
+        if self.estado != "ACTIVA" or cantidad <= 0:
+            return cantidad
+        absorbido = min(cantidad, self.dureza)
+        self.dureza = round(self.dureza - absorbido, 2)
+        if self.dureza <= 0:
+            self.estado = "COOLDOWN"
+            self.tiempo_restante_activo = 0.0
+            self.tiempo_restante_cooldown = self.duracion_cooldown
+            self.aplicar_efecto_cooldown(jugador)
+            self.mensaje_alerta = "¡Campo roto!"
+            self.tiempo_alerta = 2.0
+        return round(cantidad - absorbido, 2)
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        """Dibuja solo el contorno azul celeste del campo, un 10% más grande que el personaje."""
+        cx = round(jugador.posicion.x - desplazamiento[0])
+        cy = round(jugador.posicion.y - desplazamiento[1])
+        radio = round(jugador.radio * self.FACTOR_RADIO)
+        pygame.draw.circle(pantalla, self.COLOR_CAMPO, (cx, cy), radio, self.GROSOR_CAMPO)
+
+
 HABILIDADES_DISPONIBLES = {
     "Destello": Destello,
     "Burst de Fuerza": BurstDeFuerza,
     "Disparo Veloz": DisparoVeloz,
     "Invocar Conejos": InvocacionConejos,
     "Carga de Fuego": CargaDeFuego,
-    "Aura Electrica": AuraElectrica
+    "Aura Electrica": AuraElectrica,
+    "Reforzamiento Mágico": ReforzamientoMagico
 }
 
 def crear_habilidad(nombre):

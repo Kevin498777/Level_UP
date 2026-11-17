@@ -368,6 +368,14 @@ class Personaje:
         if cantidad <= 0:
             return 0.0
 
+        # Campos de fuerza activos (ej. Reforzamiento Mágico) absorben primero el daño
+        # físico o mágico; solo el sobrante llega a los escudos y a la vida.
+        for hab in self.habilidades:
+            if hab.estado == "ACTIVA" and hasattr(hab, "absorber_dano"):
+                cantidad = hab.absorber_dano(cantidad, self)
+        if cantidad <= 0:
+            return 0.0
+
         if tipo_dano == "magico":
             bloqueo = ESCUDOM_BLOQUEO
             reparto_escudo = ESCUDOM_REPARTO_ESCUDO
