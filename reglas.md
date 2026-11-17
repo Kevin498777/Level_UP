@@ -11,6 +11,10 @@ Antes de hacer **cualquier** cambio, leer el proyecto completo (todos los módul
 relevantes: `main.py`, `mundo.py`, `personaje.py`, `herramientas.py`,
 `habilidades.py`, `vegetacion.py`) para entender el estado actual.
 
+- Los documentos de información del proyecto (especificaciones, tablas de
+  escalado, hojas de cálculo) están en la carpeta `Documentacion/`; ver su
+  `README.md`. Todo documento nuevo de información se guarda ahí.
+
 - No inventar funcionalidad, valores ni comportamientos.
 - Si algo no está definido, está incompleto o es ambiguo, **preguntar antes de
   implementar** en lugar de asumir.
@@ -34,7 +38,7 @@ comportamiento), `DOCS` (documentación).
 ## 3. Actualizar el documento de contexto cada 3 cambios grandes
 
 Llevar la cuenta de los cambios grandes. **Cada 3 cambios grandes**, actualizar
-`Level_UP_Especificaciones.md` con la información nueva, para que el documento
+`Documentacion/Level_UP_Especificaciones.md` con la información nueva, para que el documento
 refleje siempre el estado real del proyecto y se pueda ver cómo avanza.
 
 - Un "cambio grande" es una nueva mecánica, herramienta, habilidad, sistema o un

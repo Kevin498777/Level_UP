@@ -12,6 +12,12 @@ Ejecutar con `python main.py`.
 - Para probar sin ventana: `SDL_VIDEODRIVER=dummy python -B -c "..."` (`-B` evita escribir `__pycache__`).
   El juego real lo prueba el usuario.
 
+## Documentación
+- Reglas de desarrollo: `reglas.md` (raíz).
+- Documentos de información: carpeta `Documentacion/` (índice en `Documentacion/README.md`):
+  `Level_UP_Especificaciones.md`, `Tablas_Escalado.md`, `Tablas_Tipos.xlsx`.
+  Todo documento nuevo de información va ahí. Este `CLAUDE.md` se queda en la raíz para que Claude Code lo cargue.
+
 ## Archivos
 - `main.py`: ventana Tkinter de creación de personaje (nombre, color, habilidades, stats aleatorias).
   - Personaje de pruebas: nombre clave **`shadow498`** (sin importar mayúsculas ni espacios) → velocidad 99,
