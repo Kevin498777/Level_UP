@@ -24,11 +24,18 @@ ESCUDO_REPARTO_VIDA = 0.30
 REGEN_ESCUDO_RETRASO = 10.0
 REGEN_ESCUDO_POR_SEGUNDO = 1.0
 
+# Reparto del daño mágico: se bloquea un 10% del daño total; del resto, el escudo mágico
+# absorbe el 90% y el 10% pasa a la vida. El escudo mágico comparte la progresión y la
+# regeneración del escudo físico (inicial 0, +5 hasta 15, luego +2; regen +1/s tras 10s).
+ESCUDOM_BLOQUEO = 0.10
+ESCUDOM_REPARTO_ESCUDO = 0.90
+ESCUDOM_REPARTO_VIDA = 0.10
+
 # -----------------------------
 # CLASE PERSONAJE
 # -----------------------------
 class Personaje:
-    def __init__(self, nombre, x, y, tamano, velocidad, vida, fuerza, energia, escudo, color, habilidades=None, herramienta=None):
+    def __init__(self, nombre, x, y, tamano, velocidad, vida, fuerza, energia, escudo, color, habilidades=None, herramienta=None, escudo_magico=0):
         self.nombre = nombre
         self.posicion = pygame.Vector2(x, y)
         self.destino = pygame.Vector2(x, y)
@@ -50,6 +57,10 @@ class Personaje:
         self.escudo_max = float(escudo)            # Máximo actual del escudo físico
         self.escudo = float(escudo)                # Escudo físico disponible
         self.tiempo_sin_dano_escudo = 0.0          # Segundos sin recibir daño en el escudo (para la regen)
+        # Escudo mágico: reserva que absorbe daño mágico (habilidades que consumen energía).
+        self.escudo_magico_max = float(escudo_magico)
+        self.escudo_magico = float(escudo_magico)
+        self.tiempo_sin_dano_escudo_magico = 0.0
         self.color = color
 
         # Progresión: nivel del personaje y puntos de mejora (empieza con 3)
@@ -122,6 +133,10 @@ class Personaje:
             incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_max < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
             self.escudo_max += incremento
             self.escudo = self.escudo_max          # Al mejorarlo, se rellena al nuevo máximo
+        elif nombre == "escudo_magico":
+            incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_magico_max < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
+            self.escudo_magico_max += incremento
+            self.escudo_magico = self.escudo_magico_max
         else:
             return False
         self.puntos_mejora -= 1
@@ -160,6 +175,18 @@ class Personaje:
         self.tiempo_sin_dano_escudo += dt
         if self.tiempo_sin_dano_escudo >= REGEN_ESCUDO_RETRASO:
             self.escudo = min(self.escudo_max, round(self.escudo + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
+
+    def actualizar_regeneracion_escudo_magico(self, dt):
+        """
+        Regeneración del escudo mágico: igual que el físico, tras REGEN_ESCUDO_RETRASO s
+        sin recibir daño mágico, recupera REGEN_ESCUDO_POR_SEGUNDO por segundo hasta su máximo.
+        """
+        if self.escudo_magico >= self.escudo_magico_max:
+            self.escudo_magico = self.escudo_magico_max
+            return
+        self.tiempo_sin_dano_escudo_magico += dt
+        if self.tiempo_sin_dano_escudo_magico >= REGEN_ESCUDO_RETRASO:
+            self.escudo_magico = min(self.escudo_magico_max, round(self.escudo_magico + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
 
     def actualizar_velocidad(self):
         """
@@ -326,34 +353,46 @@ class Personaje:
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         """
         Aplica daño al personaje según su tipo y devuelve el daño total aplicado.
-        - "fisico" (armas, conejos): lo amortigua el escudo. Se bloquea un 20% del daño
-          total; del resto, el 70% lo absorbe el escudo y el 30% pasa a la vida. Si la
-          parte del escudo supera el escudo disponible, el sobrante pasa también a vida.
-        - "magico" (habilidades que consumen energía): por ahora ignora el escudo y pega
-          directo a la vida (el escudo mágico llega en la Fase 2).
-        Por cada punto de daño aplicado se genera 1 punto de empuje (retroceso).
-        'direccion_empuje' es el vector que va del atacante hacia este personaje.
+        - "fisico" (armas, conejos): lo amortigua el escudo físico. Se bloquea un 20% del
+          daño total; del resto, el 70% lo absorbe el escudo y el 30% pasa a la vida.
+        - "magico" (habilidades que consumen energía): lo amortigua el escudo mágico. Se
+          bloquea un 10% del daño total; del resto, el 90% lo absorbe el escudo mágico y
+          el 10% pasa a la vida.
+        En ambos casos, si la parte del escudo supera el escudo disponible, el sobrante
+        pasa también a la vida. Por cada punto de daño aplicado se genera 1 punto de
+        empuje (retroceso); 'direccion_empuje' va del atacante hacia este personaje.
         """
         cantidad = max(0.0, float(cantidad))
         if cantidad <= 0:
             return 0.0
 
-        if tipo_dano == "fisico":
-            reducido = cantidad * (1.0 - ESCUDO_BLOQUEO_FISICO)
-            parte_escudo = reducido * ESCUDO_REPARTO_ESCUDO
-            parte_vida = reducido * ESCUDO_REPARTO_VIDA
-
-            absorbido = min(parte_escudo, self.escudo)
-            sobrante = parte_escudo - absorbido          # Lo que el escudo no pudo absorber
-            self.escudo = max(0.0, round(self.escudo - absorbido, 2))
-            dano_vida = parte_vida + sobrante
-            # Recibir daño en el escudo corta su regeneración
-            self.tiempo_sin_dano_escudo = 0.0
-            dano_total = round(absorbido + dano_vida, 2)
+        if tipo_dano == "magico":
+            bloqueo = ESCUDOM_BLOQUEO
+            reparto_escudo = ESCUDOM_REPARTO_ESCUDO
+            reparto_vida = ESCUDOM_REPARTO_VIDA
+            escudo_disp = self.escudo_magico
         else:
-            # Daño mágico: directo a la vida (sin escudo mágico todavía)
-            dano_vida = cantidad
-            dano_total = cantidad
+            bloqueo = ESCUDO_BLOQUEO_FISICO
+            reparto_escudo = ESCUDO_REPARTO_ESCUDO
+            reparto_vida = ESCUDO_REPARTO_VIDA
+            escudo_disp = self.escudo
+
+        reducido = cantidad * (1.0 - bloqueo)
+        parte_escudo = reducido * reparto_escudo
+        parte_vida = reducido * reparto_vida
+
+        absorbido = min(parte_escudo, escudo_disp)
+        sobrante = parte_escudo - absorbido              # Lo que el escudo no pudo absorber
+        dano_vida = parte_vida + sobrante
+        dano_total = round(absorbido + dano_vida, 2)
+
+        # Descontar del escudo correspondiente y cortar su regeneración
+        if tipo_dano == "magico":
+            self.escudo_magico = max(0.0, round(self.escudo_magico - absorbido, 2))
+            self.tiempo_sin_dano_escudo_magico = 0.0
+        else:
+            self.escudo = max(0.0, round(self.escudo - absorbido, 2))
+            self.tiempo_sin_dano_escudo = 0.0
 
         self.vida = max(0.0, round(self.vida - dano_vida, 2))
 

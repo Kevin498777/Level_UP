@@ -367,7 +367,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         ("Velocidad Base", f"{jugador.velocidad_base:.1f}", (170, 190, 210), "velocidad"),
         ("Velocidad Actual", f"{jugador.velocidad:.2f}{str_pct}", (90, 220, 255) if pct_vel > 0 else ((255, 100, 70) if pct_vel < 0 else (220, 220, 220)), None),
         ("Energía", f"{jugador.energia} / {jugador.energia_max}", (180, 130, 255), "energia"),
-        ("Escudo", f"{jugador.escudo:.1f} / {jugador.escudo_max:.0f}", (120, 255, 150), "escudo")
+        ("Escudo", f"{jugador.escudo:.1f} / {jugador.escudo_max:.0f}", (120, 255, 150), "escudo"),
+        ("Escudo M.", f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}", (90, 200, 255), "escudo_magico")
     ]
 
     puede_subir = jugador.puntos_mejora > 0
@@ -422,6 +423,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             "Velocidad: desplazamiento; cambia con agua, arma y Destello.",
             "Energía: coste de habilidades. Regenera +1 cada 3s parado, cada 6s en movimiento.",
             "Escudo: absorbe daño físico; se gasta y regenera tras 10s sin recibir golpes.",
+            "Escudo M.: absorbe daño mágico (habilidades); se gasta y regenera igual.",
             "",
             "Mejora con [+]: cuesta 1 punto (el arma cuesta 2).",
             "[L] sube de nivel y otorga 3 puntos.",
@@ -483,6 +485,7 @@ def iniciar_mundo(config):
         fuerza=config.get("fuerza", 3),
         energia=config.get("energia", 80),
         escudo=config.get("escudo", 0),
+        escudo_magico=config.get("escudo_magico", 0),
         color=config.get("color", (0, 150, 255)),
         habilidades=config.get("habilidades", []),
         herramienta=config.get("herramienta", EspadaLigera())
@@ -616,6 +619,8 @@ def iniciar_mundo(config):
         jugador.actualizar_regeneracion(dt)
         # Actualizar regeneración del escudo físico
         jugador.actualizar_regeneracion_escudo(dt)
+        # Actualizar regeneración del escudo mágico
+        jugador.actualizar_regeneracion_escudo_magico(dt)
 
         # Actualizar todas las habilidades equipadas
         for hab in jugador.habilidades:

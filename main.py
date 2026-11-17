@@ -64,6 +64,7 @@ def generar_estadisticas():
         "velocidad": 1,
         "energia": 100,
         "escudo": 0,
+        "escudo_magico": 0,
         "tamano": 1
     }
 
@@ -78,7 +79,8 @@ STATS_PRUEBAS = {
     "fuerza": 999,      # Daño base = fuerza -> 999 (con Espada Ligera x2)
     "energia": 999,
     "vida": 999,
-    "escudo": 999
+    "escudo": 999,
+    "escudo_magico": 999
 }
 
 
@@ -276,11 +278,13 @@ def iniciar_aplicacion():
             ("Velocidad:", stats_vista["velocidad"], "#56B6C2"),
             ("Energía:", stats_vista["energia"], "#C678DD"),
             ("Escudo:", stats_vista["escudo"], "#98C379"),
+            ("Escudo M.:", stats_vista["escudo_magico"], "#56B6C2"),
             ("Tamaño:", stats_vista["tamano"], "#E5C07B")
         ]
         for idx, (etiqueta, valor, color_destaque) in enumerate(filas):
-            col = 0 if idx < 3 else 2
-            fila = idx % 3
+            mitad = (len(filas) + 1) // 2
+            col = 0 if idx < mitad else 2
+            fila = idx if idx < mitad else idx - mitad
             tk.Label(frame_stats, text=etiqueta, font=("Segoe UI", 9, "bold"),
                      fg="#ABB2BF", bg="#282C34").grid(row=fila, column=col, sticky="w", pady=3, padx=(0, 4))
             tk.Label(frame_stats, text=str(valor), font=("Segoe UI", 9, "bold"),
@@ -311,6 +315,7 @@ def iniciar_aplicacion():
             "fuerza": stats_finales["fuerza"],
             "energia": stats_finales["energia"],
             "escudo": stats_finales["escudo"],
+            "escudo_magico": stats_finales["escudo_magico"],
             "habilidades": habilidades,
             "herramienta": crear_herramienta(herramienta_var.get())
         }
