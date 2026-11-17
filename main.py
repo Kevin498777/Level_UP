@@ -19,7 +19,42 @@ COLORES = {
 }
 
 # -----------------------------
-# GENERACIÓN DE VALORES ALEATORIOS
+# DESCRIPCIONES Y COLORES DE LAS TARJETAS DE SELECCIÓN
+# -----------------------------
+DESC_HERRAMIENTAS = {
+    "Espada Ligera": "Equilibrada. Daño Fza x2.2 a x3.0, debuff -17% a -5%, durabilidad 220-300. Máx nivel 5.",
+    "Espada Larga": "Más larga y potente. Daño Fza x3.4 a x5.0, debuff -34% a -10%, durabilidad 190-230.",
+    "Mandoble": "Pesada y lenta. Daño Fza x6.6 a x9.0, debuff -70% a -30%, durabilidad 148-180.",
+    "Dagas Simples": "Dos dagas rápidas y pequeñas. Daño Fza x1.5 a x2.5; a nivel máximo dan +10% de velocidad. Durabilidad 150-400 compartida.",
+    "Escudo": "No golpea, protege. Debuff -34% a -10%, durabilidad 100-300. Al bloquear empuja al portador."
+}
+
+COLOR_HERRAMIENTAS = {
+    "Espada Ligera": "#B0B5C0",
+    "Espada Larga": "#9DA5B4",
+    "Mandoble": "#7F8694",
+    "Dagas Simples": "#C0C8D6",
+    "Escudo": "#8FB0D6"
+}
+
+DESC_HABILIDADES = {
+    "Destello": "Buff de velocidad +52% a +90% por 10-18s. Recarga 5-1s con fatiga al acabar. Costo 10-40 En. Máx nivel 20.",
+    "Burst de Fuerza": "Buff de fuerza +21% a +40% por 6-10s. Recarga 12-8s. Costo 15-35 En.",
+    "Disparo Veloz": "Esfera recta. Velocidad 11-30 y daño 20.5%-30% del total. Costo 15-35. Recarga 2-0.5s.",
+    "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En.",
+    "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15-45 En."
+}
+
+COLOR_HABILIDADES = {
+    "Destello": "#56B6C2",
+    "Burst de Fuerza": "#E5C07B",
+    "Disparo Veloz": "#98C379",
+    "Invocar Conejos": "#8FD694",
+    "Carga de Fuego": "#E06C4A"
+}
+
+# -----------------------------
+# ESTADÍSTICAS INICIALES (FIJAS)
 # -----------------------------
 def generar_estadisticas():
     # Estadísticas FIJAS de nivel 1 (sin aleatoriedad). Se mejoran con los puntos de nivel.
@@ -54,6 +89,7 @@ def aplicar_stats_pruebas(nombre, stats):
         stats.update(STATS_PRUEBAS)
     return stats
 
+
 # -----------------------------
 # INTERFAZ PRINCIPAL DE CREACIÓN
 # -----------------------------
@@ -62,301 +98,178 @@ def iniciar_aplicacion():
 
     ventana = tk.Tk()
     ventana.title("Creador de Personaje - Level")
-    ventana.geometry("560x830")
     ventana.resizable(False, False)
     ventana.configure(bg="#1E2229")
 
-    # Centrar ventana en pantalla
-    ancho = 560
-    alto = 830
+    ancho, alto = 720, 880
     x = (ventana.winfo_screenwidth() - ancho) // 2
-    y = (ventana.winfo_screenheight() - alto) // 2
+    y = max(0, (ventana.winfo_screenheight() - alto) // 2)
     ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
 
     # Título Principal
-    titulo = tk.Label(
-        ventana,
-        text="CREACIÓN DE PERSONAJE",
-        font=("Segoe UI", 16, "bold"),
-        fg="#FFFFFF",
-        bg="#1E2229"
-    )
-    titulo.pack(pady=(10, 2))
-
-    subtitulo = tk.Label(
-        ventana,
-        text="Configura tu héroe, herramientas y habilidades antes de comenzar.",
-        font=("Segoe UI", 8),
-        fg="#9DA5B4",
-        bg="#1E2229"
-    )
-    subtitulo.pack(pady=(0, 6))
-
-    # -----------------------------
-    # ENTRADA: NOMBRE DEL PERSONAJE
-    # -----------------------------
-    frame_nombre = tk.Frame(ventana, bg="#1E2229")
-    frame_nombre.pack(pady=2, padx=26, fill="x")
-
     tk.Label(
-        frame_nombre,
-        text="Nombre del Personaje:",
-        font=("Segoe UI", 10, "bold"),
-        fg="#E5C07B",
-        bg="#1E2229"
-    ).pack(anchor="w", pady=(0, 2))
+        ventana, text="CREACIÓN DE PERSONAJE",
+        font=("Segoe UI", 18, "bold"), fg="#FFFFFF", bg="#1E2229"
+    ).pack(pady=(12, 2))
+    tk.Label(
+        ventana, text="Elige nombre, color, herramienta y habilidades.",
+        font=("Segoe UI", 9), fg="#9DA5B4", bg="#1E2229"
+    ).pack(pady=(0, 8))
 
+    # -----------------------------
+    # NOMBRE Y COLOR
+    # -----------------------------
+    frame_top = tk.Frame(ventana, bg="#1E2229")
+    frame_top.pack(padx=30, fill="x")
+
+    frame_nombre = tk.Frame(frame_top, bg="#1E2229")
+    frame_nombre.pack(side="left", fill="both", expand=True)
+    tk.Label(frame_nombre, text="Nombre del Personaje:", font=("Segoe UI", 10, "bold"),
+             fg="#E5C07B", bg="#1E2229").pack(anchor="w", pady=(0, 2))
     nombre_var = tk.StringVar(value="Héroe")
-    entry_nombre = tk.Entry(
-        frame_nombre,
-        textvariable=nombre_var,
-        font=("Segoe UI", 11),
-        bg="#282C34",
-        fg="white",
-        insertbackground="white",
-        relief="flat",
-        highlightthickness=1,
-        highlightbackground="#4B5263",
-        highlightcolor="#61AFEF"
-    )
-    entry_nombre.pack(fill="x", ipady=3)
+    tk.Entry(frame_nombre, textvariable=nombre_var, font=("Segoe UI", 11),
+             bg="#282C34", fg="white", insertbackground="white", relief="flat",
+             highlightthickness=1, highlightbackground="#4B5263",
+             highlightcolor="#61AFEF").pack(fill="x", ipady=4)
 
-    # -----------------------------
-    # SELECCIÓN DE COLOR Y VISTA PREVIA
-    # -----------------------------
-    frame_color_prev = tk.Frame(ventana, bg="#1E2229")
-    frame_color_prev.pack(pady=3, padx=26, fill="x")
-
-    frame_selector = tk.Frame(frame_color_prev, bg="#1E2229")
-    frame_selector.pack(side="left", fill="both", expand=True)
-
-    tk.Label(
-        frame_selector,
-        text="Color del personaje:",
-        font=("Segoe UI", 10, "bold"),
-        fg="#61AFEF",
-        bg="#1E2229"
-    ).pack(anchor="w", pady=(0, 2))
-
+    tk.Label(frame_nombre, text="Color:", font=("Segoe UI", 10, "bold"),
+             fg="#61AFEF", bg="#1E2229").pack(anchor="w", pady=(8, 2))
     color_var = tk.StringVar(value="Azul")
-    combo_color = ttk.Combobox(
-        frame_selector,
-        textvariable=color_var,
-        values=list(COLORES.keys()),
-        state="readonly",
-        font=("Segoe UI", 10)
-    )
-    combo_color.pack(anchor="w", fill="x", pady=2)
+    ttk.Combobox(frame_nombre, textvariable=color_var, values=list(COLORES.keys()),
+                 state="readonly", font=("Segoe UI", 10)).pack(anchor="w", fill="x")
 
-    vista_canvas = tk.Canvas(
-        frame_color_prev,
-        width=55,
-        height=55,
-        bg="#282C34",
-        highlightthickness=1,
-        highlightbackground="#4B5263"
-    )
-    vista_canvas.pack(side="right", padx=(10, 0))
+    vista_canvas = tk.Canvas(frame_top, width=70, height=70, bg="#282C34",
+                             highlightthickness=1, highlightbackground="#4B5263")
+    vista_canvas.pack(side="right", padx=(14, 0))
 
     def actualizar_vista_previa(*args):
         vista_canvas.delete("all")
-        nombre_color = color_var.get()
-        rgb = COLORES.get(nombre_color, (0, 150, 255))
+        rgb = COLORES.get(color_var.get(), (0, 150, 255))
         color_hex = "#{:02x}{:02x}{:02x}".format(*rgb)
-
-        radio = 16
-        cx, cy = 27, 27
-        vista_canvas.create_oval(
-            cx - radio, cy - radio,
-            cx + radio, cy + radio,
-            fill=color_hex,
-            outline="white",
-            width=2
-        )
-        # Espada gris paralela ( o| )
-        vista_canvas.create_line(cx + radio + 3, cy - 10, cx + radio + 3, cy + 10, fill="#B0B5C0", width=2)
+        cx, cy, radio = 35, 35, 20
+        vista_canvas.create_oval(cx - radio, cy - radio, cx + radio, cy + radio,
+                                 fill=color_hex, outline="white", width=2)
+        vista_canvas.create_line(cx + radio + 4, cy - 12, cx + radio + 4, cy + 12, fill="#B0B5C0", width=2)
 
     color_var.trace_add("write", actualizar_vista_previa)
 
     # -----------------------------
-    # SELECCIÓN DE EQUIPO Y HABILIDADES (SLOTS 2, 3, 4)
+    # ESTADO DE SELECCIÓN (tarjetas)
+    # -----------------------------
+    herramienta_var = tk.StringVar(value="Espada Ligera")
+    hab_seleccionadas = ["Destello", "Burst de Fuerza", "Disparo Veloz"]  # orden = teclas [2],[3],[4]
+    tarjetas_herr = {}
+    tarjetas_hab = {}
+    info_var = tk.StringVar(value="Pulsa el ? de una tarjeta para ver qué hace.")
+
+    def _estilo_tarjeta(card, lbl, chk, color, seleccionado, numero=None):
+        bg = "#30363F" if seleccionado else "#282C34"
+        card.config(bg=bg, highlightthickness=2,
+                    highlightbackground=(color if seleccionado else "#3A3F4B"))
+        lbl.config(bg=bg)
+        if seleccionado:
+            chk.config(text=(str(numero) if numero else "●"), bg=bg, fg=color)
+        else:
+            chk.config(text="○", bg=bg, fg="#555C6A")
+
+    def _construir_tarjeta(parent, nombre, color_hex, on_select, on_info):
+        card = tk.Frame(parent, bg="#282C34", highlightthickness=2,
+                        highlightbackground="#3A3F4B", width=205, height=50, cursor="hand2")
+        card.pack_propagate(False)
+        chk = tk.Label(card, text="○", font=("Segoe UI", 11, "bold"), fg="#555C6A", bg="#282C34")
+        chk.place(x=8, y=14)
+        lbl = tk.Label(card, text=nombre, font=("Segoe UI", 10, "bold"), fg=color_hex, bg="#282C34")
+        lbl.place(x=32, y=15)
+        info = tk.Label(card, text=" ? ", font=("Segoe UI", 9, "bold"),
+                        fg="#1E2229", bg="#8A93A6", cursor="hand2")
+        info.place(x=178, y=6)
+        for w in (card, chk, lbl):
+            w.bind("<Button-1>", lambda e, n=nombre: on_select(n))
+        info.bind("<Button-1>", lambda e, n=nombre: on_info(n))
+        return card, lbl, chk
+
+    def refrescar():
+        for nombre, (card, lbl, chk) in tarjetas_herr.items():
+            _estilo_tarjeta(card, lbl, chk, COLOR_HERRAMIENTAS.get(nombre, "#B0B5C0"),
+                            herramienta_var.get() == nombre)
+        for nombre, (card, lbl, chk) in tarjetas_hab.items():
+            sel = nombre in hab_seleccionadas
+            num = (hab_seleccionadas.index(nombre) + 2) if sel else None  # slots [2],[3],[4]
+            _estilo_tarjeta(card, lbl, chk, COLOR_HABILIDADES.get(nombre, "#98C379"), sel, num)
+
+    def seleccionar_herramienta(nombre):
+        herramienta_var.set(nombre)
+        info_var.set(f"{nombre}: {DESC_HERRAMIENTAS.get(nombre, '')}")
+        refrescar()
+
+    def alternar_habilidad(nombre):
+        if nombre in hab_seleccionadas:
+            hab_seleccionadas.remove(nombre)
+        else:
+            if len(hab_seleccionadas) >= 3:
+                info_var.set("Máximo 3 habilidades (teclas [2], [3] y [4]). Deselecciona una primero.")
+                return
+            hab_seleccionadas.append(nombre)
+        info_var.set(f"{nombre}: {DESC_HABILIDADES.get(nombre, '')}")
+        refrescar()
+
+    def info_herramienta(nombre):
+        info_var.set(f"{nombre}: {DESC_HERRAMIENTAS.get(nombre, '')}")
+
+    def info_habilidad(nombre):
+        info_var.set(f"{nombre}: {DESC_HABILIDADES.get(nombre, '')}")
+
+    # -----------------------------
+    # BLOQUE: EQUIPO Y HABILIDADES
     # -----------------------------
     frame_equipo = tk.LabelFrame(
-        ventana,
-        text="  Equipo y Habilidades (Asignación en Teclas 2, 3 y 4)  ",
-        font=("Segoe UI", 10, "bold"),
-        fg="#61AFEF",
-        bg="#282C34",
-        padx=12,
-        pady=5,
-        relief="groove",
-        bd=1
+        ventana, text="  Equipo y Habilidades  ",
+        font=("Segoe UI", 11, "bold"), fg="#61AFEF", bg="#282C34",
+        padx=14, pady=10, relief="groove", bd=1
     )
-    frame_equipo.pack(padx=26, pady=3, fill="x")
+    frame_equipo.pack(padx=30, pady=8, fill="x")
 
-    tk.Label(
-        frame_equipo,
-        text="🗡 [1] Herramienta principal (Sacar/Guardar con [1]). Máx nivel 5, con durabilidad:",
-        font=("Segoe UI", 8, "italic"),
-        fg="#ABB2BF",
-        bg="#282C34"
-    ).pack(anchor="w", pady=(0, 3))
+    tk.Label(frame_equipo, text="Herramienta principal  —  tecla [1]",
+             font=("Segoe UI", 10, "bold"), fg="#CDD2DE", bg="#282C34").pack(anchor="w")
+    grid_herr = tk.Frame(frame_equipo, bg="#282C34")
+    grid_herr.pack(fill="x", pady=(6, 2))
+    for i, nombre in enumerate(HERRAMIENTAS_DISPONIBLES.keys()):
+        card, lbl, chk = _construir_tarjeta(grid_herr, nombre,
+                                            COLOR_HERRAMIENTAS.get(nombre, "#B0B5C0"),
+                                            seleccionar_herramienta, info_herramienta)
+        card.grid(row=i // 3, column=i % 3, padx=5, pady=5, sticky="w")
+        tarjetas_herr[nombre] = (card, lbl, chk)
 
-    herramienta_var = tk.StringVar(value="Espada Ligera")
-    combo_herramienta = ttk.Combobox(
-        frame_equipo,
-        textvariable=herramienta_var,
-        values=list(HERRAMIENTAS_DISPONIBLES.keys()),
-        state="readonly",
-        font=("Segoe UI", 9)
-    )
-    combo_herramienta.pack(anchor="w", fill="x", pady=(0, 4))
+    tk.Label(frame_equipo, text="Habilidades  —  elige hasta 3  (teclas [2] [3] [4])",
+             font=("Segoe UI", 10, "bold"), fg="#CDD2DE", bg="#282C34").pack(anchor="w", pady=(12, 0))
+    grid_hab = tk.Frame(frame_equipo, bg="#282C34")
+    grid_hab.pack(fill="x", pady=(6, 2))
+    for i, nombre in enumerate(HABILIDADES_DISPONIBLES.keys()):
+        card, lbl, chk = _construir_tarjeta(grid_hab, nombre,
+                                            COLOR_HABILIDADES.get(nombre, "#98C379"),
+                                            alternar_habilidad, info_habilidad)
+        card.grid(row=i // 3, column=i % 3, padx=5, pady=5, sticky="w")
+        tarjetas_hab[nombre] = (card, lbl, chk)
 
-    tk.Label(
-        frame_equipo,
-        text="Espadas (Ligera/Larga/Mandoble), Dagas Simples (dobles) o Escudo (protege, no golpea).",
-        font=("Segoe UI", 7),
-        fg="#6B7280",
-        bg="#282C34"
-    ).pack(anchor="w", pady=(0, 3))
-
-    hab_destello_var = tk.BooleanVar(value=True)
-    hab_burst_var = tk.BooleanVar(value=True)
-    hab_disparo_var = tk.BooleanVar(value=True)
-    hab_conejos_var = tk.BooleanVar(value=False)
-    hab_fuego_var = tk.BooleanVar(value=False)
-
-    tk.Label(
-        frame_equipo,
-        text="Elige hasta 3 habilidades (se asignan a [2], [3], [4] en orden):",
-        font=("Segoe UI", 7),
-        fg="#6B7280",
-        bg="#282C34"
-    ).pack(anchor="w", pady=(0, 2))
-
-    chk_destello = tk.Checkbutton(
-        frame_equipo,
-        text="Destello (+50% vel por 10s -> CD 5s con -20% debuff | Costo: 10 En.)",
-        variable=hab_destello_var,
-        font=("Segoe UI", 8, "bold"),
-        fg="#56B6C2",
-        bg="#282C34",
-        selectcolor="#1E2229",
-        activebackground="#282C34",
-        activeforeground="#56B6C2"
-    )
-    chk_destello.pack(anchor="w", pady=1)
-
-    chk_burst = tk.Checkbutton(
-        frame_equipo,
-        text="Burst de Fuerza (+20% fuerza por 6s | CD 12s | Costo: 15 En.)",
-        variable=hab_burst_var,
-        font=("Segoe UI", 8, "bold"),
-        fg="#E5C07B",
-        bg="#282C34",
-        selectcolor="#1E2229",
-        activebackground="#282C34",
-        activeforeground="#E5C07B"
-    )
-    chk_burst.pack(anchor="w", pady=1)
-
-    chk_disparo = tk.Checkbutton(
-        frame_equipo,
-        text="Disparo Veloz (Ataque a distancia recto vel 10, 20% daño total | Costo 15% En. Total | CD 2s)",
-        variable=hab_disparo_var,
-        font=("Segoe UI", 8, "bold"),
-        fg="#98C379",
-        bg="#282C34",
-        selectcolor="#1E2229",
-        activebackground="#282C34",
-        activeforeground="#98C379"
-    )
-    chk_disparo.pack(anchor="w", pady=1)
-
-    chk_conejos = tk.Checkbutton(
-        frame_equipo,
-        text="Invocar Conejos (invoca 5 conejos que se reproducen, máx 50 | Costo: 80 En.)",
-        variable=hab_conejos_var,
-        font=("Segoe UI", 8, "bold"),
-        fg="#8FD694",
-        bg="#282C34",
-        selectcolor="#1E2229",
-        activebackground="#282C34",
-        activeforeground="#8FD694"
-    )
-    chk_conejos.pack(anchor="w", pady=1)
-
-    chk_fuego = tk.Checkbutton(
-        frame_equipo,
-        text="Carga de Fuego (pulsa: disparo; mantén hasta 5s: más daño | quema 1/s por 5s | Costo: 15-45 En.)",
-        variable=hab_fuego_var,
-        font=("Segoe UI", 8, "bold"),
-        fg="#E06C4A",
-        bg="#282C34",
-        selectcolor="#1E2229",
-        activebackground="#282C34",
-        activeforeground="#E06C4A"
-    )
-    chk_fuego.pack(anchor="w", pady=1)
+    # Caja de información (la que alimenta el botón ?)
+    tk.Label(frame_equipo, textvariable=info_var, font=("Segoe UI", 9),
+             fg="#CDD2DE", bg="#21252B", justify="left", anchor="w",
+             wraplength=640, padx=12, pady=10).pack(fill="x", pady=(12, 2))
 
     # -----------------------------
-    # MANUAL INTEGRADO EN CREACIÓN
-    # -----------------------------
-    frame_manual = tk.LabelFrame(
-        ventana,
-        text="  📖 Manual de Reglas de Herramientas y Habilidades  ",
-        font=("Segoe UI", 9, "bold"),
-        fg="#ABB2BF",
-        bg="#21252B",
-        padx=12,
-        pady=5,
-        relief="solid",
-        bd=1
-    )
-    frame_manual.pack(padx=26, pady=3, fill="x")
-
-    txt_manual_gui = (
-        "• Herramienta [1] Espada Ligera: Alternar con [1]. Debuff de -20% Vel acumulable.\n"
-        "• Habilidades [2], [3] y [4]: Se asignan en orden según las habilidades que elijas.\n"
-        "• Disparo Veloz: Lanza una esfera de energía en línea recta a vel 10 (20% daño total).\n"
-        "• Hitboxes: Círculo y espada tienen hitboxes reales. Pulsa [H] en el mundo para verlas.\n"
-        "• Efectos visuales de habilidad: Se muestran dentro del círculo para no distorsionar el tamaño.\n"
-        "• Combo y Regeneración: +5% En. si lanzas con otra activa. Regen: +1 c/3s quieto | +1 c/6s móvil."
-    )
-
-    lbl_manual_texto = tk.Label(
-        frame_manual,
-        text=txt_manual_gui,
-        font=("Segoe UI", 8),
-        fg="#D19A66",
-        bg="#21252B",
-        justify="left"
-    )
-    lbl_manual_texto.pack(anchor="w")
-
-    # -----------------------------
-    # PANEL DE ESTADÍSTICAS ALEATORIAS
+    # ESTADÍSTICAS INICIALES
     # -----------------------------
     frame_stats = tk.LabelFrame(
-        ventana,
-        text="  Estadísticas Iniciales (Fijas · Nivel 1)  ",
-        font=("Segoe UI", 10, "bold"),
-        fg="#ABB2BF",
-        bg="#282C34",
-        padx=12,
-        pady=5,
-        relief="groove",
-        bd=1
+        ventana, text="  Estadísticas Iniciales (Fijas · Nivel 1)  ",
+        font=("Segoe UI", 10, "bold"), fg="#ABB2BF", bg="#282C34",
+        padx=14, pady=8, relief="groove", bd=1
     )
-    frame_stats.pack(padx=26, pady=3, fill="x")
+    frame_stats.pack(padx=30, pady=4, fill="x")
 
     def renderizar_stats():
         for widget in frame_stats.winfo_children():
             widget.destroy()
-
-        # Vista previa: si se escribe el nombre clave, mostrar las stats de pruebas
         stats_vista = aplicar_stats_pruebas(nombre_var.get(), stats_actuales)
-
         filas = [
             ("Vida:", stats_vista["vida"], "#E06C75"),
             ("Fuerza:", stats_vista["fuerza"], "#D19A66"),
@@ -365,70 +278,30 @@ def iniciar_aplicacion():
             ("Defensa:", stats_vista["defensa"], "#98C379"),
             ("Tamaño:", stats_vista["tamano"], "#E5C07B")
         ]
-
         for idx, (etiqueta, valor, color_destaque) in enumerate(filas):
             col = 0 if idx < 3 else 2
             fila = idx % 3
-
-            tk.Label(
-                frame_stats,
-                text=etiqueta,
-                font=("Segoe UI", 9, "bold"),
-                fg="#ABB2BF",
-                bg="#282C34"
-            ).grid(row=fila, column=col, sticky="w", pady=2, padx=(0, 4))
-
-            tk.Label(
-                frame_stats,
-                text=str(valor),
-                font=("Segoe UI", 9, "bold"),
-                fg=color_destaque,
-                bg="#1E2229",
-                width=5,
-                relief="solid",
-                bd=1
-            ).grid(row=fila, column=col + 1, sticky="w", pady=2, padx=(0, 10))
+            tk.Label(frame_stats, text=etiqueta, font=("Segoe UI", 9, "bold"),
+                     fg="#ABB2BF", bg="#282C34").grid(row=fila, column=col, sticky="w", pady=3, padx=(0, 4))
+            tk.Label(frame_stats, text=str(valor), font=("Segoe UI", 9, "bold"),
+                     fg=color_destaque, bg="#1E2229", width=6, relief="solid",
+                     bd=1).grid(row=fila, column=col + 1, sticky="w", pady=3, padx=(0, 20))
 
     # -----------------------------
     # BOTÓN: COMENZAR MUNDO
     # -----------------------------
     def al_comenzar_mundo():
-        nombre = nombre_var.get().strip()
-        if not nombre:
-            nombre = "Héroe"
-
+        nombre = nombre_var.get().strip() or "Héroe"
         color_rgb = COLORES.get(color_var.get(), (0, 150, 255))
 
-        # Recoger habilidades en el orden elegido
-        habilidades_seleccionadas = []
-        if hab_destello_var.get():
-            habilidades_seleccionadas.append(crear_habilidad("Destello"))
-        if hab_burst_var.get():
-            habilidades_seleccionadas.append(crear_habilidad("Burst de Fuerza"))
-        if hab_disparo_var.get():
-            habilidades_seleccionadas.append(crear_habilidad("Disparo Veloz"))
-        if hab_conejos_var.get():
-            habilidades_seleccionadas.append(crear_habilidad("Invocar Conejos"))
-        if hab_fuego_var.get():
-            habilidades_seleccionadas.append(crear_habilidad("Carga de Fuego"))
-
-        # Solo caben 3 (slots [2], [3], [4]); se toman las primeras elegidas
-        habilidades_seleccionadas = habilidades_seleccionadas[:3]
-
-        # Asignación dinámica de teclas a los slots 2, 3 y 4
-        slots_teclas = [
-            (pygame.K_2, "2"),
-            (pygame.K_3, "3"),
-            (pygame.K_4, "4")
-        ]
-        for idx, hab in enumerate(habilidades_seleccionadas):
+        # Habilidades en el orden elegido (ya están limitadas a 3)
+        habilidades = [crear_habilidad(n) for n in hab_seleccionadas[:3]]
+        slots_teclas = [(pygame.K_2, "2"), (pygame.K_3, "3"), (pygame.K_4, "4")]
+        for idx, hab in enumerate(habilidades):
             tecla, tecla_str = slots_teclas[idx]
             hab.asignar_tecla(tecla, tecla_str)
 
-        # Personaje de pruebas: con el nombre clave se aplican stats especiales
         stats_finales = aplicar_stats_pruebas(nombre, stats_actuales)
-
-        # Configuración para iniciar el mundo
         config_mundo = {
             "nombre": nombre,
             "color": color_rgb,
@@ -438,38 +311,22 @@ def iniciar_aplicacion():
             "fuerza": stats_finales["fuerza"],
             "energia": stats_finales["energia"],
             "defensa": stats_finales["defensa"],
-            "habilidades": habilidades_seleccionadas,
+            "habilidades": habilidades,
             "herramienta": crear_herramienta(herramienta_var.get())
         }
-
-        # Destruir ventana de creación
         ventana.destroy()
-
-        # Iniciar el mundo modularmente
         iniciar_mundo(config_mundo)
 
-    btn_comenzar = tk.Button(
-        ventana,
-        text="▶ Comenzar mundo (Pantalla Completa)",
-        font=("Segoe UI", 12, "bold"),
-        bg="#98C379",
-        fg="#1E2229",
-        activebackground="#7FA961",
-        activeforeground="#1E2229",
-        relief="flat",
-        cursor="hand2",
-        command=al_comenzar_mundo
-    )
-    btn_comenzar.pack(fill="x", padx=26, pady=(3, 10), ipady=5)
+    tk.Button(ventana, text="▶ Comenzar mundo (Pantalla Completa)",
+              font=("Segoe UI", 13, "bold"), bg="#98C379", fg="#1E2229",
+              activebackground="#7FA961", activeforeground="#1E2229", relief="flat",
+              cursor="hand2", command=al_comenzar_mundo).pack(fill="x", padx=30, pady=(8, 14), ipady=6)
 
-    # Re-dibujar estadísticas al escribir el nombre (detecta el nombre clave de pruebas)
     nombre_var.trace_add("write", lambda *args: renderizar_stats())
 
-    # Inicializar vistas
     actualizar_vista_previa()
     renderizar_stats()
-
-    # Bucle de la interfaz gráfica
+    refrescar()
     ventana.mainloop()
 
 
