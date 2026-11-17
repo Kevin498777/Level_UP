@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y siete habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **El combate contra enemigos todavía no existe**: las zonas de daño (hitboxes), el sistema de puntos de empuje y los efectos como la quemadura ya están preparados para cuando se añada.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y nueve habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **El combate contra enemigos todavía no existe**: las zonas de daño (hitboxes), el sistema de puntos de empuje y los efectos como la quemadura ya están preparados para cuando se añada.
 
 ---
 
@@ -155,7 +155,7 @@ Solo visual: Espada Ligera 20 % más grande; Espada Larga 20 % más larga y 10 %
 
 ## 9. Habilidades
 
-Se equipan en las teclas **[2]**, **[3]** y **[4]** (hasta 3 elegidas en la creación). Consumen energía y tienen recarga. Nivel máximo **20**.
+Se equipan en las teclas **[2]**, **[3]** y **[4]** (hasta 3 elegidas en la creación). Consumen energía y tienen recarga. Nivel máximo **20** (Regeneración Inversa: **10**).
 
 ### 9.1 Destello
 
@@ -197,7 +197,37 @@ Campo de fuerza **azul celeste** (solo el contorno, delgado) un **10 % más gran
 
 La dureza sube **+15 por nivel** y en el nivel 20 recibe un bono final hasta **500**. Duración, recarga y coste se mantienen por tramos hasta el siguiente nivel de la tabla.
 
-### 9.8 Regla de combo
+### 9.8 Regeneración Inversa
+
+Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; con la vida llena no cobra). Si no hay energía para el siguiente intervalo, deja de curar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **rosa**. Nivel máximo **10**; cada mejora cuesta **2 puntos** (como las armas).
+
+| Nivel | Cura | Energía | Cada |
+|---|---|---|---|
+| 1 – 2 | +1 | −10 | 2 s |
+| 3 – 5 | +2 | −15 | 2 s |
+| 6 – 8 | +3 | −20 | 2 s |
+| 9 | +4 | −25 | 2 s |
+| 10 | +6 | −40 | 3 s |
+
+### 9.9 Golpe de Suerte
+
+Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa o Aura Eléctrica (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico) o **nada**. Cada resultado tiene un **10 %** y "nada" un **30 %**; en **nivel 20** "nada" baja al **5 %** y el resto se reparte a partes iguales (≈13.6 % cada uno).
+
+| Nivel | Coste En. | Nivel de la habilidad otorgada | Duración otorgada | Espera (instantáneos) | Recarga |
+|---|---|---|---|---|---|
+| 1 – 4 | 15 | 1 | 5 s | 5 s | 5 s |
+| 5 – 9 | 20 | 5 | 10 s | 5 s | 8 s |
+| 10 – 14 | 25 | 10 | 15 s | 5 s | 12 s |
+| 15 – 19 | 30 | 15 | 20 s | 5 s | 15 s |
+| 20 | 50 | 20 | 30 s | **2 s** | 20 s |
+
+- **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; **después** empieza la recarga. Así nunca hay dos resultados a la vez.
+- **Habilidad otorgada:** tiene las estadísticas de su nivel pero dura lo que marca la tabla. Si termina antes (por ejemplo, el Reforzamiento se rompe), la recarga empieza en ese momento. El Destello otorgado no deja fatiga.
+- **Regeneración otorgada:** cura sola, sin pulsar ni gastar energía, con sus propios tiempos: 4 s (+1 cada 2 s) en nv 1–4, 6 s en nv 5–9, 8 s en nv 10–14, 10 s (+2 cada 2 s) en nv 15–19 y 10 s (+2 cada 1 s) en nv 20.
+- **Resultado instantáneo** (energía, escudos o nada): bloquea durante la espera básica y luego empieza la recarga.
+- **Misma habilidad activa dos veces** (equipada y otorgada): sus efectos buenos **se suman**. La otorgada por Golpe de Suerte aporta siempre el **100 %** y la equipada solo el **50 %**, sin importar su nivel ni el orden en que se activen (ej. Burst otorgado +21 % y equipado +35 % = +21 % + 17.5 % = **+38.5 %**). Reforzamiento: absorbe primero el campo otorgado y luego el equipado al 50 % de eficacia. Regeneración: la equipada cura al 50 %. Cuando una termina, la otra vuelve al 100 %. Costes, recargas, combo y efectos negativos (fatiga del Destello, autodaño del Aura) no cambian.
+
+### 9.10 Regla de combo
 
 Lanzar una habilidad mientras otra sigue activa cuesta un **+5 % de la energía actual**.
 

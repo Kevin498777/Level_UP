@@ -295,3 +295,40 @@ Habilidad mágica que se **mantiene pulsada**, sin recarga. Cada intervalo compl
 | 8 | +3 | -20 | 2 s | 1.5 | 6.67 |
 | 9 | +4 | -25 | 2 s | 2 | 6.25 |
 | 10 | +6 | -40 | 3 s | 2 | 6.67 |
+
+### 2.9 Golpe de Suerte
+
+Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa o Aura Eléctrica) como efecto temporal sin coste extra, energía al máximo, escudos al máximo o nada. La habilidad otorgada sale al nivel del tramo de Golpe de Suerte, con las estadísticas de ese nivel (el Destello otorgado no deja fatiga). En nivel 20 la probabilidad de "nada" baja al 5 % y el resto se reparte a partes iguales. **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; después empieza la recarga. La habilidad otorgada dura según el tramo (la Regeneración usa sus propios tiempos) y un resultado instantáneo (energía, escudos o nada) bloquea durante una espera básica antes de la recarga.
+
+| Nivel | Coste En. | Nivel de la habilidad otorgada | Duración de la habilidad otorgada | Espera (instantáneos) | Recarga | Prob. nada | Prob. de cada resultado |
+|---|---|---|---|---|---|---|---|
+| 1 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
+| 2 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
+| 3 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
+| 4 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
+| 5 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
+| 6 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
+| 7 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
+| 8 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
+| 9 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
+| 10 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
+| 11 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
+| 12 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
+| 13 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
+| 14 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
+| 15 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
+| 16 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
+| 17 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
+| 18 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
+| 19 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
+| 20 | 50 | 20 | 30 s | 2 s | 20 s | 5 % | 13.6 % |
+
+**Regeneración Inversa otorgada** (cura sola, sin pulsar ni gastar energía):
+
+| Nivel de Golpe de Suerte | Duración | Vida curada | Intervalo | Vida total |
+|---|---|---|---|---|
+| 1 – 4 | 4 s | +1 | 2 s | +2 |
+| 5 – 9 | 6 s | +1 | 2 s | +3 |
+| 10 – 14 | 8 s | +1 | 2 s | +4 |
+| 15 – 19 | 10 s | +2 | 2 s | +10 |
+| 20 | 10 s | +2 | 1 s | +20 |

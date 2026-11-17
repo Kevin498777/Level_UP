@@ -93,6 +93,27 @@ class ProyectilFuego:
 # -----------------------------
 COSTO_MEJORA_HABILIDAD = 1   # Puntos de mejora que cuesta subir un nivel de habilidad (por defecto)
 
+# Misma habilidad activa dos veces (equipada y otorgada por Golpe de Suerte): los efectos
+# buenos se suman; la otorgada siempre aporta el 100% y la equipada solo este porcentaje
+# (sin importar su nivel). Costes, recargas y efectos negativos (fatiga, autodaño) no cambian.
+FACTOR_DUPLICADO = 0.5
+
+
+def factor_duplicado(habilidad, activas):
+    """
+    Porcentaje que aporta 'habilidad' entre las 'activas' del mismo nombre: 1.0 si es la
+    otorgada o la única; FACTOR_DUPLICADO si es la equipada y hay una otorgada activa.
+    """
+    if habilidad.otorgada:
+        return 1.0
+    hay_otorgada = any(h.otorgada for h in activas if h is not habilidad)
+    return FACTOR_DUPLICADO if hay_otorgada else 1.0
+
+
+def combinar_buffs(activas, atributo="porcentaje_buff"):
+    """Suma el buff de las habilidades activas del mismo nombre aplicando factor_duplicado."""
+    return sum(getattr(h, atributo) * factor_duplicado(h, activas) for h in activas)
+
 class HabilidadBase:
     def __init__(self, nombre, descripcion, costo_energia, duracion_activa, duracion_cooldown, tecla, tecla_str):
         self.nombre = nombre
@@ -115,6 +136,7 @@ class HabilidadBase:
         self.nivel_max = 20
         self.escalable = True
         self.costo_mejora = COSTO_MEJORA_HABILIDAD   # Puntos de mejora por cada nivel
+        self.otorgada = False   # True si es un efecto otorgado por Golpe de Suerte
         self._aplicar_nivel()
 
     def _aplicar_nivel(self):
@@ -291,13 +313,24 @@ class BurstDeFuerza(HabilidadBase):
         self.costo_energia = 15 + 5 * (n // 5)
 
     def aplicar_efecto_activo(self, jugador):
-        jugador.fuerza = round(jugador.fuerza_base * (1.0 + self.porcentaje_buff), 2)
+        self._recalcular_fuerza(jugador)
 
     def aplicar_efecto_cooldown(self, jugador):
-        jugador.fuerza = jugador.fuerza_base
+        self._recalcular_fuerza(jugador)
 
     def restaurar_efecto(self, jugador):
-        jugador.fuerza = jugador.fuerza_base
+        self._recalcular_fuerza(jugador)
+
+    def _recalcular_fuerza(self, jugador):
+        """
+        Combina los Burst activos (combinar_buffs): el de Golpe de Suerte al 100% y el
+        equipado al 50% si coinciden. Si ninguno sigue activo, la fuerza vuelve a la base.
+        """
+        activos = [h for h in jugador.habilidades_en_efecto() if h.nombre == self.nombre and h.estado == "ACTIVA"]
+        if self.estado == "ACTIVA" and self not in activos:
+            activos.append(self)
+        buff = combinar_buffs(activos)
+        jugador.fuerza = round(jugador.fuerza_base * (1.0 + buff), 2)
 
 
 # -----------------------------
@@ -614,6 +647,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
         elif hab.nombre == "Aura Electrica":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Golpe de Suerte":
+            detalles = f"Azar nv{hab.nivel_efecto} · {hab.ultimo_resultado}"
         elif hab.nombre == "Regeneración Inversa":
             detalles = f"+{hab.curacion} vida / -{hab.costo_energia} En. cada {hab.intervalo:.0f}s (mantén)"
         elif hab.nombre == "Reforzamiento Mágico":
@@ -1056,15 +1091,16 @@ class ReforzamientoMagico(HabilidadBase):
     def aplicar_efecto_cooldown(self, jugador):
         self.dureza = 0.0
 
-    def absorber_dano(self, cantidad, jugador):
+    def absorber_dano(self, cantidad, jugador, eficacia=1.0):
         """
         Absorbe daño (físico o mágico) con la dureza del campo y devuelve el sobrante.
-        Si la dureza llega a 0, el campo se rompe y pasa a recarga.
+        Con eficacia < 1 (campo secundario cuando hay dos activos) cada punto absorbido
+        gasta 1/eficacia de dureza. Si la dureza llega a 0, el campo se rompe y pasa a recarga.
         """
         if self.estado != "ACTIVA" or cantidad <= 0:
             return cantidad
-        absorbido = min(cantidad, self.dureza)
-        self.dureza = round(self.dureza - absorbido, 2)
+        absorbido = min(cantidad, self.dureza * eficacia)
+        self.dureza = max(0.0, round(self.dureza - absorbido / eficacia, 2))
         if self.dureza <= 0:
             self.estado = "COOLDOWN"
             self.tiempo_restante_activo = 0.0
@@ -1168,7 +1204,8 @@ class RegeneracionInversa(HabilidadBase):
                 self._detener()
                 return
             jugador.energia -= self.costo_energia
-            jugador.vida = min(jugador.vida_max, jugador.vida + self.curacion)
+            curacion = self.curacion * factor_regeneracion(self, jugador)
+            jugador.vida = min(jugador.vida_max, round(jugador.vida + curacion, 2))
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
         """Contorno rosa (mismo tamaño y grosor que Reforzamiento Mágico) mientras está activa."""
@@ -1176,6 +1213,199 @@ class RegeneracionInversa(HabilidadBase):
         cy = round(jugador.posicion.y - desplazamiento[1])
         radio = round(jugador.radio * ReforzamientoMagico.FACTOR_RADIO)
         pygame.draw.circle(pantalla, self.COLOR_AURA, (cx, cy), radio, ReforzamientoMagico.GROSOR_CAMPO)
+
+
+# -----------------------------
+# EFECTO: REGENERACIÓN DE GOLPE DE SUERTE
+# -----------------------------
+class RegeneracionSuerte(HabilidadBase):
+    """
+    Versión de Regeneración Inversa que otorga Golpe de Suerte: cura sola, sin pulsar
+    nada ni gastar energía, durante su duración. Muestra el mismo contorno rosa.
+    """
+    COLOR_AURA = RegeneracionInversa.COLOR_AURA
+
+    def __init__(self, duracion, curacion, intervalo):
+        super().__init__(
+            nombre="Regeneración Inversa",
+            descripcion="Curación automática otorgada por Golpe de Suerte.",
+            costo_energia=0,
+            duracion_activa=duracion,
+            duracion_cooldown=0.0,
+            tecla=None,
+            tecla_str=""
+        )
+        self.curacion = curacion
+        self.intervalo = intervalo
+        self.curaciones_hechas = 0
+        self.otorgada = True
+
+    def aplicar_efecto_activo(self, jugador):
+        self.curaciones_hechas = 0
+
+    def actualizar(self, dt, jugador):
+        if self.estado == "ACTIVA":
+            # Curaciones según el tiempo transcurrido (redondeado para no perder la última por decimales)
+            transcurrido = min(self.duracion_activa, self.duracion_activa - self.tiempo_restante_activo + dt)
+            debidas = int(round(transcurrido, 6) // self.intervalo)
+            while self.curaciones_hechas < debidas:
+                self.curaciones_hechas += 1
+                curacion = self.curacion * factor_regeneracion(self, jugador)
+                jugador.vida = min(jugador.vida_max, round(jugador.vida + curacion, 2))
+        super().actualizar(dt, jugador)
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        RegeneracionInversa.dibujar_aura(self, pantalla, jugador, desplazamiento)
+
+
+def factor_regeneracion(regen, jugador):
+    """Con la otorgada activa, la Regeneración equipada cura al 50% (ver factor_duplicado)."""
+    activas = [h for h in jugador.habilidades_en_efecto() if h.nombre == regen.nombre and h.estado == "ACTIVA"]
+    return factor_duplicado(regen, activas)
+
+
+# -----------------------------
+# HABILIDAD 9: GOLPE DE SUERTE
+# -----------------------------
+class GolpeDeSuerte(HabilidadBase):
+    """
+    Al lanzarla otorga un resultado aleatorio (sin coste extra de energía):
+    Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica
+    (10% cada una, al nivel que marca el tramo de Golpe de Suerte), energía al máximo (10%),
+    escudos al máximo (10%) o nada (30%). En nivel 20 "nada" baja a 5% y el resto se
+    reparte a partes iguales entre los demás resultados.
+
+    Bloqueo: Golpe de Suerte queda ACTIVA (no se puede volver a lanzar) mientras dure
+    lo otorgado y solo al terminar empieza su recarga normal:
+    - Habilidad otorgada: dura 5/10/15/20/30s según el tramo (la regeneración usa sus propios tiempos).
+      Si termina antes (ej. el Reforzamiento se rompe), la recarga empieza en ese momento.
+    - Resultado instantáneo (energía, escudos o nada): espera básica de 5s (2s en nivel 20).
+    """
+    NADA = "Nada"
+    ENERGIA = "Energía al máximo"
+    ESCUDOS = "Escudos al máximo"
+    REGENERACION = "Regeneración Inversa"
+    # Habilidades que puede otorgar (se activan como efecto temporal, sin recarga propia)
+    EFECTOS = {
+        "Burst de Fuerza": BurstDeFuerza,
+        "Destello": Destello,
+        "Reforzamiento Mágico": ReforzamientoMagico,
+        "Aura Electrica": AuraElectrica,
+    }
+    RESULTADOS = ("Burst de Fuerza", "Destello", "Reforzamiento Mágico", REGENERACION,
+                  ENERGIA, "Aura Electrica", ESCUDOS)
+    PROB_NADA = 0.30
+    PROB_NADA_NIVEL_MAX = 0.05
+    # Tramos por nivel: (nivel desde el que aplica, valor)
+    TRAMOS_COSTE = ((1, 15), (5, 20), (10, 25), (15, 30), (20, 50))
+    TRAMOS_RECARGA = ((1, 5.0), (5, 8.0), (10, 12.0), (15, 15.0), (20, 20.0))
+    TRAMOS_NIVEL_EFECTO = ((1, 1), (5, 5), (10, 10), (15, 15), (20, 20))
+    # Duración de la habilidad otorgada (sustituye a la suya propia), en segundos
+    TRAMOS_DURACION_EFECTO = ((1, 5.0), (5, 10.0), (10, 15.0), (15, 20.0), (20, 30.0))
+    ESPERA_INSTANTANEO = 5.0             # Bloqueo tras energía, escudos o nada
+    ESPERA_INSTANTANEO_NIVEL_MAX = 2.0   # En nivel 20 la espera básica baja a 2s
+    # Regeneración otorgada: (duración s, vida curada, intervalo s)
+    TRAMOS_REGENERACION = ((1, (4.0, 1, 2.0)), (5, (6.0, 1, 2.0)), (10, (8.0, 1, 2.0)),
+                           (15, (10.0, 2, 2.0)), (20, (10.0, 2, 1.0)))
+
+    def __init__(self):
+        super().__init__(
+            nombre="Golpe de Suerte",
+            descripcion="Otorga un efecto aleatorio: una habilidad, energía o escudos al máximo, o nada.",
+            costo_energia=15,
+            duracion_activa=0.0,
+            duracion_cooldown=5.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self.ultimo_resultado = "—"
+        self.efecto_actual = None   # Efecto otorgado que mantiene bloqueada la habilidad
+
+    def _aplicar_nivel(self):
+        """
+        Escalado por tramos (nivel 1 a 20):
+        - coste: 15 (nv1), 20 (nv5), 25 (nv10), 30 (nv15), 50 (nv20)
+        - recarga: 5s (nv1), 8s (nv5), 12s (nv10), 15s (nv15), 20s (nv20)
+        - nivel de la habilidad otorgada: 1 (nv1-4), 5 (nv5-9), 10 (nv10-14), 15 (nv15-19), 20 (nv20)
+        - duración de la habilidad otorgada: 5s, 10s, 15s, 20s, 30s (mismos tramos)
+        - espera tras un resultado instantáneo: 5s (2s en nivel 20)
+        - probabilidad de "nada": 30% (5% en nivel 20)
+        """
+        n = self.nivel
+        self.costo_energia = _valor_por_tramo(n, self.TRAMOS_COSTE)
+        self.duracion_cooldown = _valor_por_tramo(n, self.TRAMOS_RECARGA)
+        self.nivel_efecto = _valor_por_tramo(n, self.TRAMOS_NIVEL_EFECTO)
+        self.duracion_efecto = _valor_por_tramo(n, self.TRAMOS_DURACION_EFECTO)
+        self.espera_instantaneo = self.ESPERA_INSTANTANEO_NIVEL_MAX if n >= self.nivel_max else self.ESPERA_INSTANTANEO
+        self.regeneracion = _valor_por_tramo(n, self.TRAMOS_REGENERACION)
+        self.prob_nada = self.PROB_NADA_NIVEL_MAX if n >= self.nivel_max else self.PROB_NADA
+
+    def probabilidades(self):
+        """Diccionario resultado -> probabilidad (suma 1.0)."""
+        prob_resto = (1.0 - self.prob_nada) / len(self.RESULTADOS)
+        probs = {r: prob_resto for r in self.RESULTADOS}
+        probs[self.NADA] = self.prob_nada
+        return probs
+
+    def sortear(self):
+        probs = self.probabilidades()
+        return random.choices(list(probs), weights=list(probs.values()))[0]
+
+    def aplicar_resultado(self, resultado, jugador):
+        """Aplica el resultado al jugador y devuelve el texto a mostrar."""
+        if resultado == self.ENERGIA:
+            jugador.energia = jugador.energia_max
+            return resultado
+        if resultado == self.ESCUDOS:
+            jugador.escudo = jugador.escudo_max
+            jugador.escudo_magico = jugador.escudo_magico_max
+            return resultado
+        if resultado == self.REGENERACION:
+            efecto = RegeneracionSuerte(*self.regeneracion)   # Conserva sus propios tiempos
+        elif resultado in self.EFECTOS:
+            efecto = self.EFECTOS[resultado]()
+            while efecto.nivel < self.nivel_efecto and efecto.subir_nivel():
+                pass
+            efecto.duracion_activa = self.duracion_efecto     # Duración según el tramo de Golpe de Suerte
+            efecto.otorgada = True
+        else:
+            return self.NADA
+        jugador.agregar_efecto(efecto)
+        efecto.ejecutar_activacion(jugador)
+        self.efecto_actual = efecto
+        return f"{resultado} nv{efecto.nivel}" if resultado in self.EFECTOS else resultado
+
+    def ejecutar_activacion(self, jugador):
+        """Sortea y aplica el resultado; queda bloqueada (ACTIVA) hasta que termine lo otorgado."""
+        self.efecto_actual = None
+        self.ultimo_resultado = self.aplicar_resultado(self.sortear(), jugador)
+        self.mensaje_alerta = f"¡{self.ultimo_resultado}!"
+        self.tiempo_alerta = 2.5
+        self.estado = "ACTIVA"
+        if self.efecto_actual is not None:
+            self.duracion_activa = self.efecto_actual.duracion_activa
+        else:
+            self.duracion_activa = self.espera_instantaneo
+        self.tiempo_restante_activo = self.duracion_activa
+
+    def actualizar(self, dt, jugador):
+        """Con un efecto otorgado, el bloqueo dura lo que dure el efecto; después empieza la recarga."""
+        if self.estado == "ACTIVA" and self.efecto_actual is not None:
+            if self.tiempo_alerta > 0:
+                self.tiempo_alerta -= dt
+                if self.tiempo_alerta <= 0:
+                    self.mensaje_alerta = ""
+            efecto = self.efecto_actual
+            if efecto.estado == "ACTIVA" and efecto in jugador.efectos_extra:
+                self.tiempo_restante_activo = efecto.tiempo_restante_activo
+                return
+            # El efecto terminó (o se rompió): empieza la recarga normal
+            self.efecto_actual = None
+            self.estado = "COOLDOWN"
+            self.tiempo_restante_activo = 0.0
+            self.tiempo_restante_cooldown = self.duracion_cooldown
+            return
+        super().actualizar(dt, jugador)
 
 
 HABILIDADES_DISPONIBLES = {
@@ -1186,7 +1416,8 @@ HABILIDADES_DISPONIBLES = {
     "Carga de Fuego": CargaDeFuego,
     "Aura Electrica": AuraElectrica,
     "Reforzamiento Mágico": ReforzamientoMagico,
-    "Regeneración Inversa": RegeneracionInversa
+    "Regeneración Inversa": RegeneracionInversa,
+    "Golpe de Suerte": GolpeDeSuerte
 }
 
 def crear_habilidad(nombre):

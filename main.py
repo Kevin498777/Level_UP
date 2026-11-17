@@ -45,7 +45,8 @@ DESC_HABILIDADES = {
     "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15 al pulsar y se cobra cada segundo cargado (hasta 45 En.).",
     "Aura Electrica": "Aura que te sigue: +5% a +15% velocidad y 1 a 5 daño/s a enemigos cercanos. Autodaño 0.5/s (mágico, lo frena tu escudo mágico). Costo 20-58 En., CD 40-60s.",
     "Reforzamiento Mágico": "Campo de fuerza que bloquea daño físico y mágico. Dureza 200-500, duración 1-6s. Si se agota la dureza se rompe. Costo 25-50 En., CD 10-35s.",
-    "Regeneración Inversa": "Mágica. Mantén pulsado para curar: +1 vida/-10 En. cada 2s hasta +6 vida/-40 En. cada 3s. Sin recarga. Máx nivel 10 (mejora: 2 puntos)."
+    "Regeneración Inversa": "Mágica. Mantén pulsado para curar: +1 vida/-10 En. cada 2s hasta +6 vida/-40 En. cada 3s. Sin recarga. Máx nivel 10 (mejora: 2 puntos).",
+    "Golpe de Suerte": "Efecto aleatorio: Burst, Destello, Reforzamiento, Regeneración, Aura, energía o escudos al máximo (10% c/u) o nada (30%; 5% a nv20). La habilidad otorgada dura 5-30s; no se relanza hasta que termine. Costo 15-50 En., CD 5-20s."
 }
 
 COLOR_HABILIDADES = {
@@ -56,7 +57,8 @@ COLOR_HABILIDADES = {
     "Carga de Fuego": "#E06C4A",
     "Aura Electrica": "#5BC8FF",
     "Reforzamiento Mágico": "#87CEFA",
-    "Regeneración Inversa": "#FF69B4"
+    "Regeneración Inversa": "#FF69B4",
+    "Golpe de Suerte": "#F2C94C"
 }
 
 # -----------------------------

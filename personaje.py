@@ -1,6 +1,7 @@
 import pygame
 import math
 from herramientas import EspadaLigera
+from habilidades import combinar_buffs, factor_duplicado
 
 # Píxeles de retroceso que provoca cada punto de empuje
 PIXELES_POR_PUNTO_EMPUJE = 6
@@ -67,6 +68,8 @@ class Personaje:
         self.nivel = 1
         self.puntos_mejora = 3
         self.habilidades = habilidades if habilidades is not None else []
+        # Efectos temporales de habilidades no equipadas (ej. los que otorga Golpe de Suerte)
+        self.efectos_extra = []
         self.herramienta = herramienta if herramienta is not None else EspadaLigera()
 
         # Proyectiles activos disparados por el personaje (Disparo Veloz)
@@ -102,6 +105,24 @@ class Personaje:
             self.radio * 2
         )
 
+    def habilidades_en_efecto(self):
+        """Habilidades equipadas más los efectos temporales activos (ej. de Golpe de Suerte)."""
+        return self.habilidades + self.efectos_extra
+
+    def agregar_efecto(self, efecto):
+        """Añade un efecto temporal ya activado; si hay otro con el mismo nombre, lo reemplaza."""
+        for viejo in [e for e in self.efectos_extra if e.nombre == efecto.nombre]:
+            viejo.estado = "COOLDOWN"
+            viejo.aplicar_efecto_cooldown(self)
+            self.efectos_extra.remove(viejo)
+        self.efectos_extra.append(efecto)
+
+    def actualizar_efectos(self, dt):
+        """Actualiza los efectos temporales y quita los que ya terminaron (no tienen recarga)."""
+        for efecto in self.efectos_extra:
+            efecto.actualizar(dt, self)
+        self.efectos_extra = [e for e in self.efectos_extra if e.estado == "ACTIVA"]
+
     def esta_en_movimiento(self):
         """Devuelve True si el personaje se está desplazando hacia su destino."""
         return (self.destino - self.posicion).length() > 2.0
@@ -122,7 +143,7 @@ class Personaje:
         elif nombre == "fuerza":
             self.fuerza_base = round(self.fuerza_base + 0.2, 2)
             # Si no hay un Burst activo, reflejar el cambio en la fuerza actual
-            if not any(h.nombre == "Burst de Fuerza" and h.estado == "ACTIVA" for h in self.habilidades):
+            if not any(h.nombre == "Burst de Fuerza" and h.estado == "ACTIVA" for h in self.habilidades_en_efecto()):
                 self.fuerza = self.fuerza_base
         elif nombre == "velocidad":
             self.velocidad_base = round(self.velocidad_base + 0.1, 2)
@@ -197,15 +218,21 @@ class Personaje:
         """
         modificador = 0.0
 
-        # Modificadores de habilidades
-        for hab in self.habilidades:
+        # Modificadores de habilidades (equipadas y efectos temporales). Si la misma
+        # habilidad está activa dos veces (equipada y de Golpe de Suerte), los buffs se
+        # suman: la otorgada al 100% y la equipada al 50% (combinar_buffs). La fatiga no cambia.
+        buffs_destello = []
+        fatiga_destello = 0.0
+        buffs_aura = []
+        for hab in self.habilidades_en_efecto():
             if hab.nombre == "Destello":
                 if hab.estado == "ACTIVA":
-                    modificador += hab.porcentaje_buff
+                    buffs_destello.append(hab)
                 elif hab.estado == "COOLDOWN":
-                    modificador -= hab.porcentaje_debuff
+                    fatiga_destello = max(fatiga_destello, hab.porcentaje_debuff)
             elif hab.nombre == "Aura Electrica" and hab.estado == "ACTIVA":
-                modificador += hab.porcentaje_buff
+                buffs_aura.append(hab)
+        modificador += combinar_buffs(buffs_destello) - fatiga_destello + combinar_buffs(buffs_aura)
 
         # Modificador acumulable de herramienta activa
         if self.herramienta and self.herramienta.activa:
@@ -369,10 +396,14 @@ class Personaje:
             return 0.0
 
         # Campos de fuerza activos (ej. Reforzamiento Mágico) absorben primero el daño
-        # físico o mágico; solo el sobrante llega a los escudos y a la vida.
-        for hab in self.habilidades:
-            if hab.estado == "ACTIVA" and hasattr(hab, "absorber_dano"):
-                cantidad = hab.absorber_dano(cantidad, self)
+        # físico o mágico; solo el sobrante llega a los escudos y a la vida. Con dos campos
+        # activos, absorbe primero el otorgado por Golpe de Suerte (100%) y luego el
+        # equipado al 50% de eficacia (factor_duplicado).
+        campos = sorted((h for h in self.habilidades_en_efecto()
+                         if h.estado == "ACTIVA" and hasattr(h, "absorber_dano")),
+                        key=lambda h: h.otorgada, reverse=True)
+        for campo in campos:
+            cantidad = campo.absorber_dano(cantidad, self, factor_duplicado(campo, campos))
         if cantidad <= 0:
             return 0.0
 
@@ -434,7 +465,8 @@ class Personaje:
             pygame.draw.circle(pantalla, (70, 85, 110), (round(self.destino.x - ox), round(self.destino.y - oy)), 5, 1)
 
         # Aura(s) activas alrededor del personaje (se dibujan detrás del cuerpo)
-        for hab in self.habilidades:
+        en_efecto = self.habilidades_en_efecto()
+        for hab in en_efecto:
             if hab.estado == "ACTIVA" and hasattr(hab, "dibujar_aura"):
                 hab.dibujar_aura(pantalla, self, desplazamiento)
 
@@ -442,8 +474,8 @@ class Personaje:
         pygame.draw.circle(pantalla, self.color, (pos_x, pos_y), self.radio)
 
         # Círculos de habilidad cambiados al INTERIOR del círculo (para no alterar la percepción del hitbox)
-        destello_activo = any(h.nombre == "Destello" and h.estado == "ACTIVA" for h in self.habilidades)
-        burst_activo = any(h.nombre == "Burst de Fuerza" and h.estado == "ACTIVA" for h in self.habilidades)
+        destello_activo = any(h.nombre == "Destello" and h.estado == "ACTIVA" for h in en_efecto)
+        burst_activo = any(h.nombre == "Burst de Fuerza" and h.estado == "ACTIVA" for h in en_efecto)
         destello_cd = any(h.nombre == "Destello" and h.estado == "COOLDOWN" for h in self.habilidades)
 
         if destello_activo and burst_activo:

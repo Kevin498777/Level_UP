@@ -625,6 +625,8 @@ def iniciar_mundo(config):
         # Actualizar todas las habilidades equipadas
         for hab in jugador.habilidades:
             hab.actualizar(dt, jugador)
+        # Efectos temporales otorgados (ej. por Golpe de Suerte)
+        jugador.actualizar_efectos(dt)
 
         # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
         jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
