@@ -278,3 +278,20 @@ Campo de fuerza azul celeste (solo contorno), un 10 % más grande que el persona
 | 18 | 455 | 4 s | 25 s | 40 |
 | 19 | 470 | 4 s | 25 s | 40 |
 | 20 | 500 | 6 s | 35 s | 50 |
+
+### 2.8 Regeneración Inversa
+
+Habilidad mágica que se **mantiene pulsada**, sin recarga. Cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima); si no hay energía suficiente deja de curar. Nivel máximo **10**; cada mejora cuesta **2 puntos**. Mientras está activa muestra un contorno rosa.
+
+| Nivel | Vida curada | Energía gastada | Intervalo | Vida por segundo | Energía por vida |
+|---|---|---|---|---|---|
+| 1 | +1 | -10 | 2 s | 0.5 | 10 |
+| 2 | +1 | -10 | 2 s | 0.5 | 10 |
+| 3 | +2 | -15 | 2 s | 1 | 7.5 |
+| 4 | +2 | -15 | 2 s | 1 | 7.5 |
+| 5 | +2 | -15 | 2 s | 1 | 7.5 |
+| 6 | +3 | -20 | 2 s | 1.5 | 6.67 |
+| 7 | +3 | -20 | 2 s | 1.5 | 6.67 |
+| 8 | +3 | -20 | 2 s | 1.5 | 6.67 |
+| 9 | +4 | -25 | 2 s | 2 | 6.25 |
+| 10 | +6 | -40 | 3 s | 2 | 6.67 |

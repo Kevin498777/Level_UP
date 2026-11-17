@@ -91,6 +91,8 @@ class ProyectilFuego:
 # -----------------------------
 # CLASE BASE DE HABILIDADES
 # -----------------------------
+COSTO_MEJORA_HABILIDAD = 1   # Puntos de mejora que cuesta subir un nivel de habilidad (por defecto)
+
 class HabilidadBase:
     def __init__(self, nombre, descripcion, costo_energia, duracion_activa, duracion_cooldown, tecla, tecla_str):
         self.nombre = nombre
@@ -112,6 +114,7 @@ class HabilidadBase:
         self.nivel = 1
         self.nivel_max = 20
         self.escalable = True
+        self.costo_mejora = COSTO_MEJORA_HABILIDAD   # Puntos de mejora por cada nivel
         self._aplicar_nivel()
 
     def _aplicar_nivel(self):
@@ -492,7 +495,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         pantalla.blit(txt_tecla, (tecla_x, cur_y + 7))
 
         # Botón [+] para subir nivel (gasta un punto de mejora compartido)
-        if hab.escalable and hab.nivel < hab.nivel_max and jugador.puntos_mejora > 0:
+        if hab.escalable and hab.nivel < hab.nivel_max and jugador.puntos_mejora >= hab.costo_mejora:
             bsize = 16
             rect_btn = pygame.Rect(tecla_x - bsize - 8, cur_y + 6, bsize, bsize)
             pygame.draw.rect(pantalla, (34, 78, 44), rect_btn, border_radius=4)
@@ -514,7 +517,23 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         pantalla.blit(txt_costo, (tarjeta_x + 92, cur_y + 26))
 
         # Estado y Cuenta Regresiva
-        if getattr(hab, "cargando", False):
+        if getattr(hab, "canalizando", False):
+            # Habilidad que actúa mientras se mantiene presionada (ej. Regeneración Inversa)
+            txt_est = fuente_mini.render("REGENERANDO", True, (255, 140, 200))
+            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+
+            falta = max(0.0, hab.intervalo - hab.tiempo_tick)
+            txt_tiempo = fuente_contador.render(f"{falta:.1f}s", True, (255, 200, 230))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+
+            prog = hab.tiempo_tick / max(0.1, hab.intervalo)
+            bw = tarjeta_w - 20
+            ancho_l = int(bw * max(0.0, min(1.0, prog)))
+            pygame.draw.rect(pantalla, (50, 30, 42), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            if ancho_l > 0:
+                pygame.draw.rect(pantalla, (255, 120, 190), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+
+        elif getattr(hab, "cargando", False):
             # Habilidad cargable mientras se mantiene presionada
             txt_est = fuente_mini.render(f"🔥 CARGANDO {hab.tiempo_carga:.1f}s", True, (255, 170, 60))
             pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
@@ -595,6 +614,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
         elif hab.nombre == "Aura Electrica":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Regeneración Inversa":
+            detalles = f"+{hab.curacion} vida / -{hab.costo_energia} En. cada {hab.intervalo:.0f}s (mantén)"
         elif hab.nombre == "Reforzamiento Mágico":
             dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
             detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
@@ -1061,6 +1082,102 @@ class ReforzamientoMagico(HabilidadBase):
         pygame.draw.circle(pantalla, self.COLOR_CAMPO, (cx, cy), radio, self.GROSOR_CAMPO)
 
 
+# -----------------------------
+# HABILIDAD 8: REGENERACIÓN INVERSA
+# -----------------------------
+class RegeneracionInversa(HabilidadBase):
+    """
+    Habilidad mágica que se mantiene presionada (sin recarga): mientras la tecla está
+    pulsada, cada intervalo completo cobra energía y cura vida, como la carga de la
+    Carga de Fuego. Si no hay energía para el siguiente intervalo, deja de curar hasta
+    volver a pulsar. Con la vida al máximo no cobra ni cura.
+    Usa la interfaz de habilidades cargables (iniciar_carga / soltar_carga) para que
+    el bucle del mundo la active al pulsar y la detenga al soltar.
+    """
+    NIVEL_MAX = 10
+    COSTO_MEJORA = 2                    # Sube de nivel como las armas: 2 puntos
+    COLOR_AURA = (255, 105, 180)        # Rosa: mismo contorno que Reforzamiento Mágico
+    # Tramos por nivel: (nivel desde el que aplica, (vida curada, energía gastada, intervalo en s))
+    TRAMOS = ((1, (1, 10, 2.0)), (3, (2, 15, 2.0)), (6, (3, 20, 2.0)), (9, (4, 25, 2.0)), (10, (6, 40, 3.0)))
+
+    def __init__(self):
+        super().__init__(
+            nombre="Regeneración Inversa",
+            descripcion="Mantén pulsado: cura vida a cambio de energía en cada intervalo. Sin recarga.",
+            costo_energia=10,
+            duracion_activa=0.0,
+            duracion_cooldown=0.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self.nivel_max = self.NIVEL_MAX
+        self.costo_mejora = self.COSTO_MEJORA
+        self.cargable = True        # Se activa al pulsar y se detiene al soltar
+        self.canalizando = False
+        self.tiempo_tick = 0.0
+
+    def _aplicar_nivel(self):
+        """
+        Escalado (nivel 1 a 10), por tramos:
+        - nv1-2: +1 vida / -10 En. cada 2s
+        - nv3-5: +2 vida / -15 En. cada 2s
+        - nv6-8: +3 vida / -20 En. cada 2s
+        - nv9:   +4 vida / -25 En. cada 2s
+        - nv10:  +6 vida / -40 En. cada 3s
+        """
+        self.curacion, self.costo_energia, self.intervalo = _valor_por_tramo(self.nivel, self.TRAMOS)
+
+    def iniciar_carga(self, jugador):
+        """Al pulsar: empieza a regenerar si hay energía para al menos un intervalo."""
+        if self.canalizando:
+            return
+        if jugador.energia < self.costo_energia:
+            self.mensaje_alerta = f"¡Falta energía! (Req. {self.costo_energia})"
+            self.tiempo_alerta = 2.0
+            return
+        self.canalizando = True
+        self.estado = "ACTIVA"
+        self.tiempo_tick = 0.0
+
+    def soltar_carga(self, jugador):
+        """Al soltar: deja de regenerar (el intervalo en curso no se cobra)."""
+        self._detener()
+
+    def _detener(self):
+        self.canalizando = False
+        self.estado = "LISTA"
+        self.tiempo_tick = 0.0
+
+    def actualizar(self, dt, jugador):
+        # Solo temporizador de alertas: sin duración ni recarga (no usa el ciclo ACTIVA -> COOLDOWN)
+        if self.tiempo_alerta > 0:
+            self.tiempo_alerta -= dt
+            if self.tiempo_alerta <= 0:
+                self.mensaje_alerta = ""
+        if not self.canalizando:
+            return
+        if jugador.vida >= jugador.vida_max:
+            self.tiempo_tick = 0.0   # Vida llena: no cobra ni cura
+            return
+        self.tiempo_tick += dt
+        while self.tiempo_tick >= self.intervalo:
+            self.tiempo_tick -= self.intervalo
+            if jugador.energia < self.costo_energia:
+                self.mensaje_alerta = f"Sin energía para curar (Req. {self.costo_energia})"
+                self.tiempo_alerta = 2.0
+                self._detener()
+                return
+            jugador.energia -= self.costo_energia
+            jugador.vida = min(jugador.vida_max, jugador.vida + self.curacion)
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        """Contorno rosa (mismo tamaño y grosor que Reforzamiento Mágico) mientras está activa."""
+        cx = round(jugador.posicion.x - desplazamiento[0])
+        cy = round(jugador.posicion.y - desplazamiento[1])
+        radio = round(jugador.radio * ReforzamientoMagico.FACTOR_RADIO)
+        pygame.draw.circle(pantalla, self.COLOR_AURA, (cx, cy), radio, ReforzamientoMagico.GROSOR_CAMPO)
+
+
 HABILIDADES_DISPONIBLES = {
     "Destello": Destello,
     "Burst de Fuerza": BurstDeFuerza,
@@ -1068,7 +1185,8 @@ HABILIDADES_DISPONIBLES = {
     "Invocar Conejos": InvocacionConejos,
     "Carga de Fuego": CargaDeFuego,
     "Aura Electrica": AuraElectrica,
-    "Reforzamiento Mágico": ReforzamientoMagico
+    "Reforzamiento Mágico": ReforzamientoMagico,
+    "Regeneración Inversa": RegeneracionInversa
 }
 
 def crear_habilidad(nombre):

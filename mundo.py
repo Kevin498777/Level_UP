@@ -585,9 +585,11 @@ def iniciar_mundo(config):
                     elif click_btn and click_btn.startswith("__hab__"):
                         info_abierta = None
                         indice = int(click_btn.split("_")[-1])
-                        if jugador.puntos_mejora > 0 and 0 <= indice < len(jugador.habilidades):
-                            if jugador.habilidades[indice].subir_nivel():
-                                jugador.puntos_mejora -= 1
+                        if 0 <= indice < len(jugador.habilidades):
+                            hab_mejora = jugador.habilidades[indice]
+                            # Cada habilidad define cuántos puntos cuesta su mejora (1 por defecto)
+                            if jugador.puntos_mejora >= hab_mejora.costo_mejora and hab_mejora.subir_nivel():
+                                jugador.puntos_mejora -= hab_mejora.costo_mejora
                     elif click_btn:
                         info_abierta = None
                         jugador.subir_stat(click_btn)
