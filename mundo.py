@@ -549,7 +549,17 @@ def iniciar_mundo(config):
                 else:
                     for hab in jugador.habilidades:
                         if evento.key == hab.tecla:
-                            hab.intentar_activar(jugador)
+                            # Las habilidades cargables (ej. Carga de Fuego) empiezan a cargar al pulsar
+                            if getattr(hab, "cargable", False):
+                                hab.iniciar_carga(jugador)
+                            else:
+                                hab.intentar_activar(jugador)
+
+            # Soltar la tecla de una habilidad cargable: dispara la carga acumulada
+            elif evento.type == pygame.KEYUP:
+                for hab in jugador.habilidades:
+                    if evento.key == hab.tecla and getattr(hab, "cargable", False):
+                        hab.soltar_carga(jugador)
 
             elif evento.type == pygame.MOUSEBUTTONDOWN:
                 if evento.button == 1:

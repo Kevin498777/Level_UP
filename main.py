@@ -224,6 +224,7 @@ def iniciar_aplicacion():
     hab_burst_var = tk.BooleanVar(value=True)
     hab_disparo_var = tk.BooleanVar(value=True)
     hab_conejos_var = tk.BooleanVar(value=False)
+    hab_fuego_var = tk.BooleanVar(value=False)
 
     tk.Label(
         frame_equipo,
@@ -284,6 +285,19 @@ def iniciar_aplicacion():
         activeforeground="#8FD694"
     )
     chk_conejos.pack(anchor="w", pady=1)
+
+    chk_fuego = tk.Checkbutton(
+        frame_equipo,
+        text="Carga de Fuego (pulsa: disparo; mantén hasta 5s: más daño | quema 1/s por 5s | Costo: 15-45 En.)",
+        variable=hab_fuego_var,
+        font=("Segoe UI", 8, "bold"),
+        fg="#E06C4A",
+        bg="#282C34",
+        selectcolor="#1E2229",
+        activebackground="#282C34",
+        activeforeground="#E06C4A"
+    )
+    chk_fuego.pack(anchor="w", pady=1)
 
     # -----------------------------
     # MANUAL INTEGRADO EN CREACIÓN
@@ -395,6 +409,8 @@ def iniciar_aplicacion():
             habilidades_seleccionadas.append(crear_habilidad("Disparo Veloz"))
         if hab_conejos_var.get():
             habilidades_seleccionadas.append(crear_habilidad("Invocar Conejos"))
+        if hab_fuego_var.get():
+            habilidades_seleccionadas.append(crear_habilidad("Carga de Fuego"))
 
         # Solo caben 3 (slots [2], [3], [4]); se toman las primeras elegidas
         habilidades_seleccionadas = habilidades_seleccionadas[:3]

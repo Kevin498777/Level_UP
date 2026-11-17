@@ -54,6 +54,39 @@ class ProyectilEnergia:
 
 
 # -----------------------------
+# CLASE PROYECTIL DE FUEGO (CARGA DE FUEGO)
+# -----------------------------
+class ProyectilFuego:
+    """Esfera de fuego recta. Daño y radio dependen de la carga; al golpear aplica quemadura."""
+    def __init__(self, x, y, dx, dy, velocidad, dano, radio, quemadura_dano=1, quemadura_duracion=5.0):
+        self.posicion = pygame.Vector2(x, y)
+        self.direccion = pygame.Vector2(dx, dy).normalize() if (dx != 0 or dy != 0) else pygame.Vector2(0, -1)
+        self.velocidad = velocidad
+        self.dano = dano
+        self.radio = radio
+        self.quemadura_dano = quemadura_dano          # daño por segundo de la quemadura
+        self.quemadura_duracion = quemadura_duracion  # segundos que dura la quemadura
+        self.activo = True
+        self.hitbox = pygame.Rect(round(x - radio), round(y - radio), radio * 2, radio * 2)
+
+    def actualizar(self, dt, limites_mundo):
+        min_x, min_y, max_x, max_y = limites_mundo
+        self.posicion += self.direccion * self.velocidad
+        self.hitbox.x = round(self.posicion.x - self.radio)
+        self.hitbox.y = round(self.posicion.y - self.radio)
+        if (self.posicion.x < min_x - self.radio or self.posicion.x > max_x + self.radio or
+                self.posicion.y < min_y - self.radio or self.posicion.y > max_y + self.radio):
+            self.activo = False
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        px = round(self.posicion.x - desplazamiento[0])
+        py = round(self.posicion.y - desplazamiento[1])
+        pygame.draw.circle(pantalla, (255, 110, 20), (px, py), self.radio + 2)          # resplandor
+        pygame.draw.circle(pantalla, (255, 170, 55), (px, py), self.radio)              # cuerpo
+        pygame.draw.circle(pantalla, (255, 240, 180), (px, py), max(2, self.radio - 3)) # núcleo
+
+
+# -----------------------------
 # CLASE BASE DE HABILIDADES
 # -----------------------------
 class HabilidadBase:
@@ -476,7 +509,22 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         pantalla.blit(txt_costo, (tarjeta_x + 92, cur_y + 26))
 
         # Estado y Cuenta Regresiva
-        if hab.estado == "LISTA":
+        if getattr(hab, "cargando", False):
+            # Habilidad cargable mientras se mantiene presionada
+            txt_est = fuente_mini.render(f"🔥 CARGANDO {hab.tiempo_carga:.1f}s", True, (255, 170, 60))
+            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+
+            txt_tiempo = fuente_contador.render(f"{hab.tiempo_carga:.1f}", True, (255, 220, 150))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+
+            prog = hab.tiempo_carga / max(0.1, hab.TIEMPO_MAX_CARGA)
+            bw = tarjeta_w - 20
+            ancho_l = int(bw * max(0.0, min(1.0, prog)))
+            pygame.draw.rect(pantalla, (50, 40, 30), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            if ancho_l > 0:
+                pygame.draw.rect(pantalla, (255, 150, 50), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+
+        elif hab.estado == "LISTA":
             txt_est = fuente_mini.render("LISTA (Disponible)", True, (100, 255, 140))
             pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 46))
 
@@ -538,6 +586,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Vel {hab.velocidad_proyectil:.0f}, {hab.porcentaje_dano * 100:.0f}% daño | CD {hab.duracion_cooldown:.1f}s"
         elif hasattr(hab, "conejos"):
             detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
+        elif hab.nombre == "Carga de Fuego":
+            detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
         else:
             detalles = hab.descripcion[:40]
 
@@ -705,13 +755,112 @@ class InvocacionConejos(HabilidadBase):
 
 
 # -----------------------------
+# HABILIDAD: CARGA DE FUEGO (disparo rápido o mantener para cargar)
+# -----------------------------
+class CargaDeFuego(HabilidadBase):
+    """
+    Esfera de fuego con dos modos: pulsar = disparo rápido; mantener = cargar (máx 5s)
+    para más daño y mayor tamaño, soltando al liberar la tecla. Al golpear, aplica
+    quemadura (1 de daño por segundo durante 5 segundos).
+    """
+    # Bono de daño, coste de energía y radio visual por segundo completo de carga (0 = sin carga)
+    BONO_CARGA = {0: 0.0, 1: 0.05, 2: 0.07, 3: 0.10, 4: 0.15, 5: 0.25}
+    COSTO_CARGA = {0: 15, 1: 20, 2: 25, 3: 30, 4: 35, 5: 45}
+    RADIO_CARGA = {0: 6, 1: 8, 2: 11, 3: 14, 4: 17, 5: 22}
+    TIEMPO_MAX_CARGA = 5.0
+    VELOCIDAD = 10.0
+
+    def __init__(self):
+        super().__init__(
+            nombre="Carga de Fuego",
+            descripcion="Esfera de fuego: pulsa para disparo rápido o mantén para cargar (máx 5s). Al golpear, quema 1/s por 5s.",
+            costo_energia=15,
+            duracion_activa=0.0,
+            duracion_cooldown=2.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self.cargable = True
+        self.cargando = False
+        self.tiempo_carga = 0.0
+        self.pos_carga = pygame.Vector2(0, 0)
+
+    def _aplicar_nivel(self):
+        """Daño base: 20 + 1 por nivel (desde nivel 1). El coste base (sin carga) es 15."""
+        self.dano_base = 20 + (self.nivel - 1)
+        self.costo_energia = self.COSTO_CARGA[0]
+
+    def _tier(self, tiempo):
+        return max(0, min(5, int(tiempo)))
+
+    def obtener_costo_base(self, jugador):
+        return self.COSTO_CARGA[0]  # el coste real se cobra al soltar, según la carga
+
+    def iniciar_carga(self, jugador):
+        """Al pulsar: comienza a cargar (si está lista y hay energía mínima)."""
+        if self.cargando or self.estado != "LISTA":
+            return
+        if jugador.energia < self.COSTO_CARGA[0]:
+            self.mensaje_alerta = "Sin energía"
+            self.tiempo_alerta = 1.5
+            return
+        self.cargando = True
+        self.tiempo_carga = 0.0
+
+    def soltar_carga(self, jugador):
+        """Al soltar: dispara la esfera con el daño/tamaño de la carga acumulada."""
+        if not self.cargando:
+            return
+        self.cargando = False
+        tier = self._tier(self.tiempo_carga)
+        # Bajar al nivel de carga que la energía permita pagar
+        while tier > 0 and self.COSTO_CARGA[tier] > jugador.energia:
+            tier -= 1
+        costo = self.COSTO_CARGA[tier]
+        if jugador.energia < costo:
+            return
+        jugador.energia = max(0, jugador.energia - costo)
+
+        dano = round(self.dano_base * (1.0 + self.BONO_CARGA[tier]), 1)
+        radio = self.RADIO_CARGA[tier]
+        rad = math.radians(jugador.angulo)
+        dx, dy = math.sin(rad), -math.cos(rad)
+        origen = jugador.posicion + pygame.Vector2(dx, dy) * (jugador.radio + radio + 2)
+        jugador.proyectiles.append(ProyectilFuego(origen.x, origen.y, dx, dy, self.VELOCIDAD, dano, radio))
+
+        self.estado = "COOLDOWN"
+        self.tiempo_restante_cooldown = self.duracion_cooldown
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)
+        if self.cargando:
+            self.tiempo_carga = min(self.TIEMPO_MAX_CARGA, self.tiempo_carga + dt)
+            rad = math.radians(jugador.angulo)
+            dx, dy = math.sin(rad), -math.cos(rad)
+            radio = self.RADIO_CARGA[self._tier(self.tiempo_carga)]
+            self.pos_carga = jugador.posicion + pygame.Vector2(dx, dy) * (jugador.radio + radio + 2)
+
+    def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
+        """Dibuja la esfera que se está cargando pegada al frente del personaje."""
+        if not self.cargando:
+            return
+        radio = self.RADIO_CARGA[self._tier(self.tiempo_carga)]
+        px = round(self.pos_carga.x - desplazamiento[0])
+        py = round(self.pos_carga.y - desplazamiento[1])
+        pygame.draw.circle(pantalla, (255, 110, 20), (px, py), radio + 2)
+        pygame.draw.circle(pantalla, (255, 170, 55), (px, py), radio)
+        pygame.draw.circle(pantalla, (255, 240, 180), (px, py), max(2, radio - 3))
+
+
+# -----------------------------
 # CATÁLOGO DE HABILIDADES DISPONIBLES
 # -----------------------------
 HABILIDADES_DISPONIBLES = {
     "Destello": Destello,
     "Burst de Fuerza": BurstDeFuerza,
     "Disparo Veloz": DisparoVeloz,
-    "Invocar Conejos": InvocacionConejos
+    "Invocar Conejos": InvocacionConejos,
+    "Carga de Fuego": CargaDeFuego
 }
 
 def crear_habilidad(nombre):
