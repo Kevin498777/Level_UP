@@ -42,7 +42,8 @@ DESC_HABILIDADES = {
     "Burst de Fuerza": "Buff de fuerza +21% a +40% por 6-10s. Recarga 12-8s. Costo 15-35 En.",
     "Disparo Veloz": "Esfera recta. Velocidad 11-30 y daño 20.5%-30% del total. Costo 15-35. Recarga 2-0.5s.",
     "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En.",
-    "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15-45 En."
+    "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15-45 En.",
+    "Aura Electrica": "Aura que te sigue: +5% a +15% velocidad y 1 a 5 daño/s a enemigos cercanos. Autodaño 0.5/s (mágico, lo frena tu escudo mágico). Costo 20-48.5 En., CD 40-60s."
 }
 
 COLOR_HABILIDADES = {
@@ -50,7 +51,8 @@ COLOR_HABILIDADES = {
     "Burst de Fuerza": "#E5C07B",
     "Disparo Veloz": "#98C379",
     "Invocar Conejos": "#8FD694",
-    "Carga de Fuego": "#E06C4A"
+    "Carga de Fuego": "#E06C4A",
+    "Aura Electrica": "#5BC8FF"
 }
 
 # -----------------------------

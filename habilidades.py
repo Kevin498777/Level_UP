@@ -468,8 +468,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         tarjeta_x = x + 13
 
         if hab.estado == "ACTIVA":
-            color_borde = (0, 220, 255) if hab.nombre == "Destello" else (255, 100, 70)
-            color_fondo = (22, 38, 50) if hab.nombre == "Destello" else (48, 26, 26)
+            color_borde = (0, 220, 255) if hab.nombre in ("Destello", "Aura Electrica") else (255, 100, 70)
+            color_fondo = (22, 38, 50) if hab.nombre in ("Destello", "Aura Electrica") else (48, 26, 26)
         elif hab.estado == "COOLDOWN":
             color_borde = (230, 140, 40)
             color_fondo = (40, 30, 24)
@@ -535,7 +535,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             pygame.draw.rect(pantalla, (100, 255, 140), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
 
         elif hab.estado == "ACTIVA":
-            txt_est = fuente_mini.render("⚡ ACTIVA", True, (0, 220, 255) if hab.nombre == "Destello" else (255, 120, 80))
+            txt_est = fuente_mini.render("⚡ ACTIVA", True, (0, 220, 255) if hab.nombre in ("Destello", "Aura Electrica") else (255, 120, 80))
             pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
 
             seg = max(0.0, hab.tiempo_restante_activo)
@@ -547,7 +547,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
             pygame.draw.rect(pantalla, (35, 45, 55), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
             if ancho_l > 0:
-                pygame.draw.rect(pantalla, (0, 210, 255) if hab.nombre == "Destello" else (255, 90, 60), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+                pygame.draw.rect(pantalla, (0, 210, 255) if hab.nombre in ("Destello", "Aura Electrica") else (255, 90, 60), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
 
         elif hab.estado == "COOLDOWN":
             txt_est = fuente_mini.render("⏳ ENFRIAMIENTO", True, (255, 150, 60))
@@ -590,6 +590,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
         elif hab.nombre == "Carga de Fuego":
             detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
+        elif hab.nombre == "Aura Electrica":
+            detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
         else:
             detalles = hab.descripcion[:40]
 
@@ -858,12 +860,95 @@ class CargaDeFuego(HabilidadBase):
 # -----------------------------
 # CATÁLOGO DE HABILIDADES DISPONIBLES
 # -----------------------------
+# -----------------------------
+# HABILIDAD 6: AURA ELECTRICA
+# -----------------------------
+class AuraElectrica(HabilidadBase):
+    """
+    Aura electrica que rodea al personaje mientras esta activa:
+    - Buff de velocidad sobre la velocidad base.
+    - Dana por segundo a los enemigos que entren en su radio (pendiente de que existan).
+    - Autodano al portador de 0.5/s (1 cada 2s) que cuenta como dano MAGICO
+      (lo amortigua el escudo magico del propio personaje).
+    """
+    RADIO_AURA = 100  # Radio del aura en pixeles (alcance del dano por segundo)
+
+    def __init__(self):
+        super().__init__(
+            nombre="Aura Electrica",
+            descripcion="Aura electrica que te sigue: +velocidad y dano por segundo a enemigos cercanos. Te cuesta 0.5 de vida/s (dano magico).",
+            costo_energia=20,
+            duracion_activa=10.0,
+            duracion_cooldown=40.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self._t_autodano = 0.0  # Acumulador del autodano por segundo
+
+    def _aplicar_nivel(self):
+        """
+        Escalado (nivel 1 a 20):
+        - coste: 20 En., +1.5 por nivel
+        - duracion: 10s, +2.5s cada 5 niveles (tope 20s en nivel 20)
+        - cooldown: 40s, +5s cada 5 niveles (tope 60s en nivel 20)
+        - buff de velocidad: +5%, +2.5% cada 5 niveles (tope +15% en nivel 20)
+        - dano a enemigos: 1 + (nivel // 5) por segundo (1 -> 5)
+        - autodano magico al portador: 0.5 por segundo (fijo)
+        """
+        n = self.nivel
+        self.costo_energia = round(20.0 + 1.5 * (n - 1), 1)
+        self.duracion_activa = min(20.0, 10.0 + 2.5 * (n // 5))
+        self.duracion_cooldown = min(60.0, 40.0 + 5.0 * (n // 5))
+        self.porcentaje_buff = min(0.15, round(0.05 + 0.025 * (n // 5), 3))
+        self.dano_por_segundo = 1 + (n // 5)
+        self.autodano_por_segundo = 0.5
+
+    def aplicar_efecto_activo(self, jugador):
+        # El buff de velocidad se aplica en Personaje.actualizar_velocidad.
+        self._t_autodano = 0.0
+
+    def zona_dano(self, jugador):
+        """Centro y radio del aura, para danar enemigos cuando existan."""
+        return pygame.Vector2(jugador.posicion), AuraElectrica.RADIO_AURA
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)
+        if self.estado == "ACTIVA":
+            # Autodano magico al portador (lo amortigua su escudo magico)
+            self._t_autodano += dt
+            while self._t_autodano >= 1.0:
+                self._t_autodano -= 1.0
+                jugador.recibir_dano(self.autodano_por_segundo, "magico")
+            # El dano a los enemigos dentro de zona_dano() se aplicara cuando existan enemigos.
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        """Dibuja el aura electrica translucida con chispas en el borde."""
+        ox, oy = desplazamiento
+        cx = round(jugador.posicion.x - ox)
+        cy = round(jugador.posicion.y - oy)
+        r = AuraElectrica.RADIO_AURA
+
+        capa = pygame.Surface((r * 2 + 6, r * 2 + 6), pygame.SRCALPHA)
+        pygame.draw.circle(capa, (80, 180, 255, 45), (r + 3, r + 3), r)
+        pygame.draw.circle(capa, (130, 220, 255, 110), (r + 3, r + 3), r, 3)
+        pantalla.blit(capa, (cx - r - 3, cy - r - 3))
+
+        for _ in range(8):
+            ang = random.uniform(0, math.tau)
+            x1 = cx + math.cos(ang) * (r - 5)
+            y1 = cy + math.sin(ang) * (r - 5)
+            x2 = cx + math.cos(ang) * (r + 7)
+            y2 = cy + math.sin(ang) * (r + 7)
+            pygame.draw.line(pantalla, (200, 240, 255), (round(x1), round(y1)), (round(x2), round(y2)), 2)
+
+
 HABILIDADES_DISPONIBLES = {
     "Destello": Destello,
     "Burst de Fuerza": BurstDeFuerza,
     "Disparo Veloz": DisparoVeloz,
     "Invocar Conejos": InvocacionConejos,
-    "Carga de Fuego": CargaDeFuego
+    "Carga de Fuego": CargaDeFuego,
+    "Aura Electrica": AuraElectrica
 }
 
 def crear_habilidad(nombre):

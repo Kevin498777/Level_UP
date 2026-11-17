@@ -204,6 +204,8 @@ class Personaje:
                     modificador += hab.porcentaje_buff
                 elif hab.estado == "COOLDOWN":
                     modificador -= hab.porcentaje_debuff
+            elif hab.nombre == "Aura Electrica" and hab.estado == "ACTIVA":
+                modificador += hab.porcentaje_buff
 
         # Modificador acumulable de herramienta activa
         if self.herramienta and self.herramienta.activa:
@@ -422,6 +424,11 @@ class Personaje:
         # Destino visual suave cuando se mueve
         if self.esta_en_movimiento():
             pygame.draw.circle(pantalla, (70, 85, 110), (round(self.destino.x - ox), round(self.destino.y - oy)), 5, 1)
+
+        # Aura(s) activas alrededor del personaje (se dibujan detrás del cuerpo)
+        for hab in self.habilidades:
+            if hab.estado == "ACTIVA" and hasattr(hab, "dibujar_aura"):
+                hab.dibujar_aura(pantalla, self, desplazamiento)
 
         # Círculo base del personaje
         pygame.draw.circle(pantalla, self.color, (pos_x, pos_y), self.radio)
