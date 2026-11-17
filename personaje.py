@@ -2,6 +2,9 @@ import pygame
 import math
 from herramientas import EspadaLigera
 
+# Píxeles de retroceso que provoca cada punto de empuje
+PIXELES_POR_PUNTO_EMPUJE = 6
+
 # -----------------------------
 # CLASE PERSONAJE
 # -----------------------------
@@ -51,6 +54,9 @@ class Personaje:
         self.arbusto_actual = None
         self.oculto = False          # True = no puede ser visto desde afuera (pensado para futuros personajes)
         self.tiempo_veneno = 0.0     # Acumulador del daño de hierba venenosa
+
+        # Empuje acumulado pendiente de aplicar (retroceso por recibir daño)
+        self.empuje = pygame.Vector2(0, 0)
 
         # Radio visual base escalado por el tamaño
         self.radio = int(20 * self.tamano)
@@ -252,6 +258,45 @@ class Personaje:
             ]
             cantidad, normal = min(empujes, key=lambda e: e[0])
             self.posicion += normal * cantidad
+
+    def aplicar_empuje(self, direccion, puntos):
+        """Añade retroceso: 'puntos' de empuje en la dirección indicada (alejándose del atacante)."""
+        if puntos <= 0:
+            return
+        d = pygame.Vector2(direccion)
+        if d.length_squared() == 0:
+            return
+        self.empuje += d.normalize() * (puntos * PIXELES_POR_PUNTO_EMPUJE)
+
+    def actualizar_empuje(self, dt, centro_mundo=None, radio_mundo=None):
+        """Aplica progresivamente el retroceso acumulado (con decaimiento) y respeta el límite del mundo."""
+        if self.empuje.length_squared() < 0.25:
+            self.empuje.update(0, 0)
+            return
+        paso = self.empuje * min(1.0, dt * 14.0)
+        self.posicion += paso
+        self.empuje -= paso
+
+        if centro_mundo is not None and radio_mundo is not None:
+            desde_centro = self.posicion - centro_mundo
+            limite = radio_mundo - self.radio
+            if desde_centro.length() > limite:
+                self.posicion = centro_mundo + desde_centro.normalize() * limite
+
+        self.hitbox.x = round(self.posicion.x - self.radio)
+        self.hitbox.y = round(self.posicion.y - self.radio)
+
+    def recibir_dano(self, cantidad, direccion_empuje=None):
+        """
+        Aplica daño y, por cada punto de daño recibido, 1 punto de empuje (retroceso).
+        'direccion_empuje' es el vector que va del atacante hacia este personaje.
+        (La reducción por defensa se definirá cuando exista el combate.)
+        """
+        dano = max(0, round(cantidad))
+        self.vida = max(0, self.vida - dano)
+        if direccion_empuje is not None:
+            self.aplicar_empuje(direccion_empuje, dano)
+        return dano
 
     def actualizar_proyectiles(self, dt, limites_mundo, rocas=None):
         """Actualiza la posición y ciclo de vida de los proyectiles. Las balas chocan con las rocas."""

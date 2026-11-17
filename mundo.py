@@ -320,13 +320,25 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             txt_est_arma = fuente_mini.render("ROTA — [+] para reparar", True, (255, 110, 100))
             txt_dano = fuente_mini.render("Daño inactivo", True, (120, 130, 150))
         elif arma.activa:
-            pct_deb = int(round(arma.debuff_velocidad * 100))
-            txt_est_arma = fuente_mini.render(f"DESENFUNDADA (-{pct_deb}% Vel)", True, (255, 130, 80))
-            dano_arma = arma.calcular_dano(jugador)
-            txt_dano = fuente_mini.render(f"Daño: {dano_arma:.1f} (Fza x{arma.multiplicador_dano:.1f})", True, (255, 215, 0))
+            db = arma.debuff_velocidad
+            if db < 0:  # Valor negativo = buff de velocidad (ej. dagas a nivel máx)
+                txt_vel = f"+{int(round(-db * 100))}% Vel"
+                color_est = (120, 230, 150)
+            else:
+                txt_vel = f"-{int(round(db * 100))}% Vel"
+                color_est = (255, 130, 80)
+            txt_est_arma = fuente_mini.render(f"DESENFUNDADA ({txt_vel})", True, color_est)
+            if arma.es_escudo:
+                txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 200, 255))
+            else:
+                dano_arma = arma.calcular_dano(jugador)
+                txt_dano = fuente_mini.render(f"Daño: {dano_arma:.1f} (Fza x{arma.multiplicador_dano:.1f})", True, (255, 215, 0))
         else:
             txt_est_arma = fuente_mini.render("GUARDADA (Pulsa [1])", True, (140, 150, 170))
-            txt_dano = fuente_mini.render(f"Daño: Fuerza x{arma.multiplicador_dano:.1f}", True, (180, 160, 90))
+            if arma.es_escudo:
+                txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 150, 180))
+            else:
+                txt_dano = fuente_mini.render(f"Daño: Fuerza x{arma.multiplicador_dano:.1f}", True, (180, 160, 90))
 
         pantalla.blit(txt_est_arma, (x + 20, arma_y + 25))
         pantalla.blit(txt_dano, (x + 20, arma_y + 40))
@@ -616,6 +628,9 @@ def iniciar_mundo(config):
         # Mover personaje respetando el círculo del mapa y las rocas
         jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, rocas, vegetacion.obstaculos_para(jugador))
 
+        # Aplicar el retroceso acumulado por empuje (combate futuro; por ahora suele ser 0)
+        jugador.actualizar_empuje(dt, CENTRO_MUNDO, RADIO_MUNDO)
+
         # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
         vegetacion.actualizar(dt, jugador)
 
@@ -646,6 +661,11 @@ def iniciar_mundo(config):
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
 
+        # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
+        for hab in jugador.habilidades:
+            if hasattr(hab, "dibujar_invocaciones"):
+                hab.dibujar_invocaciones(pantalla, desplazamiento)
+
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
 
@@ -665,8 +685,9 @@ def iniciar_mundo(config):
             pygame.draw.circle(pantalla, (0, 255, 120), (round(jugador.posicion.x - ox), round(jugador.posicion.y - oy)), jugador.radio, 1)
 
             # Hitbox de la espada si está desenfundada (rectángulo amarillo)
-            if jugador.herramienta and jugador.herramienta.activa and jugador.herramienta.hitbox:
-                pygame.draw.rect(pantalla, (255, 235, 50), jugador.herramienta.hitbox.move(-ox, -oy), 1)
+            if jugador.herramienta and jugador.herramienta.activa:
+                for hb in jugador.herramienta.obtener_hitboxes():
+                    pygame.draw.rect(pantalla, (255, 235, 50), hb.move(-ox, -oy), 1)
 
             # Hitbox de cada proyectil activo (rectángulo rojo)
             for p in jugador.proyectiles:

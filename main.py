@@ -214,7 +214,7 @@ def iniciar_aplicacion():
 
     tk.Label(
         frame_equipo,
-        text="Ligera: Fza x2.2, -17% vel  |  Larga: Fza x3.4, -34%  |  Mandoble: Fza x6.6, -70%",
+        text="Espadas (Ligera/Larga/Mandoble), Dagas Simples (dobles) o Escudo (protege, no golpea).",
         font=("Segoe UI", 7),
         fg="#6B7280",
         bg="#282C34"
@@ -223,6 +223,15 @@ def iniciar_aplicacion():
     hab_destello_var = tk.BooleanVar(value=True)
     hab_burst_var = tk.BooleanVar(value=True)
     hab_disparo_var = tk.BooleanVar(value=True)
+    hab_conejos_var = tk.BooleanVar(value=False)
+
+    tk.Label(
+        frame_equipo,
+        text="Elige hasta 3 habilidades (se asignan a [2], [3], [4] en orden):",
+        font=("Segoe UI", 7),
+        fg="#6B7280",
+        bg="#282C34"
+    ).pack(anchor="w", pady=(0, 2))
 
     chk_destello = tk.Checkbutton(
         frame_equipo,
@@ -262,6 +271,19 @@ def iniciar_aplicacion():
         activeforeground="#98C379"
     )
     chk_disparo.pack(anchor="w", pady=1)
+
+    chk_conejos = tk.Checkbutton(
+        frame_equipo,
+        text="Invocar Conejos (invoca 5 conejos que se reproducen, máx 50 | Costo: 80 En.)",
+        variable=hab_conejos_var,
+        font=("Segoe UI", 8, "bold"),
+        fg="#8FD694",
+        bg="#282C34",
+        selectcolor="#1E2229",
+        activebackground="#282C34",
+        activeforeground="#8FD694"
+    )
+    chk_conejos.pack(anchor="w", pady=1)
 
     # -----------------------------
     # MANUAL INTEGRADO EN CREACIÓN
@@ -371,6 +393,11 @@ def iniciar_aplicacion():
             habilidades_seleccionadas.append(crear_habilidad("Burst de Fuerza"))
         if hab_disparo_var.get():
             habilidades_seleccionadas.append(crear_habilidad("Disparo Veloz"))
+        if hab_conejos_var.get():
+            habilidades_seleccionadas.append(crear_habilidad("Invocar Conejos"))
+
+        # Solo caben 3 (slots [2], [3], [4]); se toman las primeras elegidas
+        habilidades_seleccionadas = habilidades_seleccionadas[:3]
 
         # Asignación dinámica de teclas a los slots 2, 3 y 4
         slots_teclas = [
@@ -378,7 +405,7 @@ def iniciar_aplicacion():
             (pygame.K_3, "3"),
             (pygame.K_4, "4")
         ]
-        for idx, hab in enumerate(habilidades_seleccionadas[:3]):
+        for idx, hab in enumerate(habilidades_seleccionadas):
             tecla, tecla_str = slots_teclas[idx]
             hab.asignar_tecla(tecla, tecla_str)
 

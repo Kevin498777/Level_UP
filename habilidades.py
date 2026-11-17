@@ -1,5 +1,6 @@
 import pygame
 import math
+import random
 
 # -----------------------------
 # CLASE PROYECTIL DE ENERGÍA (DISPARO VELOZ)
@@ -268,20 +269,31 @@ class DisparoVeloz(HabilidadBase):
     def __init__(self):
         super().__init__(
             nombre="Disparo Veloz",
-            descripcion="Ataque a distancia: dispara una esfera de energía recta (vel 10) con 20% del daño total del personaje. Cuesta 15% de energía total. Cooldown de 2s.",
-            costo_energia=15,  # Valor base referencial; se calcula con 15% de energía total
+            descripcion="Ataque a distancia: esfera de energía recta. Escala velocidad, daño y coste con el nivel (máx 20).",
+            costo_energia=15,
             duracion_activa=0.0,
             duracion_cooldown=2.0,
             tecla=pygame.K_4,
             tecla_str="4"
         )
-        self.velocidad_proyectil = 10.0
-        self.porcentaje_dano = 0.20  # 20% del daño total del personaje
-        self.escalable = False       # Disparo Veloz no escala con nivel (por ahora)
+
+    def _aplicar_nivel(self):
+        """
+        Escalado de Disparo Veloz (nivel 1 a 20):
+        - velocidad del proyectil: 10 + 1 por nivel (máx 30)
+        - daño: 20% + 0.5% por nivel del daño total del personaje (máx 30%)
+        - coste: 15 energía, +5 cada 5 niveles (rediseño: coste fijo, ya no porcentaje)
+        - recarga: 2s a nivel 1, baja de forma lineal hasta 0.5s a nivel máximo
+        """
+        n = self.nivel
+        self.velocidad_proyectil = min(30.0, 10.0 + 1.0 * n)
+        self.porcentaje_dano = min(0.30, round(0.20 + 0.005 * n, 4))
+        self.costo_energia = 15 + 5 * (n // 5)
+        self.duracion_cooldown = round(max(0.5, 2.0 - 1.5 * (n - 1) / (self.nivel_max - 1)), 2)
 
     def obtener_costo_base(self, jugador):
-        """Cuesta exactamente el 15% de la energía total del personaje (redondeada)."""
-        return max(1, int(round(jugador.energia_max * 0.15)))
+        """Coste fijo de energía según el nivel (rediseño: ya no es un porcentaje de la energía máxima)."""
+        return self.costo_energia
 
     def ejecutar_activacion(self, jugador):
         """Dispara una esfera recta en la dirección a la que apunta el personaje."""
@@ -502,13 +514,32 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             if ancho_l > 0:
                 pygame.draw.rect(pantalla, (255, 140, 50), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
 
+        elif hab.estado == "INVOCADO":
+            n_inv = len(getattr(hab, "conejos", []))
+            txt_est = fuente_mini.render(f"⚡ ACTIVA ({n_inv} vivos)", True, (120, 230, 150))
+            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+
+            txt_tiempo = fuente_contador.render(f"{n_inv}", True, (255, 255, 255))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+
+            prog = n_inv / float(getattr(hab, "max_conejos", 50))
+            bw = tarjeta_w - 20
+            ancho_l = int(bw * max(0.0, min(1.0, prog)))
+            pygame.draw.rect(pantalla, (35, 50, 40), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            if ancho_l > 0:
+                pygame.draw.rect(pantalla, (90, 220, 120), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+
         # Resumen del efecto (valores reales según el nivel)
         if hab.nombre == "Destello":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Burst de Fuerza":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Disparo Veloz":
+            detalles = f"Vel {hab.velocidad_proyectil:.0f}, {hab.porcentaje_dano * 100:.0f}% daño | CD {hab.duracion_cooldown:.1f}s"
+        elif hasattr(hab, "conejos"):
+            detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
         else:
-            detalles = "Disparo recto vel 10 | CD 2s"
+            detalles = hab.descripcion[:40]
 
         txt_det = fuente_mini.render(detalles, True, (160, 170, 190))
         pantalla.blit(txt_det, (tarjeta_x + 10, cur_y + 75))
@@ -535,12 +566,152 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
 
 
 # -----------------------------
+# INVOCACIONES: CONEJO (entidad invocada)
+# -----------------------------
+_FUENTE_CARA = None
+
+def _fuente_cara():
+    """Fuente pequeña cacheada para dibujar la cara ':3' de los conejos."""
+    global _FUENTE_CARA
+    if _FUENTE_CARA is None:
+        _FUENTE_CARA = pygame.font.SysFont("Consolas", 11, bold=True)
+    return _FUENTE_CARA
+
+
+class Conejo:
+    """Esfera verde oscuro con cara ':3'. Entidad invocada por la habilidad de conejos."""
+    def __init__(self, x, y, vida, velocidad, dano):
+        self.posicion = pygame.Vector2(x, y)
+        self.vida = vida
+        self.vida_max = vida
+        self.velocidad = velocidad
+        self.dano = dano
+        self.radio = 8
+        self.vivo = True
+        self.destino = pygame.Vector2(x, y)
+        self._t_merodeo = random.uniform(0.0, 1.5)
+
+    def actualizar(self, dt, jugador):
+        if self.vida <= 0:
+            self.vivo = False
+            return
+        # Sin enemigos todavía: acompañan al personaje (lo siguen y merodean cerca)
+        hacia = jugador.posicion - self.posicion
+        dist = hacia.length()
+        if dist > 90:
+            self.posicion += hacia.normalize() * self.velocidad * dt * 30.0
+        else:
+            self._t_merodeo -= dt
+            if self._t_merodeo <= 0:
+                self._t_merodeo = random.uniform(0.6, 1.6)
+                ang = random.uniform(0, math.tau)
+                self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(12, 45)
+            d = self.destino - self.posicion
+            if d.length() > 2:
+                self.posicion += d.normalize() * self.velocidad * dt * 15.0
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        px = round(self.posicion.x - desplazamiento[0])
+        py = round(self.posicion.y - desplazamiento[1])
+        pygame.draw.circle(pantalla, (26, 66, 34), (px, py), self.radio)
+        pygame.draw.circle(pantalla, (58, 116, 70), (px, py), self.radio, 1)
+        cara = _fuente_cara().render(":3", True, (200, 240, 205))
+        pantalla.blit(cara, cara.get_rect(center=(px, py + 1)))
+
+
+# -----------------------------
+# HABILIDAD DE INVOCACIÓN: CONEJOS
+# -----------------------------
+class InvocacionConejos(HabilidadBase):
+    """
+    Invoca 5 conejos detrás del personaje. No puede volver a invocarse hasta que todos
+    mueran. Si hay 2 o más vivos, cada 10s nacen floor(vivos/2) conejos nuevos (máx 50).
+    """
+    CANTIDAD_INICIAL = 5
+    MAX_CONEJOS = 50
+    INTERVALO_REPRO = 10.0
+
+    def __init__(self):
+        super().__init__(
+            nombre="Invocar Conejos",
+            descripcion="Invoca 5 conejos detrás de ti. Se reproducen si hay 2 o más vivos (máx 50).",
+            costo_energia=80,
+            duracion_activa=0.0,
+            duracion_cooldown=0.0,
+            tecla=pygame.K_4,
+            tecla_str="4"
+        )
+        self.conejos = []
+        self.timer_reproduccion = 0.0
+        self.intervalo_repro = self.INTERVALO_REPRO
+        self.max_conejos = self.MAX_CONEJOS
+
+    def _aplicar_nivel(self):
+        """
+        Escalado de los conejos invocados (habilidad nivel 1 a 20):
+        - Vida: 5 + 3 cada 4 niveles
+        - Velocidad: 3 + 0.5 por nivel
+        - Daño: 0.1 + 0.4 por nivel
+        - Coste de activación: 80 de energía (fijo)
+        """
+        n = self.nivel
+        self.vida_conejo = 5 + 3 * (n // 4)
+        self.velocidad_conejo = round(3.0 + 0.5 * (n - 1), 2)
+        self.dano_conejo = round(0.1 + 0.4 * (n - 1), 2)
+        self.costo_energia = 80
+
+    def _invocar(self, jugador, cantidad):
+        disponibles = self.max_conejos - len(self.conejos)
+        cantidad = min(cantidad, max(0, disponibles))
+        if cantidad <= 0:
+            return
+        rad = math.radians(jugador.angulo)
+        atras = pygame.Vector2(-math.sin(rad), math.cos(rad))  # opuesto al frente
+        base = jugador.posicion + atras * (jugador.radio + 22)
+        for _ in range(cantidad):
+            off = pygame.Vector2(random.uniform(-28, 28), random.uniform(-28, 28))
+            self.conejos.append(Conejo(base.x + off.x, base.y + off.y,
+                                       self.vida_conejo, self.velocidad_conejo, self.dano_conejo))
+
+    def ejecutar_activacion(self, jugador):
+        # Estado propio: INVOCADO (no se puede volver a lanzar hasta que mueran todos)
+        self.estado = "INVOCADO"
+        self.timer_reproduccion = 0.0
+        self._invocar(jugador, self.CANTIDAD_INICIAL)
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)  # mantiene el temporizador de alertas
+
+        for c in self.conejos:
+            c.actualizar(dt, jugador)
+        self.conejos = [c for c in self.conejos if c.vivo]
+
+        # Reproducción: con 2+ vivos, cada 10s nacen floor(vivos/2) conejos (máx 50)
+        if len(self.conejos) >= 2:
+            self.timer_reproduccion += dt
+            if self.timer_reproduccion >= self.intervalo_repro:
+                self.timer_reproduccion = 0.0
+                self._invocar(jugador, len(self.conejos) // 2)
+        else:
+            self.timer_reproduccion = 0.0
+
+        # Cuando todos los conejos mueren, la habilidad vuelve a estar lista
+        if self.estado == "INVOCADO" and not self.conejos:
+            self.estado = "LISTA"
+
+    def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
+        for c in self.conejos:
+            c.dibujar(pantalla, desplazamiento)
+
+
+# -----------------------------
 # CATÁLOGO DE HABILIDADES DISPONIBLES
 # -----------------------------
 HABILIDADES_DISPONIBLES = {
     "Destello": Destello,
     "Burst de Fuerza": BurstDeFuerza,
-    "Disparo Veloz": DisparoVeloz
+    "Disparo Veloz": DisparoVeloz,
+    "Invocar Conejos": InvocacionConejos
 }
 
 def crear_habilidad(nombre):

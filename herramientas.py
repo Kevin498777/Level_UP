@@ -35,6 +35,8 @@ class HerramientaBase:
         self.nivel = 1
         self.nivel_max = nivel_max
         self.roto = False
+        self.es_escudo = False       # True solo en el Escudo (protege, no golpea)
+        self.empuje_al_bloquear = 0  # Puntos de empuje que recibe el portador al bloquear con él
 
         # Parámetros de escalado
         self.mult_dano_base = mult_dano_base
@@ -61,8 +63,9 @@ class HerramientaBase:
     def _aplicar_nivel(self, reparar=False):
         """Recalcula daño, debuff y durabilidad máxima según el nivel actual."""
         self.multiplicador_dano = round(self.mult_dano_base + self.mult_dano_por_nivel * self.nivel, 3)
-        self.debuff_velocidad = max(0.0, round(self.debuff_base - self.debuff_reduccion_por_nivel * self.nivel, 3))
-        self.durabilidad_max = self.durabilidad_base + self.durabilidad_por_nivel * self.nivel
+        # Si el valor es negativo, deja de ser debuff y pasa a ser un buff de velocidad (ej. dagas a nivel máx)
+        self.debuff_velocidad = round(self.debuff_base - self.debuff_reduccion_por_nivel * self.nivel, 3)
+        self.durabilidad_max = round(self.durabilidad_base + self.durabilidad_por_nivel * self.nivel)
         if reparar:
             self.durabilidad = self.durabilidad_max
 
@@ -138,8 +141,8 @@ class HerramientaBase:
     # -----------------------------
     # GEOMETRÍA DE LA HOJA (común a todas las espadas)
     # -----------------------------
-    def obtener_segmento(self, jugador):
-        """Calcula los puntos extremos (pomo y punta) de la espada rotada e inclinada."""
+    def obtener_segmento(self, jugador, lado=1):
+        """Calcula los extremos (pomo y punta) de la hoja en el flanco indicado (lado=1 derecha, -1 izquierda)."""
         pos_x = jugador.posicion.x
         pos_y = jugador.posicion.y
         radio = jugador.radio
@@ -151,11 +154,11 @@ class HerramientaBase:
         derecha_y = math.sin(rad)
 
         distancia_flanco = radio + 6.0
-        centro_esp_x = pos_x + (derecha_x * distancia_flanco)
-        centro_esp_y = pos_y + (derecha_y * distancia_flanco)
+        centro_esp_x = pos_x + (derecha_x * distancia_flanco * lado)
+        centro_esp_y = pos_y + (derecha_y * distancia_flanco * lado)
 
-        # Inclinar la hoja: rotar los ejes de la espada hacia afuera (punta hacia el flanco derecho)
-        inc = math.radians(self.inclinacion)
+        # Inclinar la hoja hacia afuera del flanco correspondiente
+        inc = math.radians(self.inclinacion * lado)
         cos_i, sin_i = math.cos(inc), math.sin(inc)
         frente_x, frente_y, derecha_x, derecha_y = (
             frente_x * cos_i + derecha_x * sin_i,
@@ -177,8 +180,8 @@ class HerramientaBase:
         return (pomo_x, pomo_y), (punta_x, punta_y), (frente_x, frente_y), (derecha_x, derecha_y), largo_hoja
 
     def actualizar_hitbox(self, jugador):
-        """Calcula el área de colisión (hitbox rectangular) de la espada."""
-        (pomo_x, pomo_y), (punta_x, punta_y), _, _, _ = self.obtener_segmento(jugador)
+        """Calcula el área de colisión (hitbox rectangular) de la herramienta."""
+        (pomo_x, pomo_y), (punta_x, punta_y), _, _, _ = self.obtener_segmento(jugador, 1)
         min_x = min(pomo_x, punta_x) - 4
         min_y = min(pomo_y, punta_y) - 4
         max_x = max(pomo_x, punta_x) + 4
@@ -190,6 +193,10 @@ class HerramientaBase:
             round(max_y - min_y)
         )
 
+    def obtener_hitboxes(self):
+        """Lista de hitboxes activas de la herramienta (las dagas tienen dos)."""
+        return [self.hitbox] if self.hitbox else []
+
     def _colores_actuales(self):
         """A nivel máximo la hoja toma un tono ligeramente dorado (sutil, sin brillar)."""
         if self.nivel_maximo():
@@ -199,16 +206,16 @@ class HerramientaBase:
         return self.color_hoja, self.color_empunadura, self.color_filo
 
     def dibujar(self, pantalla, jugador, desplazamiento=(0, 0)):
-        """
-        Dibuja la espada pegada al flanco derecho del círculo, inclinada y girando en
-        sincronía con la dirección del personaje. `desplazamiento` es el offset de cámara.
-        """
+        """Dibuja la herramienta en el flanco derecho, girando con la dirección del personaje."""
         if not self.activa or self.roto:
             return
+        self._dibujar_hoja(pantalla, jugador, 1, desplazamiento, self._colores_actuales())
 
-        color_hoja, color_empunadura, color_filo = self._colores_actuales()
+    def _dibujar_hoja(self, pantalla, jugador, lado, desplazamiento, colores):
+        """Dibuja una hoja en el flanco indicado (lado=1 derecha, -1 izquierda)."""
+        color_hoja, color_empunadura, color_filo = colores
 
-        (pomo_x, pomo_y), (punta_x, punta_y), (frente_x, frente_y), (derecha_x, derecha_y), largo_hoja = self.obtener_segmento(jugador)
+        (pomo_x, pomo_y), (punta_x, punta_y), (frente_x, frente_y), (derecha_x, derecha_y), largo_hoja = self.obtener_segmento(jugador, lado)
         pomo_x -= desplazamiento[0]
         pomo_y -= desplazamiento[1]
         punta_x -= desplazamiento[0]
@@ -324,12 +331,107 @@ class Mandoble(HerramientaBase):
 
 
 # -----------------------------
+# HERRAMIENTA: DAGAS SIMPLES (dos hojas, una por flanco)
+# -----------------------------
+class DagasSimples(HerramientaBase):
+    def __init__(self):
+        super().__init__(
+            nombre="Dagas Simples",
+            tecla=pygame.K_1,
+            tecla_str="1",
+            mult_dano_base=1.25, mult_dano_por_nivel=0.25,       # Daño = Fuerza x (1.5 a 2.5)
+            debuff_base=0.275, debuff_reduccion_por_nivel=0.075,  # -20% (nv1) ... +10% buff (nv5)
+            durabilidad_base=87.5, durabilidad_por_nivel=62.5,    # 150 a 400 (compartida por las dos dagas)
+            inclinacion=15.0,
+            factor_largo=0.84,   # 30% más pequeñas que la Espada Ligera (1.2 * 0.7)
+            factor_ancho=0.9,
+        )
+        self.hitbox_extra = None  # Segunda hoja (flanco izquierdo)
+
+    def dibujar(self, pantalla, jugador, desplazamiento=(0, 0)):
+        if not self.activa or self.roto:
+            return
+        colores = self._colores_actuales()
+        self._dibujar_hoja(pantalla, jugador, 1, desplazamiento, colores)   # daga derecha
+        self._dibujar_hoja(pantalla, jugador, -1, desplazamiento, colores)  # daga izquierda
+
+    def _hitbox_lado(self, jugador, lado):
+        (pomo_x, pomo_y), (punta_x, punta_y), _, _, _ = self.obtener_segmento(jugador, lado)
+        min_x = min(pomo_x, punta_x) - 4
+        min_y = min(pomo_y, punta_y) - 4
+        max_x = max(pomo_x, punta_x) + 4
+        max_y = max(pomo_y, punta_y) + 4
+        return pygame.Rect(round(min_x), round(min_y), round(max_x - min_x), round(max_y - min_y))
+
+    def actualizar_hitbox(self, jugador):
+        self.hitbox = self._hitbox_lado(jugador, 1)
+        self.hitbox_extra = self._hitbox_lado(jugador, -1)
+
+    def obtener_hitboxes(self):
+        return [h for h in (self.hitbox, self.hitbox_extra) if h]
+
+
+# -----------------------------
+# HERRAMIENTA: ESCUDO (protege, no golpea)
+# -----------------------------
+class Escudo(HerramientaBase):
+    def __init__(self):
+        super().__init__(
+            nombre="Escudo",
+            tecla=pygame.K_1,
+            tecla_str="1",
+            mult_dano_base=0.0, mult_dano_por_nivel=0.0,         # No inflige daño
+            debuff_base=0.40, debuff_reduccion_por_nivel=0.06,   # -34% a -10% de velocidad
+            durabilidad_base=50, durabilidad_por_nivel=50,       # 100 a 300 de durabilidad
+            inclinacion=0.0,
+            factor_largo=2.64,   # mismo largo que el Mandoble
+            factor_ancho=1.45,   # un poco más ancho que el Mandoble
+        )
+        self.es_escudo = True
+        self.empuje_al_bloquear = 2   # El portador retrocede 2 de empuje al ser golpeado en el escudo
+        self.color_hoja = (150, 158, 172)
+        self.color_empunadura = (90, 97, 110)
+        self.color_filo = (205, 212, 225)
+
+    def calcular_dano(self, jugador):
+        return 0.0  # El escudo protege, no golpea
+
+    def recibir_golpe(self, jugador, direccion_desde_atacante):
+        """Al ser golpeado en el escudo: se desgasta y empuja al portador hacia atrás."""
+        if self.roto:
+            return
+        self.desgastar(1)
+        jugador.aplicar_empuje(direccion_desde_atacante, self.empuje_al_bloquear)
+
+    def dibujar(self, pantalla, jugador, desplazamiento=(0, 0)):
+        if not self.activa or self.roto:
+            return
+        color_cara, color_borde_emp, color_brillo = self._colores_actuales()
+        (pomo_x, pomo_y), (punta_x, punta_y), (frente_x, frente_y), (derecha_x, derecha_y), largo = self.obtener_segmento(jugador, 1)
+        cx = (pomo_x + punta_x) / 2 - desplazamiento[0]
+        cy = (pomo_y + punta_y) / 2 - desplazamiento[1]
+        h = largo / 2.0
+        w = 10.0 * self.factor_ancho
+
+        def pt(f, d):
+            return (round(cx + frente_x * f + derecha_x * d), round(cy + frente_y * f + derecha_y * d))
+
+        puntos = [pt(h, 0), pt(h * 0.45, w), pt(-h * 0.2, w), pt(-h, 0), pt(-h * 0.2, -w), pt(h * 0.45, -w)]
+        pygame.draw.polygon(pantalla, color_cara, puntos)
+        pygame.draw.polygon(pantalla, (18, 22, 28), puntos, max(1, round(2 * self.factor_ancho)))
+        # Umbo central (jefe del escudo)
+        pygame.draw.circle(pantalla, color_brillo, (round(cx), round(cy)), max(2, round(w * 0.35)))
+
+
+# -----------------------------
 # CATÁLOGO DE HERRAMIENTAS DISPONIBLES
 # -----------------------------
 HERRAMIENTAS_DISPONIBLES = {
     "Espada Ligera": EspadaLigera,
     "Espada Larga": EspadaLarga,
     "Mandoble": Mandoble,
+    "Dagas Simples": DagasSimples,
+    "Escudo": Escudo,
 }
 
 def crear_herramienta(nombre):
