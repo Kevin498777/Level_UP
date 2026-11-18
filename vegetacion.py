@@ -293,7 +293,7 @@ class SistemaVegetacion:
             restantes = []
             for o in arbusto.orbes:
                 if (o - jugador.posicion).length() <= jugador.radio + RADIO_ORBE:
-                    jugador.vida = min(jugador.vida_max, jugador.vida + CURACION_ORBE)
+                    jugador.curar(CURACION_ORBE)
                 else:
                     restantes.append(o)
             arbusto.orbes = restantes

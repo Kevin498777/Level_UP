@@ -90,6 +90,7 @@ class Personaje:
         self.arbusto_actual = None
         self.oculto = False          # True = no puede ser visto desde afuera (pensado para futuros personajes)
         self.tiempo_veneno = 0.0     # Acumulador del daño de hierba venenosa
+        self.desangrado = None       # Efecto de desangrado activo (None si no tiene)
 
         # Empuje acumulado pendiente de aplicar (retroceso por recibir daño)
         self.empuje = pygame.Vector2(0, 0)
@@ -122,6 +123,26 @@ class Personaje:
         for efecto in self.efectos_extra:
             efecto.actualizar(dt, self)
         self.efectos_extra = [e for e in self.efectos_extra if e.estado == "ACTIVA"]
+
+    def curar(self, cantidad):
+        """Cura vida sin pasar de vida_max. Si hay desangrado activo, la curacion se reduce
+        un 50%. Devuelve la vida realmente recuperada."""
+        cantidad = max(0.0, float(cantidad))
+        if self.desangrado is not None and self.desangrado.activo:
+            cantidad *= (1.0 - self.desangrado.reduccion_curacion)
+        nueva = min(self.vida_max, round(self.vida + cantidad, 2))
+        curado = round(nueva - self.vida, 2)
+        self.vida = nueva
+        return curado
+
+    def actualizar_desangrado(self, dt):
+        """Tiquea el desangrado activo (resta vida por intervalo, ignora escudos) y lo retira
+        cuando termina."""
+        if self.desangrado is None:
+            return
+        self.desangrado.actualizar(dt, self)
+        if not self.desangrado.activo:
+            self.desangrado = None
 
     def esta_en_movimiento(self):
         """Devuelve True si el personaje se está desplazando hacia su destino."""

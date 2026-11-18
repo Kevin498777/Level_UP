@@ -620,14 +620,18 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
                 pygame.draw.rect(pantalla, (255, 140, 50), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
 
         elif hab.estado == "INVOCADO":
-            n_inv = len(getattr(hab, "conejos", []))
+            criaturas = getattr(hab, "conejos", None)
+            if criaturas is None:
+                criaturas = getattr(hab, "lobos", [])
+            n_inv = len(criaturas)
             txt_est = fuente_mini.render(f"⚡ ACTIVA ({n_inv} vivos)", True, (120, 230, 150))
             pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
 
             txt_tiempo = fuente_contador.render(f"{n_inv}", True, (255, 255, 255))
             pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
 
-            prog = n_inv / float(getattr(hab, "max_conejos", 50))
+            tope = getattr(hab, "max_conejos", None) or getattr(hab, "max_invocaciones", 50)
+            prog = n_inv / float(tope)
             bw = tarjeta_w - 20
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
             pygame.draw.rect(pantalla, (35, 50, 40), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
@@ -643,6 +647,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Vel {hab.velocidad_proyectil:.0f}, {hab.porcentaje_dano * 100:.0f}% daño | CD {hab.duracion_cooldown:.1f}s"
         elif hasattr(hab, "conejos"):
             detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
+        elif hasattr(hab, "lobos"):
+            detalles = f"Lobo: Vida {hab.vida_lobo} · Vel {hab.velocidad_lobo} · Daño {hab.dano_lobo:.1f} (33% desangrado)"
         elif hab.nombre == "Carga de Fuego":
             detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
         elif hab.nombre == "Aura Electrica":
@@ -694,67 +700,177 @@ def _fuente_cara():
     return _FUENTE_CARA
 
 
-class Conejo:
-    """Esfera verde oscuro con cara ':3'. Entidad invocada por la habilidad de conejos."""
+class EntidadInvocada:
+    """Base de las criaturas invocadas (conejos, lobos). En modo seguir acompanan al
+    personaje; en modo combate van hacia un punto objetivo y atacan al enemigo mas cercano
+    por intervalo. Las subclases fijan su radio, su aspecto y su ataque."""
+    INTERVALO_ATAQUE = 1.0      # segundos entre golpes en modo combate
+    RANGO_SEGUIR = 90           # a mayor distancia, corre hacia el jugador
+    MULT_SEGUIR = 30.0
+    MULT_MERODEO = 15.0
+    MULT_COMBATE = 30.0
+    MERODEO_MIN = 12
+    MERODEO_MAX = 45
+    radio = 8
+
     def __init__(self, x, y, vida, velocidad, dano):
         self.posicion = pygame.Vector2(x, y)
         self.vida = vida
         self.vida_max = vida
         self.velocidad = velocidad
         self.dano = dano
-        self.tipo_dano = "fisico"     # Los conejos infligen daño físico
-        self.radio = 8
+        self.tipo_dano = "fisico"
         self.vivo = True
+        self.modo_combate = False
         self.destino = pygame.Vector2(x, y)
         self._t_merodeo = random.uniform(0.0, 1.5)
+        self._cd_ataque = 0.0
 
-    def actualizar(self, dt, jugador):
+    def atacar(self, objetivo):
+        """Inflige dano fisico al objetivo. Devuelve el dano aplicado."""
+        if hasattr(objetivo, "recibir_dano"):
+            return objetivo.recibir_dano(self.dano, "fisico")
+        objetivo.vida = max(0.0, round(getattr(objetivo, "vida", 0) - self.dano, 2))
+        return self.dano
+
+    def _enemigo_mas_cercano(self, enemigos):
+        vivos = [e for e in (enemigos or []) if getattr(e, "vivo", True)]
+        if not vivos:
+            return None
+        return min(vivos, key=lambda e: (e.posicion - self.posicion).length())
+
+    def actualizar(self, dt, jugador, modo_combate=False, objetivo=None, enemigos=None):
         if self.vida <= 0:
             self.vivo = False
             return
-        # Sin enemigos todavía: acompañan al personaje (lo siguen y merodean cerca)
+        self.modo_combate = modo_combate
+        self._cd_ataque = max(0.0, self._cd_ataque - dt)
+
+        # Modo combate: ir hacia el enemigo cercano (y atacarlo) o hacia el punto objetivo.
+        if modo_combate and objetivo is not None:
+            blanco = self._enemigo_mas_cercano(enemigos)
+            if blanco is not None:
+                hacia = blanco.posicion - self.posicion
+                rango = self.radio + getattr(blanco, "radio", 0) + 4
+                if hacia.length() <= rango:
+                    if self._cd_ataque <= 0:
+                        self.atacar(blanco)
+                        self._cd_ataque = self.INTERVALO_ATAQUE
+                elif hacia.length() > 2:
+                    self.posicion += hacia.normalize() * self.velocidad * dt * self.MULT_COMBATE
+            else:
+                hacia = objetivo - self.posicion
+                if hacia.length() > 2:
+                    self.posicion += hacia.normalize() * self.velocidad * dt * self.MULT_COMBATE
+            return
+
+        # Modo seguir: acompanan al personaje (lo siguen y merodean cerca)
         hacia = jugador.posicion - self.posicion
-        dist = hacia.length()
-        if dist > 90:
-            self.posicion += hacia.normalize() * self.velocidad * dt * 30.0
+        if hacia.length() > self.RANGO_SEGUIR:
+            self.posicion += hacia.normalize() * self.velocidad * dt * self.MULT_SEGUIR
         else:
             self._t_merodeo -= dt
             if self._t_merodeo <= 0:
                 self._t_merodeo = random.uniform(0.6, 1.6)
                 ang = random.uniform(0, math.tau)
-                self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(12, 45)
+                self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(self.MERODEO_MIN, self.MERODEO_MAX)
             d = self.destino - self.posicion
             if d.length() > 2:
-                self.posicion += d.normalize() * self.velocidad * dt * 15.0
+                self.posicion += d.normalize() * self.velocidad * dt * self.MULT_MERODEO
+
+
+# -----------------------------
+# EFECTO: DESANGRADO (aplicable a cualquier personaje/enemigo)
+# -----------------------------
+class EfectoDesangrado:
+    """Desangrado: resta vida por intervalo (ignora escudos) durante un tiempo y reduce la
+    curacion recibida un 50% mientras dura. No es acumulable: volver a aplicarlo solo reinicia
+    la duracion."""
+    DANO = 1
+    INTERVALO = 2.0
+    DURACION = 10.0
+    REDUCCION_CURACION = 0.5
+
+    def __init__(self):
+        self.dano = self.DANO
+        self.intervalo = self.INTERVALO
+        self.reduccion_curacion = self.REDUCCION_CURACION
+        self.tiempo_restante = self.DURACION
+        self._acum = 0.0
+
+    @property
+    def activo(self):
+        return self.tiempo_restante > 0
+
+    def refrescar(self):
+        """Reinicia la duracion al maximo (sigue siendo un solo efecto, no acumula)."""
+        self.tiempo_restante = self.DURACION
+
+    def actualizar(self, dt, objetivo):
+        if self.tiempo_restante <= 0:
+            return
+        self.tiempo_restante -= dt
+        self._acum += dt
+        while self._acum >= self.intervalo:
+            self._acum -= self.intervalo
+            objetivo.vida = max(0.0, round(objetivo.vida - self.dano, 2))
+        if self.tiempo_restante < 0:
+            self.tiempo_restante = 0.0
+
+
+def aplicar_desangrado(objetivo):
+    """Aplica o refresca el desangrado en un objetivo con atributo `desangrado`.
+    Sirve para cualquier personaje/enemigo. No acumulable."""
+    actual = getattr(objetivo, "desangrado", None)
+    if actual is not None and actual.activo:
+        actual.refrescar()
+    else:
+        objetivo.desangrado = EfectoDesangrado()
+
+
+# -----------------------------
+# INVOCACIONES: CONEJO (primera invocacion sombria)
+# -----------------------------
+class Conejo(EntidadInvocada):
+    """Esfera verde oscuro con cara ':3'. Primera invocacion sombria. En modo combate le
+    brillan los ojos."""
+    radio = 8
 
     def dibujar(self, pantalla, desplazamiento=(0, 0)):
         px = round(self.posicion.x - desplazamiento[0])
         py = round(self.posicion.y - desplazamiento[1])
         pygame.draw.circle(pantalla, (26, 66, 34), (px, py), self.radio)
         pygame.draw.circle(pantalla, (58, 116, 70), (px, py), self.radio, 1)
-        cara = _fuente_cara().render(":3", True, (200, 240, 205))
+        if self.modo_combate:
+            # Ojos brillantes (modo combate)
+            pygame.draw.circle(pantalla, (255, 90, 90), (px - 3, py - 2), 2)
+            pygame.draw.circle(pantalla, (255, 90, 90), (px + 3, py - 2), 2)
+        color_cara = (255, 225, 120) if self.modo_combate else (200, 240, 205)
+        cara = _fuente_cara().render(":3", True, color_cara)
         pantalla.blit(cara, cara.get_rect(center=(px, py + 1)))
 
 
 # -----------------------------
-# HABILIDAD DE INVOCACIÓN: CONEJOS
+# HABILIDAD DE INVOCACION: CONEJOS
 # -----------------------------
 class InvocacionConejos(HabilidadBase):
     """
-    Invoca 5 conejos detrás del personaje. No puede volver a invocarse hasta que todos
-    mueran. Si hay 2 o más vivos, cada 10s nacen floor(vivos/2) conejos nuevos (máx 50).
+    Invoca 5 conejos detras del personaje. No puede volver a invocarse hasta que todos
+    mueran, y al morir todos entra en 30s de recarga. Si hay 2 o mas vivos, cada 10s nacen
+    floor(vivos/2) conejos nuevos (max 50). Manten la tecla para el modo combate.
     """
     CANTIDAD_INICIAL = 5
     MAX_CONEJOS = 50
     INTERVALO_REPRO = 10.0
+    COOLDOWN_MUERTE = 30.0
 
     def __init__(self):
         super().__init__(
             nombre="Invocar Conejos",
-            descripcion="Invoca 5 conejos detrás de ti. Se reproducen si hay 2 o más vivos (máx 50).",
+            descripcion="Invoca 5 conejos detras de ti. Se reproducen si hay 2 o mas vivos (max 50). Manten la tecla para modo combate; 30s de recarga al morir todos.",
             costo_energia=80,
             duracion_activa=0.0,
-            duracion_cooldown=0.0,
+            duracion_cooldown=self.COOLDOWN_MUERTE,
             tecla=pygame.K_4,
             tecla_str="4"
         )
@@ -762,14 +878,16 @@ class InvocacionConejos(HabilidadBase):
         self.timer_reproduccion = 0.0
         self.intervalo_repro = self.INTERVALO_REPRO
         self.max_conejos = self.MAX_CONEJOS
+        self.modo_combate = False
+        self.objetivo = None
 
     def _aplicar_nivel(self):
         """
         Escalado de los conejos invocados (habilidad nivel 1 a 20):
         - Vida: 5 + 3 cada 4 niveles
         - Velocidad: 3 + 0.5 por nivel
-        - Daño: 0.1 + 0.4 por nivel
-        - Coste de activación: 80 de energía (fijo)
+        - Dano: 0.1 + 0.4 por nivel
+        - Coste de activacion: 80 de energia (fijo)
         """
         n = self.nivel
         self.vida_conejo = 5 + 3 * (n // 4)
@@ -794,16 +912,19 @@ class InvocacionConejos(HabilidadBase):
         # Estado propio: INVOCADO (no se puede volver a lanzar hasta que mueran todos)
         self.estado = "INVOCADO"
         self.timer_reproduccion = 0.0
+        self.objetivo = None
         self._invocar(jugador, self.CANTIDAD_INICIAL)
 
-    def actualizar(self, dt, jugador):
-        super().actualizar(dt, jugador)  # mantiene el temporizador de alertas
+    def actualizar(self, dt, jugador, enemigos=None):
+        super().actualizar(dt, jugador)  # alertas y temporizador de recarga
+        if not self.modo_combate:
+            self.objetivo = None
 
         for c in self.conejos:
-            c.actualizar(dt, jugador)
+            c.actualizar(dt, jugador, self.modo_combate, self.objetivo, enemigos)
         self.conejos = [c for c in self.conejos if c.vivo]
 
-        # Reproducción: con 2+ vivos, cada 10s nacen floor(vivos/2) conejos (máx 50)
+        # Reproduccion: con 2+ vivos, cada 10s nacen floor(vivos/2) conejos (max 50)
         if len(self.conejos) >= 2:
             self.timer_reproduccion += dt
             if self.timer_reproduccion >= self.intervalo_repro:
@@ -812,13 +933,135 @@ class InvocacionConejos(HabilidadBase):
         else:
             self.timer_reproduccion = 0.0
 
-        # Cuando todos los conejos mueren, la habilidad vuelve a estar lista
+        # Al morir todos: 30s de recarga antes de poder reinvocar
         if self.estado == "INVOCADO" and not self.conejos:
-            self.estado = "LISTA"
+            self.estado = "COOLDOWN"
+            self.tiempo_restante_cooldown = self.duracion_cooldown
+            self.objetivo = None
 
     def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
         for c in self.conejos:
             c.dibujar(pantalla, desplazamiento)
+
+
+# -----------------------------
+# INVOCACIONES: LOBO (segunda invocacion sombria)
+# -----------------------------
+class Lobo(EntidadInvocada):
+    """Lobo invocado: cuerpo gris con orejas y ojos. Segunda invocacion sombria. Al hacer
+    dano tiene un 33% de aplicar desangrado al objetivo. En modo combate le brillan los ojos."""
+    PROB_DESANGRADO = 0.33
+    RANGO_SEGUIR = 110
+    MULT_SEGUIR = 26.0
+    MULT_MERODEO = 13.0
+    MULT_COMBATE = 28.0
+    MERODEO_MIN = 18
+    MERODEO_MAX = 55
+    radio = 11
+
+    def atacar(self, objetivo):
+        """Inflige dano fisico y, con 33% de probabilidad, aplica desangrado al objetivo."""
+        aplicado = super().atacar(objetivo)
+        if aplicado and aplicado > 0 and random.random() < self.PROB_DESANGRADO:
+            aplicar_desangrado(objetivo)
+        return aplicado
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        px = round(self.posicion.x - desplazamiento[0])
+        py = round(self.posicion.y - desplazamiento[1])
+        r = self.radio
+        # Orejas (dos triangulos grises oscuros)
+        pygame.draw.polygon(pantalla, (70, 74, 82), [(px - r + 2, py - r + 3), (px - 2, py - r - 4), (px - 2, py - 2)])
+        pygame.draw.polygon(pantalla, (70, 74, 82), [(px + r - 2, py - r + 3), (px + 2, py - r - 4), (px + 2, py - 2)])
+        # Cuerpo
+        pygame.draw.circle(pantalla, (96, 101, 110), (px, py), r)
+        pygame.draw.circle(pantalla, (60, 64, 72), (px, py), r, 1)
+        # Ojos (brillan en modo combate)
+        if self.modo_combate:
+            pygame.draw.circle(pantalla, (120, 20, 20), (px - 4, py - 1), 4)
+            pygame.draw.circle(pantalla, (120, 20, 20), (px + 4, py - 1), 4)
+            col_ojo, r_ojo = (255, 70, 70), 3
+        else:
+            col_ojo, r_ojo = (220, 60, 60), 2
+        pygame.draw.circle(pantalla, col_ojo, (px - 4, py - 1), r_ojo)
+        pygame.draw.circle(pantalla, col_ojo, (px + 4, py - 1), r_ojo)
+
+
+# -----------------------------
+# HABILIDAD DE INVOCACION: LOBOS
+# -----------------------------
+class InvocacionLobos(HabilidadBase):
+    """
+    Invoca 3 lobos detras del personaje. No puede volver a invocarse hasta que todos mueran,
+    y al morir todos entra en 30s de recarga. Segunda de las 10 Artes de las Sombras. Sus
+    golpes tienen un 33% de aplicar desangrado. Manten la tecla para el modo combate.
+    """
+    CANTIDAD = 3
+    MAX_INVOCACIONES = 3
+    COOLDOWN_MUERTE = 30.0
+
+    def __init__(self):
+        super().__init__(
+            nombre="Invocar Lobos",
+            descripcion="Invoca 3 lobos detras de ti. Sus golpes tienen 33% de causar desangrado. Manten la tecla para modo combate; 30s de recarga al morir todos.",
+            costo_energia=90,
+            duracion_activa=0.0,
+            duracion_cooldown=self.COOLDOWN_MUERTE,
+            tecla=pygame.K_4,
+            tecla_str="4"
+        )
+        self.lobos = []
+        self.max_invocaciones = self.MAX_INVOCACIONES
+        self.modo_combate = False
+        self.objetivo = None
+
+    def _aplicar_nivel(self):
+        """
+        Escalado de los lobos invocados (habilidad nivel 1 a 20):
+        - Vida: 10 + 3 por nivel            (nv1=10, nv20=67)
+        - Velocidad: 10 + 2 cada 5 niveles  (nv1=10, nv20=18)
+        - Dano: 8 a 30 lineal por nivel     (nv1=8, nv20=30)
+        - Coste de activacion: 90 de energia (fijo)
+        """
+        n = self.nivel
+        self.vida_lobo = 10 + 3 * (n - 1)
+        self.velocidad_lobo = 10 + 2 * (n // 5)
+        self.dano_lobo = round(min(30.0, 8.0 + (30.0 - 8.0) * (n - 1) / 19.0), 2)
+        self.costo_energia = 90
+
+    def _invocar(self, jugador, cantidad):
+        rad = math.radians(jugador.angulo)
+        atras = pygame.Vector2(-math.sin(rad), math.cos(rad))  # opuesto al frente
+        base = jugador.posicion + atras * (jugador.radio + 26)
+        for _ in range(cantidad):
+            off = pygame.Vector2(random.uniform(-34, 34), random.uniform(-34, 34))
+            self.lobos.append(Lobo(base.x + off.x, base.y + off.y,
+                                   self.vida_lobo, self.velocidad_lobo, self.dano_lobo))
+
+    def ejecutar_activacion(self, jugador):
+        # Estado propio: INVOCADO (no se puede relanzar hasta que mueran todos)
+        self.estado = "INVOCADO"
+        self.objetivo = None
+        self._invocar(jugador, self.CANTIDAD)
+
+    def actualizar(self, dt, jugador, enemigos=None):
+        super().actualizar(dt, jugador)  # alertas y temporizador de recarga
+        if not self.modo_combate:
+            self.objetivo = None
+
+        for l in self.lobos:
+            l.actualizar(dt, jugador, self.modo_combate, self.objetivo, enemigos)
+        self.lobos = [l for l in self.lobos if l.vivo]
+
+        # Al morir todos: 30s de recarga antes de poder reinvocar
+        if self.estado == "INVOCADO" and not self.lobos:
+            self.estado = "COOLDOWN"
+            self.tiempo_restante_cooldown = self.duracion_cooldown
+            self.objetivo = None
+
+    def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
+        for l in self.lobos:
+            l.dibujar(pantalla, desplazamiento)
 
 
 # -----------------------------
@@ -1205,7 +1448,7 @@ class RegeneracionInversa(HabilidadBase):
                 return
             jugador.energia -= self.costo_energia
             curacion = self.curacion * factor_regeneracion(self, jugador)
-            jugador.vida = min(jugador.vida_max, round(jugador.vida + curacion, 2))
+            jugador.curar(curacion)
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
         """Contorno rosa (mismo tamaño y grosor que Reforzamiento Mágico) mientras está activa."""
@@ -1251,7 +1494,7 @@ class RegeneracionSuerte(HabilidadBase):
             while self.curaciones_hechas < debidas:
                 self.curaciones_hechas += 1
                 curacion = self.curacion * factor_regeneracion(self, jugador)
-                jugador.vida = min(jugador.vida_max, round(jugador.vida + curacion, 2))
+                jugador.curar(curacion)
         super().actualizar(dt, jugador)
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
@@ -1413,6 +1656,7 @@ HABILIDADES_DISPONIBLES = {
     "Burst de Fuerza": BurstDeFuerza,
     "Disparo Veloz": DisparoVeloz,
     "Invocar Conejos": InvocacionConejos,
+    "Invocar Lobos": InvocacionLobos,
     "Carga de Fuego": CargaDeFuego,
     "Aura Electrica": AuraElectrica,
     "Reforzamiento Mágico": ReforzamientoMagico,

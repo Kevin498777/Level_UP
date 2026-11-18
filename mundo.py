@@ -435,6 +435,80 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 # -----------------------------
 # EJECUCIÓN PRINCIPAL DEL MUNDO (PYGAME)
 # -----------------------------
+class Maniqui:
+    """Maniqui de pruebas en el centro del mapa: 100 de vida, no ataca, pero recibe dano y
+    desangrado. Al destruirse reaparece a los 5 s con la vida llena."""
+    VIDA_MAX = 100
+    RESPAWN = 5.0
+
+    def __init__(self, centro):
+        self.posicion = pygame.Vector2(centro)
+        self.vida_max = self.VIDA_MAX
+        self.vida = self.VIDA_MAX
+        self.radio = 18
+        self.vivo = True
+        self.desangrado = None
+        self._t_respawn = 0.0
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        """Recibe dano directo a la vida (sin escudos). Devuelve el dano aplicado."""
+        d = max(0.0, float(cantidad))
+        if d <= 0 or not self.vivo:
+            return 0.0
+        self.vida = max(0.0, round(self.vida - d, 2))
+        if self.vida <= 0:
+            self.vivo = False
+            self._t_respawn = self.RESPAWN
+        return d
+
+    def curar(self, cantidad):
+        return 0.0  # el maniqui no se cura
+
+    def actualizar(self, dt):
+        if not self.vivo:
+            self._t_respawn -= dt
+            if self._t_respawn <= 0:
+                self.vida = self.vida_max
+                self.vivo = True
+                self.desangrado = None
+            return
+        if self.desangrado is not None:
+            self.desangrado.actualizar(dt, self)
+            if not self.desangrado.activo:
+                self.desangrado = None
+            if self.vida <= 0:
+                self.vivo = False
+                self._t_respawn = self.RESPAWN
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        if not self.vivo:
+            return
+        px = round(self.posicion.x - desplazamiento[0])
+        py = round(self.posicion.y - desplazamiento[1])
+        r = self.radio
+        sangrando = self.desangrado is not None and self.desangrado.activo
+        # Poste
+        pygame.draw.line(pantalla, (90, 70, 50), (px, py + r), (px, py + r + 16), 4)
+        # Cuerpo (saco de pruebas) y diana
+        pygame.draw.circle(pantalla, (200, 180, 140), (px, py), r)
+        pygame.draw.circle(pantalla, (120, 100, 70), (px, py), r, 2)
+        pygame.draw.circle(pantalla, (200, 70, 60), (px, py), r // 2, 2)
+        pygame.draw.circle(pantalla, (200, 70, 60), (px, py), 2)
+        # Barra de vida
+        bw = 46
+        bx = px - bw // 2
+        by = py - r - 12
+        pygame.draw.rect(pantalla, (40, 40, 40), (bx, by, bw, 5), border_radius=2)
+        prop = max(0.0, self.vida / self.vida_max)
+        if prop > 0:
+            col = (200, 90, 90) if sangrando else (90, 200, 110)
+            pygame.draw.rect(pantalla, col, (bx, by, int(bw * prop), 5), border_radius=2)
+        # Marca de desangrado: tres gotas rojas
+        if sangrando:
+            for i in range(3):
+                pygame.draw.circle(pantalla, (210, 70, 70), (px - 8 + i * 8, by - 6), 2)
+
+
 def iniciar_mundo(config):
     """
     Inicia y gestiona el bucle del mundo del juego en pantalla completa.
@@ -467,6 +541,9 @@ def iniciar_mundo(config):
     vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
     rocas = generar_rocas(list(charcos) + vegetacion.arbustos)
     vegetacion.registrar_obstaculos(rocas)
+
+    # Maniqui de pruebas en el centro del mapa (recibe dano para probar las invocaciones)
+    maniqui = Maniqui(CENTRO_MUNDO)
 
     # Capa oscura para simular la poca visibilidad dentro de un arbusto
     capa_oscura = pygame.Surface((mundo_w, mundo_h), pygame.SRCALPHA)
@@ -519,6 +596,13 @@ def iniciar_mundo(config):
 
     while ejecutando:
         dt = reloj.tick(60) / 1000.0  # Delta time en segundos
+
+        # Modo combate de las sombras: mantener la tecla de una invocacion activa pasa
+        # sus criaturas a modo combate (se dirigen con el clic).
+        teclas_estado = pygame.key.get_pressed()
+        for hab in jugador.habilidades:
+            if hasattr(hab, "modo_combate"):
+                hab.modo_combate = (hab.estado == "INVOCADO" and teclas_estado[hab.tecla])
 
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -598,10 +682,17 @@ def iniciar_mundo(config):
                         info_abierta = None
                         # Convertir clic de pantalla a coordenadas del mundo según la cámara
                         vista = vista_camara()
-                        jugador.destino = pygame.Vector2(
+                        punto = pygame.Vector2(
                             vista.x + (mouse_x - mundo_x),
                             vista.y + (mouse_y - mundo_y)
                         )
+                        sombras = [hab for hab in jugador.habilidades if getattr(hab, "modo_combate", False)]
+                        if sombras:
+                            # Dirigir las invocaciones en modo combate (no mover al jugador)
+                            for hab in sombras:
+                                hab.objetivo = pygame.Vector2(punto)
+                        else:
+                            jugador.destino = punto
 
         # Actualizar herramienta (temporizador y cálculo de su hitbox)
         if jugador.herramienta:
@@ -622,11 +713,17 @@ def iniciar_mundo(config):
         # Actualizar regeneración del escudo mágico
         jugador.actualizar_regeneracion_escudo_magico(dt)
 
-        # Actualizar todas las habilidades equipadas
+        # Actualizar todas las habilidades equipadas (las invocaciones reciben los enemigos)
+        enemigos = [maniqui] if maniqui.vivo else []
         for hab in jugador.habilidades:
-            hab.actualizar(dt, jugador)
+            if hasattr(hab, "modo_combate"):
+                hab.actualizar(dt, jugador, enemigos=enemigos)
+            else:
+                hab.actualizar(dt, jugador)
         # Efectos temporales otorgados (ej. por Golpe de Suerte)
         jugador.actualizar_efectos(dt)
+        # Desangrado activo (resta vida por intervalo; preparado para el combate)
+        jugador.actualizar_desangrado(dt)
 
         # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
         jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
@@ -653,6 +750,9 @@ def iniciar_mundo(config):
         # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
         vegetacion.actualizar(dt, jugador)
 
+        # Maniqui de pruebas (tiquea su desangrado y su reaparicion)
+        maniqui.actualizar(dt)
+
         # Cámara que sigue suavemente al personaje
         factor = min(1.0, SUAVIZADO_CAMARA * dt)
         camara += (jugador.posicion - camara) * factor
@@ -676,6 +776,9 @@ def iniciar_mundo(config):
         for roca in rocas:
             if roca.rect.colliderect(vista):
                 roca.dibujar(pantalla, desplazamiento)
+
+        # Maniqui de pruebas en el centro
+        maniqui.dibujar(pantalla, desplazamiento)
 
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
