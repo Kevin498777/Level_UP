@@ -41,12 +41,12 @@ DESC_HABILIDADES = {
     "Destello": "Buff de velocidad +52% a +90% por 10-18s. Recarga 5-1s con fatiga al acabar. Costo 10-40 En. Máx nivel 20.",
     "Burst de Fuerza": "Buff de fuerza +21% a +40% por 6-10s. Recarga 12-8s. Costo 15-35 En.",
     "Disparo Veloz": "Esfera recta. Velocidad 11-30 y daño 20.5%-30% del total. Costo 15-35. Recarga 2-0.5s.",
-    "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En. Mantén la tecla para modo combate (dirige con clic derecho). 30s de recarga al morir todos.",
+    "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En. Mantén la tecla para modo combate (clic derecho: persiguen al enemigo marcado; mantén y suelta de nuevo para volver a pasivo). 30s de recarga al morir todos.",
     "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15 al pulsar y se cobra cada segundo cargado (hasta 45 En.).",
     "Aura Electrica": "Aura que te sigue: +5% a +15% velocidad y 1 a 5 daño/s a enemigos cercanos. Autodaño 0.5/s (mágico, lo frena tu escudo mágico). Costo 20-58 En., CD 40-60s.",
     "Reforzamiento Mágico": "Campo de fuerza que bloquea daño físico y mágico. Dureza 200-500, duración 1-6s. Si se agota la dureza se rompe. Costo 25-50 En., CD 10-35s.",
     "Regeneración Inversa": "Mágica. Mantén pulsado para curar: +1 vida/-10 En. cada 2s hasta +6 vida/-40 En. cada 3s. Sin recarga. Máx nivel 10 (mejora: 2 puntos).",
-    "Invocar Lobos": "Mágica (invocación sombría). Invoca 3 lobos; máx nivel 20, cuesta 90 En. Vida 10-67, velocidad 10-18, daño 8-30. Golpes con 33% de desangrado (1 vida/2s por 10s y -50% curación). Mantén la tecla para modo combate (dirige con clic derecho). 30s de recarga al morir todos.",
+    "Invocar Lobos": "Mágica (invocación sombría). Invoca 3 lobos; máx nivel 20, cuesta 90 En. Vida 10-67, velocidad 10-18, daño 8-30. Golpes con 33% de desangrado (5 golpes de 1 vida cada 2s y -50% curación mientras dure). Mantén la tecla para modo combate (clic derecho: persiguen al enemigo marcado; mantén y suelta de nuevo para volver a pasivo). 30s de recarga al morir todos.",
     "Golpe de Suerte": "Efecto aleatorio: Burst, Destello, Reforzamiento, Regeneración, Aura, energía o escudos al máximo (10% c/u) o nada (30%; 5% a nv20). La habilidad otorgada dura 5-30s; no se relanza hasta que termine. Costo 15-50 En., CD 5-20s."
 }
 

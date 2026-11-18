@@ -335,7 +335,7 @@ Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Deste
 
 ### 2.10 Invocar Lobos
 
-Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Segunda de las 10 Artes de las Sombras. Cada golpe tiene un **33 %** de causar **desangrado** (1 vida/2 s por 10 s, no acumulable, y -50 % a toda curación). Las estadísticas son por lobo.
+Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Segunda de las 10 Artes de las Sombras. Cada golpe tiene un **33 %** de causar **desangrado** (5 golpes de 1 vida, uno cada 2 s; activo hasta el último golpe, no acumulable, y -50 % a toda curación). Las estadísticas son por lobo.
 
 | Nivel | Vida | Velocidad | Daño | Coste En. |
 |---|---|---|---|---|

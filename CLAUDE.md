@@ -4,7 +4,7 @@ Juego 2D de vista cenital en Python (Tkinter para la creacion + pygame-ce 2.5.8,
 Hablar siempre en **espanol** con el usuario. Ejecutar con `python main.py`.
 
 ## Entorno (importante)
-- Carpeta del proyecto: `C:\Users\kevin\OneDrive\Documentos\Proyectos\Level_UP` (se movio desde su ubicacion anterior).
+- Carpeta del proyecto: `C:\Odoo\Level_UP` (se movio desde OneDrive).
 - **Hay git funcionando**: rama `master` con `origin/master` e historial de commits. (La nota antigua de que "no hay git" por el Acceso controlado a carpetas de Defender ya NO aplica.)
 - Atencion a los finales de linea: el arbol de trabajo quedo en **CRLF** y HEAD en **LF**, y no hay `.gitattributes`. Si `git status` marca archivos "modificados" sin cambios reales, suele ser solo CRLF vs LF (comprobar con `git diff --ignore-all-space`).
 - Para probar sin ventana: `SDL_VIDEODRIVER=dummy python -B -c "..."` (`-B` evita escribir `__pycache__`). El juego real lo prueba el usuario.
@@ -18,7 +18,7 @@ Hablar siempre en **espanol** con el usuario. Ejecutar con `python main.py`.
 - Todo documento nuevo de informacion va en `Documentacion/`. Este `CLAUDE.md` se queda en la raiz para que Claude Code lo cargue. Cada 3 cambios grandes se actualiza la especificacion (regla 3).
 
 ## Estado actual (resumen)
-Mundo, movimiento/camara, progresion por niveles con puntos, **5 armas** y **9 habilidades** e interfaz con paneles a ambos lados. **Aun no hay enemigos ni combate**: hitboxes, puntos de empuje y quemadura estan implementados pero todavia no se disparan.
+Mundo, movimiento/camara, progresion por niveles con puntos, **5 armas** y **10 habilidades** e interfaz con paneles a ambos lados. **Aun no hay enemigos**: hay un **maniqui de pruebas** (`mundo.Maniqui`) al que atacan las invocaciones en **modo combate** (mantener tecla + clic derecho; persiguen al enemigo marcado). Empuje y desangrado (5 golpes) activos; jugador, maniqui e invocaciones son cuerpos solidos que no se solapan (`mundo.resolver_solapamientos`, por masa). La quemadura sigue sin dispararse.
 
 ## Archivos
 - `main.py`: ventana Tkinter de creacion (nombre, color, seleccion de 1 arma y hasta 3 habilidades con tooltips [?], stats). Personaje de pruebas `shadow498` (`NOMBRE_CLAVE_PRUEBAS` / `STATS_PRUEBAS`). Habilidades vienen de `HABILIDADES_DISPONIBLES`.
@@ -29,7 +29,7 @@ Mundo, movimiento/camara, progresion por niveles con puntos, **5 armas** y **9 h
 - `vegetacion.py`: arbustos nube, 3 tipos identicos a la vista (Escondite, Venenoso, Frutal), diametro 50-150 (frutales min. 50). Si el personaje no cabe, el arbusto es solido. Dentro: `oculto=True`, mapa oscurecido (`OSCURECIMIENTO`). Frutales con ciclo de reaparicion por fases; posibilidad de matorrales (grupos densos).
 - `personaje.py`: clase `Personaje`. Movimiento por clic con sub-pasos, colisiones roca (circulo-rect) y arbusto (circulo-circulo), limite circular, ojos que miran al moverse. Dano separado en **fisico** y **magico**, cada uno amortiguado por su escudo (`escudo` fisico / escudo magico), con empuje (`actualizar_empuje`).
 - `herramientas.py`: 5 armas (`EspadaLigera`, `EspadaLarga`, `Mandoble`, `DagasSimples`, `Escudo`) con niveles (max 5), durabilidad y rotura. Dano = factor x Fuerza actual. El Escudo no golpea: protege y empuja al portador.
-- `habilidades.py`: 9 habilidades (`Destello`, `BurstDeFuerza`, `DisparoVeloz`, `InvocacionConejos`, `CargaDeFuego`, `AuraElectrica`, `ReforzamientoMagico`, `RegeneracionInversa`, `GolpeDeSuerte`), proyectiles (`ProyectilEnergia`, `ProyectilFuego`) y `Conejo`. Max nivel 20 (Regeneracion Inversa 10). Ver detalle y tablas en la especificacion.
+- `habilidades.py`: 10 habilidades (`Destello`, `BurstDeFuerza`, `DisparoVeloz`, `InvocacionConejos`, `InvocacionLobos`, `CargaDeFuego`, `AuraElectrica`, `ReforzamientoMagico`, `RegeneracionInversa`, `GolpeDeSuerte`), proyectiles (`ProyectilEnergia`, `ProyectilFuego`) y `Conejo`. Max nivel 20 (Regeneracion Inversa 10). Ver detalle y tablas en la especificacion.
 - `word.py`: solo compatibilidad, llama a `main.py`.
 
 ## Convencion de dibujo
@@ -38,7 +38,7 @@ pantalla = mundo - desplazamiento. Las funciones `dibujar(...)` reciben ese offs
 Orden: suelo -> agua -> rocas -> personaje -> arbustos -> capa oscura + orbes (si oculto) -> hitboxes.
 
 ## Controles
-[Clic izq] mover / botones de interfaz · [1] sacar/guardar arma · [2][3][4] habilidades (mantener para cargar la Carga de Fuego) · [H] hitboxes · [L] subir nivel (+3 puntos, prueba) · [J] simular golpe (prueba) · [ESC] salir.
+[Clic izq] mover / botones de interfaz · [1] sacar/guardar arma · [2][3][4] habilidades (mantener para cargar la Carga de Fuego; con una invocacion activa, mantener = modo combate y [Clic der] da la orden; mantener y soltar de nuevo = pasivo) · [H] hitboxes · [L] subir nivel (+3 puntos, prueba) · [J] simular golpe (prueba) · [ESC] salir.
 
 ## Pendiente / ideas
 - Sistema de enemigos y combate: activara el dano real, el desgaste de durabilidad, los puntos de empuje, la quemadura y una fuente de experiencia para subir sin teclas de prueba.

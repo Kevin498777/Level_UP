@@ -235,7 +235,7 @@ Lanzar una habilidad mientras otra sigue activa cuesta un **+5 % de la energía 
 
 ### 9.11 Invocar Lobos
 
-Invocación **mágica** (segunda de las 10 Artes de las Sombras). Invoca **3 lobos** detrás del personaje (cuerpo gris con orejas y ojos rojos). No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Cada golpe tiene un **33 %** de aplicar **desangrado** al objetivo: pierde **1 de vida cada 2 s durante 10 s** (ignora escudos), **no es acumulable** (reaplicar solo reinicia la duración) y mientras dura reduce **toda curación un 50 %**.
+Invocación **mágica** (segunda de las 10 Artes de las Sombras). Invoca **3 lobos** detrás del personaje (cuerpo gris con orejas y ojos rojos). No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Cada golpe tiene un **33 %** de aplicar **desangrado** al objetivo: recibe **5 golpes de 1 de vida, uno cada 2 s** (ignora escudos). Se cuenta **por golpes, no por tiempo**, así el daño total es siempre 5 sin importar los FPS. El efecto sigue **activo hasta que cae el último golpe** y mientras dura reduce **toda curación un 50 %**. **No es acumulable**: reaplicarlo solo reinicia los 5 golpes.
 
 | Nivel | Vida | Velocidad | Daño | Coste En. |
 |---|---|---|---|---|
@@ -249,13 +249,19 @@ La vida sube **+3 por nivel**, la velocidad **+2 cada 5 niveles** y el daño esc
 
 ### 9.12 Modo combate (invocaciones sombrías)
 
-Conejos y lobos comparten el **modo combate**. Con la invocación ya activa, **mantener su tecla** ([2], [3] o [4]) las pasa a modo combate (se les **encienden los ojos**). Mientras mantienes la tecla, el **clic derecho** da la orden:
+Conejos y lobos comparten el **modo combate**. Con la invocación ya activa, **mantener su tecla** ([2], [3] o [4]) las pone en guardia (se les **encienden los ojos** al instante). Mientras mantienes la tecla, el **clic derecho** da la orden:
 
-- **Clic derecho sobre un enemigo** (p. ej. el maniquí): van hacia él y lo atacan.
+- **Clic derecho sobre un enemigo** (p. ej. el maniquí): lo fijan como objetivo y lo **persiguen aunque se mueva**, atacándolo hasta que muera. Al morir el objetivo vuelven a seguirte.
 - **Clic derecho en terreno libre**: van a ese punto.
 - **Clic derecho junto a ti**: las llama de vuelta (vuelven a seguirte).
 
-La orden **persiste aunque sueltes la tecla**, así conservas tu movilidad (el **clic izquierdo** sigue moviendo solo a tu personaje) mientras las sombras siguen atacando. Atacan **por intervalos** (1 golpe/s por criatura) y, por el retroceso al golpear (ver sección 10), no apilan todo su daño de golpe.
+La orden **persiste aunque sueltes la tecla**, así conservas tu movilidad (el **clic izquierdo** sigue moviendo solo a tu personaje) mientras las sombras siguen atacando. Con una orden en curso, **volver a mantener la tecla y soltarla sin dar otra orden** las devuelve al **estado pasivo** (te siguen); si mientras la mantienes das otra orden con el clic derecho, se queda la nueva. Atacan **por intervalos** (1 golpe/s por criatura) y, por el retroceso al golpear (ver sección 10), no apilan todo su daño de golpe.
+
+Los conejos tienen la cara `:3` con los **ojos rojos**, que en modo combate brillan con un halo.
+
+### 9.13 Cuerpos sólidos (sin solapamientos)
+
+El personaje, el maniquí y las invocaciones tienen **hitbox circular** (su radio): pueden **recibir daño** y **no se solapan** entre sí. Al chocar se separan según su **masa**: conejo 1, lobo 3, personaje 100 (sus invocaciones apenas lo desplazan) y maniquí fijo (nada lo mueve, salvo su propio retroceso). Con [H] se ven las hitboxes del maniquí y de las invocaciones (círculos magenta).
 
 ## 10. Puntos de empuje (retroceso)
 
@@ -285,7 +291,8 @@ En el centro del mapa hay un **maniquí**: **100 de vida**, no ataca, pero **rec
 | [1] | Sacar / guardar la herramienta |
 | [2] [3] [4] | Usar las habilidades equipadas (mantener pulsado para cargar la Carga de Fuego) |
 | Mantener [2] [3] [4] | Poner esa invocación sombría en **modo combate** (ojos encendidos) |
-| Clic derecho (en modo combate) | Enviar a las sombras a un punto o a atacar al enemigo bajo el clic (la orden persiste al soltar la tecla) |
+| Clic derecho (en modo combate) | Enviar a las sombras a un punto o a perseguir y atacar al enemigo bajo el clic (la orden persiste al soltar la tecla) |
+| Mantener y soltar [2] [3] [4] con una orden en curso | Devolver esa invocación al estado pasivo (te siguen) |
 | Clic derecho junto a ti | Llamar de vuelta a las sombras (vuelven a seguirte) |
 | [H] | Mostrar / ocultar las hitboxes |
 | [L] | (Prueba) Subir de nivel al personaje (+3 puntos) |

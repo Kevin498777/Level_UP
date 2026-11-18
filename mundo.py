@@ -435,11 +435,53 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 # -----------------------------
 # EJECUCIÓN PRINCIPAL DEL MUNDO (PYGAME)
 # -----------------------------
+ITERACIONES_SEPARACION = 2   # pasadas por frame para resolver solapamientos entre cuerpos
+
+
+def resolver_solapamientos(entidades):
+    """Separa los cuerpos circulares que se solapan (jugador, invocaciones, maniqui) para que
+    no queden uno encima de otro. Cada uno necesita `posicion`, `radio` y `masa`: el de menos
+    masa cede mas (masa infinita = no se mueve). Si dos cuerpos coinciden exactamente se
+    separan en una direccion aleatoria."""
+    for _ in range(ITERACIONES_SEPARACION):
+        for i in range(len(entidades)):
+            a = entidades[i]
+            for j in range(i + 1, len(entidades)):
+                b = entidades[j]
+                minima = a.radio + b.radio
+                delta = b.posicion - a.posicion
+                dist2 = delta.length_squared()
+                if dist2 >= minima * minima:
+                    continue
+                ma, mb = a.masa, b.masa
+                if math.isinf(ma) and math.isinf(mb):
+                    continue
+                if dist2 == 0:
+                    ang = random.uniform(0, math.tau)
+                    normal = pygame.Vector2(math.cos(ang), math.sin(ang))
+                    solape = minima
+                else:
+                    dist = math.sqrt(dist2)
+                    normal = delta / dist
+                    solape = minima - dist
+                # Parte del solape que cede cada uno (proporcional a la masa del otro)
+                if math.isinf(ma):
+                    parte_a, parte_b = 0.0, 1.0
+                elif math.isinf(mb):
+                    parte_a, parte_b = 1.0, 0.0
+                else:
+                    parte_a, parte_b = mb / (ma + mb), ma / (ma + mb)
+                a.posicion -= normal * (solape * parte_a)
+                b.posicion += normal * (solape * parte_b)
+
+
 class Maniqui:
     """Maniqui de pruebas en el centro del mapa: 100 de vida, no ataca, pero recibe dano y
-    desangrado. Al destruirse reaparece a los 5 s con la vida llena."""
+    desangrado. Al destruirse reaparece a los 5 s con la vida llena. Es un cuerpo fijo:
+    nada lo atraviesa ni lo desplaza (solo su propio retroceso al recibir dano)."""
     VIDA_MAX = 100
     RESPAWN = 5.0
+    masa = float("inf")
 
     def __init__(self, centro):
         self.posicion = pygame.Vector2(centro)
@@ -620,12 +662,15 @@ def iniciar_mundo(config):
     while ejecutando:
         dt = reloj.tick(60) / 1000.0  # Delta time en segundos
 
-        # Modo combate de las sombras: mantener la tecla de una invocacion activa pasa
-        # sus criaturas a modo combate (se dirigen con el clic).
+        # Modo combate de las sombras: mantener la tecla de una invocacion activa pone a
+        # sus criaturas en guardia (se dirigen con el clic derecho).
         teclas_estado = pygame.key.get_pressed()
         for hab in jugador.habilidades:
-            if hasattr(hab, "modo_combate"):
+            if hasattr(hab, "ordenar"):
                 hab.modo_combate = (hab.estado == "INVOCADO" and teclas_estado[hab.tecla])
+
+        # Enemigos actuales (por ahora solo el maniqui de pruebas)
+        enemigos = [maniqui] if maniqui.vivo else []
 
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -660,14 +705,22 @@ def iniciar_mundo(config):
                             # Las habilidades cargables (ej. Carga de Fuego) empiezan a cargar al pulsar
                             if getattr(hab, "cargable", False):
                                 hab.iniciar_carga(jugador)
+                            # Invocacion ya activa: la tecla controla el modo combate
+                            elif hab.estado == "INVOCADO" and hasattr(hab, "pulsar_tecla_combate"):
+                                hab.pulsar_tecla_combate()
                             else:
                                 hab.intentar_activar(jugador)
 
-            # Soltar la tecla de una habilidad cargable: dispara la carga acumulada
+            # Soltar la tecla de una habilidad cargable: dispara la carga acumulada.
+            # Soltar la de una invocacion: si no se dio otra orden, vuelve al estado pasivo.
             elif evento.type == pygame.KEYUP:
                 for hab in jugador.habilidades:
-                    if evento.key == hab.tecla and getattr(hab, "cargable", False):
+                    if evento.key != hab.tecla:
+                        continue
+                    if getattr(hab, "cargable", False):
                         hab.soltar_carga(jugador)
+                    elif hasattr(hab, "soltar_tecla_combate"):
+                        hab.soltar_tecla_combate()
 
             elif evento.type == pygame.MOUSEBUTTONDOWN:
                 if evento.button == 1:
@@ -712,7 +765,9 @@ def iniciar_mundo(config):
 
                 elif evento.button == 3:
                     # Clic derecho: dirige a las sombras en modo combate (mantener su tecla).
-                    # No afecta al jugador, asi el clic izquierdo sigue libre para moverse.
+                    # Sobre un enemigo lo persiguen aunque se mueva; en terreno libre van al
+                    # punto; cerca del jugador vuelven a seguirlo. El clic izquierdo sigue
+                    # libre para mover al personaje.
                     mouse_x, mouse_y = evento.pos
                     if mundo_x <= mouse_x <= (mundo_x + mundo_w):
                         vista = vista_camara()
@@ -720,11 +775,9 @@ def iniciar_mundo(config):
                             vista.x + (mouse_x - mundo_x),
                             vista.y + (mouse_y - mundo_y)
                         )
-                        # Clic cerca del jugador = llamarlas de vuelta (seguir); lejos = orden
-                        recall = (punto - jugador.posicion).length() <= jugador.radio + 50
                         for hab in jugador.habilidades:
                             if getattr(hab, "modo_combate", False):
-                                hab.objetivo = None if recall else pygame.Vector2(punto)
+                                hab.ordenar(punto, jugador, enemigos)
 
         # Actualizar herramienta (temporizador y cálculo de su hitbox)
         if jugador.herramienta:
@@ -745,13 +798,9 @@ def iniciar_mundo(config):
         # Actualizar regeneración del escudo mágico
         jugador.actualizar_regeneracion_escudo_magico(dt)
 
-        # Actualizar todas las habilidades equipadas (las invocaciones reciben los enemigos)
-        enemigos = [maniqui] if maniqui.vivo else []
+        # Actualizar todas las habilidades equipadas
         for hab in jugador.habilidades:
-            if hasattr(hab, "modo_combate"):
-                hab.actualizar(dt, jugador, enemigos=enemigos)
-            else:
-                hab.actualizar(dt, jugador)
+            hab.actualizar(dt, jugador)
         # Efectos temporales otorgados (ej. por Golpe de Suerte)
         jugador.actualizar_efectos(dt)
         # Desangrado activo (resta vida por intervalo; preparado para el combate)
@@ -784,6 +833,14 @@ def iniciar_mundo(config):
 
         # Maniqui de pruebas (tiquea su desangrado y su reaparicion)
         maniqui.actualizar(dt)
+
+        # Cuerpos solidos: jugador, maniqui e invocaciones no se solapan entre si
+        cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
+        for hab in jugador.habilidades:
+            cuerpos.extend(getattr(hab, "criaturas", ()))
+        resolver_solapamientos(cuerpos)
+        jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
+        jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)
 
         # Cámara que sigue suavemente al personaje
         factor = min(1.0, SUAVIZADO_CAMARA * dt)
@@ -837,6 +894,11 @@ def iniciar_mundo(config):
             # Hitbox del personaje (rectángulo verde brillante y círculo exterior)
             pygame.draw.rect(pantalla, (0, 255, 120), jugador.hitbox.move(-ox, -oy), 1)
             pygame.draw.circle(pantalla, (0, 255, 120), (round(jugador.posicion.x - ox), round(jugador.posicion.y - oy)), jugador.radio, 1)
+
+            # Hitbox del maniqui y de las invocaciones (círculo magenta)
+            for cuerpo in cuerpos:
+                if cuerpo is not jugador:
+                    pygame.draw.circle(pantalla, (255, 90, 220), (round(cuerpo.posicion.x - ox), round(cuerpo.posicion.y - oy)), cuerpo.radio, 1)
 
             # Hitbox de la espada si está desenfundada (rectángulo amarillo)
             if jugador.herramienta and jugador.herramienta.activa:

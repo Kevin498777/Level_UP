@@ -3,6 +3,10 @@ import math
 from herramientas import EspadaLigera
 from habilidades import combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE
 
+# Masa del personaje frente a otros cuerpos (conejo 1, lobo 3): apenas lo desplazan sus
+# invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
+MASA_PERSONAJE = 100.0
+
 # --- Escudo del personaje (reserva que absorbe daño físico) ---
 # Progresión del escudo: inicial 0, +5 por mejora hasta un máximo de 15 y, a partir
 # de ahí, +2 por mejora. El escudo mágico (Fase 2) compartirá este mismo esquema.
@@ -88,6 +92,7 @@ class Personaje:
         self.oculto = False          # True = no puede ser visto desde afuera (pensado para futuros personajes)
         self.tiempo_veneno = 0.0     # Acumulador del daño de hierba venenosa
         self.desangrado = None       # Efecto de desangrado activo (None si no tiene)
+        self.masa = MASA_PERSONAJE   # Al separar cuerpos solapados, las invocaciones le ceden el paso
 
         # Empuje acumulado pendiente de aplicar (retroceso por recibir daño)
         self.empuje = pygame.Vector2(0, 0)

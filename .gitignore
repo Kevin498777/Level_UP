@@ -27,3 +27,6 @@ _prueba_escritura.txt
 *.bak_escudo
 *.bak
 _respaldos/
+
+# Archivos de bloqueo de Office (se crean al abrir un .xlsx/.docx)
+~$*
