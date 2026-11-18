@@ -21,6 +21,27 @@ def anular_escudo_magico(objetivo):
     objetivo.anulacion_escudo_magico = DURACION_ANULACION_ESCUDOM
 
 
+# Ralentizacion (pasiva de Onda Sonora): resta un porcentaje de velocidad de movimiento.
+# No se suma: se queda la mas fuerte y cada nuevo impacto reinicia la duracion.
+DURACION_RALENTIZACION = 3.0
+
+
+def aplicar_ralentizacion(objetivo, porcentaje):
+    actual = getattr(objetivo, "ralentizacion", 0.0) if getattr(objetivo, "tiempo_ralentizacion", 0.0) > 0 else 0.0
+    objetivo.ralentizacion = max(actual, porcentaje)
+    objetivo.tiempo_ralentizacion = DURACION_RALENTIZACION
+
+
+def actualizar_ralentizacion(objetivo, dt):
+    """Descuenta la ralentizacion y la retira al terminar."""
+    if getattr(objetivo, "tiempo_ralentizacion", 0.0) <= 0:
+        return
+    objetivo.tiempo_ralentizacion -= dt
+    if objetivo.tiempo_ralentizacion <= 0:
+        objetivo.tiempo_ralentizacion = 0.0
+        objetivo.ralentizacion = 0.0
+
+
 def actualizar_anulacion_escudo_magico(objetivo, dt):
     """Descuenta la anulacion; al terminar devuelve el escudo guardado. Devuelve True mientras
     el escudo siga anulado (en ese tiempo no debe regenerarse)."""
@@ -449,6 +470,7 @@ class CuchillaCortante:
     - Enemigo: le hace dano y, si llega a hacerlo, anula su escudo magico 10 s.
     - Roca o arbusto: lo destruye y se rompe con el (solo un objeto). Las rocas gigantes y los
       arbustos grandes solo se destruyen a nivel maximo; si no, la cuchilla se rompe sin danarlos.
+      Lanzada desde dentro de un arbusto sale hacia afuera sin cortarlo.
     Avanza en sub-pasos cortos para no atravesar objetos pequenos a velocidades altas."""
     LARGO = 32          # aprox. el largo de la Espada Ligera (tamano 1)
     GROSOR = 4          # grosor maximo del cuerpo (en el centro)
@@ -460,6 +482,8 @@ class CuchillaCortante:
         # pero no se dibuja hasta salir de su cuerpo
         self.recorrido = 0.0
         self.oculta_hasta = oculta_hasta
+        self.origen = pygame.Vector2(x, y)
+        self._arbustos_origen = None   # arbustos donde se lanzo (no los corta: sale de dentro hacia afuera)
         d = pygame.Vector2(dx, dy)
         self.direccion = d.normalize() if d.length_squared() > 0 else pygame.Vector2(0, -1)
         self.lateral = pygame.Vector2(-self.direccion.y, self.direccion.x)
@@ -482,6 +506,8 @@ class CuchillaCortante:
     def avanzar(self, rocas, arbustos, enemigos, centro_mundo, radio_mundo):
         """Mueve la cuchilla un frame. Las rocas y arbustos destruidos se quitan de sus listas.
         Devuelve la roca destruida (o None) para liberar su zona en la vegetacion."""
+        if self._arbustos_origen is None:
+            self._arbustos_origen = {id(arb) for arb in arbustos if arb.contiene(self.origen)}
         sub_pasos = max(1, math.ceil(self.velocidad / self.PASO_MAX))
         paso = self.direccion * (self.velocidad / sub_pasos)
         for _ in range(sub_pasos):
@@ -505,7 +531,8 @@ class CuchillaCortante:
 
             # Arbustos solapados (matorrales): se queda con el mas cercano a la cuchilla
             tocados = [arb for arb in arbustos
-                       if any(_distancia_punto_segmento(c, a, b) <= r for c, r in arb.circulos)]
+                       if id(arb) not in self._arbustos_origen
+                       and any(_distancia_punto_segmento(c, a, b) <= r for c, r in arb.circulos)]
             if tocados:
                 arbusto = min(tocados, key=lambda arb: (arb.centro - self.posicion).length())
                 self.activo = False
@@ -604,6 +631,162 @@ class Cortar(HabilidadBase):
     def dibujar_cuchillas(self, pantalla, desplazamiento=(0, 0)):
         for c in self.cuchillas:
             c.dibujar(pantalla, desplazamiento)
+
+
+# -----------------------------
+# ONDA SONORA: anillos que se expanden 360 grados desde el lanzador
+# -----------------------------
+class AnilloSonoro:
+    """Un anillo de una Onda Sonora. Crece desde su centro hasta el radio maximo; golpea a
+    cada objetivo una sola vez cuando su frente lo alcanza. Atraviesa rocas y arbustos sin
+    destruirlos. Se desvanece al acercarse al borde."""
+    def __init__(self, centro, radio_max, velocidad, dano, en_agua, emision):
+        self.centro = pygame.Vector2(centro)
+        self.radio = 0.0
+        self.radio_max = radio_max
+        self.velocidad = velocidad
+        self.dano = dano
+        self.en_agua = en_agua           # medio del lanzador al emitirla
+        self.emision = emision           # lanzamiento al que pertenece (cuenta impactos)
+        self.golpeados = set()
+        self.activo = True
+
+    def actualizar(self, dt, enemigos):
+        previo = self.radio
+        self.radio = min(self.radio_max, self.radio + self.velocidad * dt)
+        for e in enemigos:
+            if id(e) in self.golpeados or not getattr(e, "vivo", True):
+                continue
+            dist = (e.posicion - self.centro).length()
+            # El frente del anillo cruzo el cuerpo del objetivo en este frame
+            if dist - e.radio <= self.radio and dist + e.radio >= previo:
+                self.golpeados.add(id(e))
+                self.emision.impactar(self, e)
+        if self.radio >= self.radio_max:
+            self.activo = False
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        r = round(self.radio)
+        if r < 2:
+            return
+        alpha = round(255 * max(0.0, 1.0 - self.radio / self.radio_max) ** 0.6)
+        if alpha <= 0:
+            return
+        sup = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+        pygame.draw.circle(sup, (255, 255, 255, alpha), (r + 2, r + 2), r, 2)
+        pantalla.blit(sup, (round(self.centro.x - desplazamiento[0]) - r - 2,
+                            round(self.centro.y - desplazamiento[1]) - r - 2))
+
+
+class EmisionSonora:
+    """Un lanzamiento de Onda Sonora: emite sus anillos uno tras otro desde el punto donde se
+    lanzo (no sigue al personaje) y lleva la cuenta de cuantos golpean a cada objetivo
+    (1, 2 o 3 => ralentizacion creciente). El medio (agua o tierra) es el del punto de lanzamiento."""
+    INTERVALO = 0.8               # segundos entre anillos
+
+    def __init__(self, habilidad, centro, en_agua):
+        self.hab = habilidad
+        self.centro = pygame.Vector2(centro)
+        self.en_agua = en_agua
+        self.pendientes = list(habilidad.danos_ondas)   # dano base de cada anillo por emitir
+        self.timer = 0.0
+        self.anillos = []
+        self.impactos = {}        # id(objetivo) -> anillos que lo golpearon
+
+    @property
+    def activa(self):
+        return bool(self.pendientes) or any(a.activo for a in self.anillos)
+
+    def actualizar(self, dt, enemigos):
+        self.timer -= dt
+        while self.pendientes and self.timer <= 0:
+            vel = OndaSonora.VELOCIDAD_AGUA if self.en_agua else OndaSonora.VELOCIDAD
+            self.anillos.append(AnilloSonoro(self.centro, self.hab.radio, vel,
+                                             self.pendientes.pop(0), self.en_agua, self))
+            self.timer += self.INTERVALO
+        for a in self.anillos:
+            if a.activo:
+                a.actualizar(dt, enemigos)
+        self.anillos = [a for a in self.anillos if a.activo]
+
+    def impactar(self, anillo, objetivo):
+        """Dano magico y ralentizacion segun el medio y los anillos que ya lo golpearon."""
+        factor = OndaSonora.factor_medio(anillo.en_agua, getattr(objetivo, "en_agua", False))
+        n = self.impactos.get(id(objetivo), 0) + 1
+        self.impactos[id(objetivo)] = n
+        direccion = objetivo.posicion - anillo.centro
+        if hasattr(objetivo, "recibir_dano"):
+            objetivo.recibir_dano(anillo.dano * factor, "magico", direccion)
+        else:
+            objetivo.vida = max(0.0, round(objetivo.vida - anillo.dano * factor, 2))
+        aplicar_ralentizacion(objetivo, OndaSonora.RALENTIZACION[n - 1] * factor)
+
+
+class OndaSonora(HabilidadBase):
+    """Dano magico en area: anillos que salen del personaje y se expanden 360 grados. Uno a
+    nivel 1, dos desde nivel 10 y tres a nivel 20, separados 0.8 s. Atraviesan obstaculos sin
+    destruir nada y solo afectan a enemigos. Ralentizan segun cuantos anillos golpeen.
+    Medio (donde esta el lanzador al emitir / donde esta el objetivo al recibir):
+    - tierra -> tierra: normal; agua -> agua: dano y ralentizacion x2.
+    - cambio de medio (tierra <-> agua): la onda pierde energia, dano y ralentizacion x0.5.
+    Desde el agua el anillo viaja al doble de velocidad."""
+    DANOS = (10, 20, 30)                    # dano fijo de la 1a, 2a y 3a onda
+    NIVEL_SEGUNDA = 10
+    NIVEL_TERCERA = 20
+    RALENTIZACION = (0.05, 0.10, 0.20)      # segun anillos que golpean al objetivo (1, 2, 3)
+    VELOCIDAD = 300.0                       # px/s
+    VELOCIDAD_AGUA = 600.0
+    FACTOR_MISMO_AGUA = 2.0
+    FACTOR_CAMBIO_MEDIO = 0.5
+
+    def __init__(self):
+        super().__init__(
+            nombre="Onda Sonora",
+            descripcion="Anillos sonoros 360 de daño mágico que ralentizan. Atraviesan obstáculos.",
+            costo_energia=10,
+            duracion_activa=0.0,
+            duracion_cooldown=10.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self.emisiones = []
+
+    @classmethod
+    def factor_medio(cls, lanzador_en_agua, objetivo_en_agua):
+        if lanzador_en_agua != objetivo_en_agua:
+            return cls.FACTOR_CAMBIO_MEDIO
+        return cls.FACTOR_MISMO_AGUA if lanzador_en_agua else 1.0
+
+    def _aplicar_nivel(self):
+        """
+        Escalado de Onda Sonora (nivel 1 a 20):
+        - Ondas: 1 (dano 10); 2 desde nv10 (10 y 20); 3 a nv20 (10, 20 y 30)
+        - Radio: 200 a 400 lineal
+        - Recarga: 10s a 30s lineal (sube a proposito)
+        - Coste: 10 + 5 cada 5 niveles (max 30)
+        """
+        n = self.nivel
+        cantidad = 1 + (n >= self.NIVEL_SEGUNDA) + (n >= self.NIVEL_TERCERA)
+        self.danos_ondas = self.DANOS[:cantidad]
+        self.radio = round(200 + 200 * (n - 1) / 19, 1)
+        self.duracion_cooldown = round(10.0 + 20.0 * (n - 1) / 19, 2)
+        self.costo_energia = min(30, 10 + 5 * (n // 5))
+
+    def ejecutar_activacion(self, jugador):
+        self.emisiones.append(EmisionSonora(self, jugador.posicion, getattr(jugador, "en_agua", False)))
+        self.estado = "COOLDOWN"
+        self.tiempo_restante_activo = 0.0
+        self.tiempo_restante_cooldown = self.duracion_cooldown
+
+    def actualizar_ondas(self, dt, enemigos):
+        for e in self.emisiones:
+            e.actualizar(dt, enemigos)
+        self.emisiones = [e for e in self.emisiones if e.activa]
+
+    def dibujar_ondas(self, pantalla, desplazamiento=(0, 0)):
+        for e in self.emisiones:
+            for a in e.anillos:
+                a.dibujar(pantalla, desplazamiento)
 
 
 # -----------------------------
@@ -860,6 +1043,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
         elif hab.nombre == "Cortar":
             detalles = f"Daño {hab.dano} mág. · Vel {hab.velocidad_cuchilla} | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Onda Sonora":
+            detalles = f"{len(hab.danos_ondas)} onda(s) · R{hab.radio:.0f} | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Aura Electrica":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Golpe de Suerte":
@@ -1976,6 +2161,7 @@ HABILIDADES_DISPONIBLES = {
     "Burst de Fuerza": BurstDeFuerza,
     "Disparo Veloz": DisparoVeloz,
     "Cortar": Cortar,
+    "Onda Sonora": OndaSonora,
     "Invocar Conejos": InvocacionConejos,
     "Invocar Lobos": InvocacionLobos,
     "Carga de Fuego": CargaDeFuego,

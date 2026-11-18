@@ -364,7 +364,7 @@ pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
 
 ### 2.11 Cortar
 
-Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno rojo, del largo de la Espada Ligera) que se detiene en el **primer enemigo**. Si llega a hacer daño, **anula el escudo mágico** del enemigo **10 s** (queda en 0 sin regenerar y luego vuelve al valor que tenía tras el golpe; otro corte reinicia los 10 s). Al chocar con una **roca o un arbusto** lo destruye y se rompe (solo un objeto); las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**. La recarga **sube** con el nivel a propósito.
+Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno rojo, del largo de la Espada Ligera) que se detiene en el **primer enemigo**. Lanzada desde dentro de un arbusto no lo corta. Si llega a hacer daño, **anula el escudo mágico** del enemigo **10 s** (queda en 0 sin regenerar y luego vuelve al valor que tenía tras el golpe; otro corte reinicia los 10 s). Al chocar con una **roca o un arbusto** lo destruye y se rompe (solo un objeto); las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**. La recarga **sube** con el nivel a propósito.
 
 | Nivel | Daño | Velocidad | Coste En. | Recarga | Corta gigantes/grandes |
 |---|---|---|---|---|---|
@@ -388,3 +388,31 @@ Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno roj
 | 18 | 69 | 22 | 49 | 8 s | No |
 | 19 | 71 | 23 | 51 | 8 s | No |
 | 20 | 75 | 24 | 53 | 10 s | Sí |
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
+
+### 2.12 Onda Sonora
+
+Habilidad de **daño mágico** en área: anillos blancos en 360°, uno cada **0.8 s**, todos desde el punto de lanzamiento (no siguen al personaje). Daño fijo por onda: **10** (1.ª), **20** (2.ª, desde nivel 10) y **30** (3.ª, a nivel 20). Atraviesan obstáculos sin destruir nada y solo afectan a enemigos. Ralentiza **-5 / -10 / -20 %** durante 3 s según cuántas ondas golpeen. Agua → agua: daño y ralentización x2; cambio de medio: x0.5. Velocidad de la onda **300 px/s** (600 si se lanza desde el agua).
+
+| Nivel | Ondas (daño) | Radio | Coste En. | Recarga |
+|---|---|---|---|---|
+| 1 | 1 (10) | 200 | 10 | 10 s |
+| 2 | 1 (10) | 210.5 | 10 | 11.05 s |
+| 3 | 1 (10) | 221.1 | 10 | 12.11 s |
+| 4 | 1 (10) | 231.6 | 10 | 13.16 s |
+| 5 | 1 (10) | 242.1 | 15 | 14.21 s |
+| 6 | 1 (10) | 252.6 | 15 | 15.26 s |
+| 7 | 1 (10) | 263.2 | 15 | 16.32 s |
+| 8 | 1 (10) | 273.7 | 15 | 17.37 s |
+| 9 | 1 (10) | 284.2 | 15 | 18.42 s |
+| 10 | 2 (10 + 20) | 294.7 | 20 | 19.47 s |
+| 11 | 2 (10 + 20) | 305.3 | 20 | 20.53 s |
+| 12 | 2 (10 + 20) | 315.8 | 20 | 21.58 s |
+| 13 | 2 (10 + 20) | 326.3 | 20 | 22.63 s |
+| 14 | 2 (10 + 20) | 336.8 | 20 | 23.68 s |
+| 15 | 2 (10 + 20) | 347.4 | 25 | 24.74 s |
+| 16 | 2 (10 + 20) | 357.9 | 25 | 25.79 s |
+| 17 | 2 (10 + 20) | 368.4 | 25 | 26.84 s |
+| 18 | 2 (10 + 20) | 378.9 | 25 | 27.89 s |
+| 19 | 2 (10 + 20) | 389.5 | 25 | 28.95 s |
+| 20 | 3 (10 + 20 + 30) | 400 | 30 | 30 s |

@@ -1,7 +1,8 @@
 import pygame
 import math
 from herramientas import EspadaLigera
-from habilidades import combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE, actualizar_anulacion_escudo_magico
+from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
+                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion)
 
 # Masa del personaje frente a otros cuerpos (conejo 1, lobo 3): apenas lo desplazan sus
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
@@ -109,6 +110,8 @@ class Personaje:
         self.oculto = False          # True = no puede ser visto desde afuera (pensado para futuros personajes)
         self.tiempo_veneno = 0.0     # Acumulador del daño de hierba venenosa
         self.desangrado = None       # Efecto de desangrado activo (None si no tiene)
+        self.ralentizacion = 0.0     # Debuff de velocidad recibido (ej. Onda Sonora), 0.20 = -20%
+        self.tiempo_ralentizacion = 0.0
         self.masa = MASA_PERSONAJE   # Al separar cuerpos solapados, las invocaciones le ceden el paso
 
         # Empuje acumulado pendiente de aplicar (retroceso por recibir daño)
@@ -162,6 +165,10 @@ class Personaje:
         self.desangrado.actualizar(dt, self)
         if not self.desangrado.activo:
             self.desangrado = None
+
+    def actualizar_ralentizacion(self, dt):
+        """Descuenta la ralentizacion recibida (ej. Onda Sonora) y la retira al terminar."""
+        actualizar_ralentizacion(self, dt)
 
     def esta_en_movimiento(self):
         """Devuelve True si el personaje se está desplazando hacia su destino."""
@@ -283,6 +290,9 @@ class Personaje:
         # Modificador acumulable de herramienta activa
         if self.herramienta and self.herramienta.activa:
             modificador -= self.herramienta.debuff_velocidad
+
+        # Ralentizacion recibida (ej. Onda Sonora)
+        modificador -= self.ralentizacion
 
         # Charco de agua: -50% (zona profunda de un lago grande: -80%)
         if self.en_agua_profunda:

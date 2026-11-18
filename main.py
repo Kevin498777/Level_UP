@@ -41,7 +41,8 @@ DESC_HABILIDADES = {
     "Destello": "Buff de velocidad +52% a +90% por 10-18s. Recarga 5-1s con fatiga al acabar. Costo 10-40 En. Máx nivel 20.",
     "Burst de Fuerza": "Buff de fuerza +21% a +40% por 6-10s. Recarga 12-8s. Costo 15-35 En.",
     "Disparo Veloz": "Esfera recta. Velocidad 11-30 y daño 20.5%-30% del total. Costo 15-35. Recarga 2-0.5s.",
-    "Cortar": "Mágica. Cuchilla recta que se detiene en el primer enemigo. Daño 35-75, velocidad 5-24, costo 15-53 En., recarga 2-10s (sube con el nivel). Si hace daño, anula el escudo mágico del enemigo 10s. Destruye una roca o arbusto al chocar (gigantes y arbustos grandes solo a nivel 20).",
+    "Onda Sonora": "Mágica. Anillos blancos en 360° desde donde la lanzas (1 onda de 10; 2 desde nv10: 10+20; 3 a nv20: 10+20+30), uno cada 0.8s. Radio 200-400. Atraviesan obstáculos sin destruir nada y solo afectan a enemigos. Ralentizan -5%/-10%/-20% (3s) según cuántas ondas golpeen. Agua->agua: daño y ralentización x2; si la onda cambia de medio: x0.5. Desde el agua viajan al doble de velocidad. Costo 10-30 En., recarga 10-30s.",
+    "Cortar": "Mágica. Cuchilla recta que se detiene en el primer enemigo. Daño 35-75, velocidad 5-24, costo 15-53 En., recarga 2-10s (sube con el nivel). Si hace daño, anula el escudo mágico del enemigo 10s. Destruye una roca o arbusto al chocar, salvo el arbusto en el que estás (gigantes y arbustos grandes solo a nivel 20).",
     "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En. Mantén la tecla para modo combate (clic derecho: persiguen al enemigo marcado; mantén y suelta de nuevo para volver a pasivo). 30s de recarga al morir todos.",
     "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15 al pulsar y se cobra cada segundo cargado (hasta 45 En.).",
     "Aura Electrica": "Aura que te sigue: +5% a +15% velocidad y 1 a 5 daño/s a enemigos cercanos. Autodaño 0.5/s (mágico, lo frena tu escudo mágico). Costo 20-58 En., CD 40-60s.",
@@ -56,6 +57,7 @@ COLOR_HABILIDADES = {
     "Burst de Fuerza": "#E5C07B",
     "Disparo Veloz": "#98C379",
     "Cortar": "#D7263D",
+    "Onda Sonora": "#E8E8F0",
     "Invocar Conejos": "#8FD694",
     "Carga de Fuego": "#E06C4A",
     "Aura Electrica": "#5BC8FF",
@@ -74,7 +76,7 @@ COLOR_HABILIDADES = {
 CATEGORIAS_HABILIDADES = [
     ("Artes de las Sombras", "#9B8CFF", ["Invocar Conejos", "Invocar Lobos"]),
     ("Potenciadores",        "#E5C07B", ["Destello", "Burst de Fuerza", "Aura Electrica"]),
-    ("Ataque",               "#E06C4A", ["Disparo Veloz", "Carga de Fuego", "Cortar"]),
+    ("Ataque Mágico",        "#E06C4A", ["Disparo Veloz", "Carga de Fuego", "Cortar", "Onda Sonora"]),
     ("Defensa y Soporte",    "#87CEFA", ["Reforzamiento Mágico", "Regeneración Inversa"]),
     ("Especiales",           "#F2C94C", ["Golpe de Suerte"]),
 ]

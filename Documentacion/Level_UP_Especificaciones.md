@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y once habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **Todavía no hay enemigos**, pero sí un **maniquí de pruebas** en el centro del mapa al que las invocaciones ya pueden atacar; el sistema de **puntos de empuje** (retroceso al dar o recibir daño) ya está activo, y efectos como la quemadura quedan preparados para cuando se añadan enemigos.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y doce habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **Todavía no hay enemigos**, pero sí un **maniquí de pruebas** en el centro del mapa al que las invocaciones ya pueden atacar; el sistema de **puntos de empuje** (retroceso al dar o recibir daño) ya está activo, y efectos como la quemadura quedan preparados para cuando se añadan enemigos.
 
 ---
 
@@ -98,7 +98,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 El daño se divide en dos tipos:
 
 - **Físico:** el de las herramientas (espadas, dagas, mandoble) y los conejos.
-- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica, Cortar). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
+- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica, Cortar, Onda Sonora). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
 
 Cada tipo lo amortigua su propio escudo del personaje:
 
@@ -269,10 +269,10 @@ El personaje, el maniquí y las invocaciones tienen **hitbox circular** (su radi
 
 ### 9.14 Cortar
 
-Habilidad de **daño mágico** (categoría Ataque). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
+Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
 
 - **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 10 s** (ver 6.3).
-- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Si hay arbustos solapados (matorral), corta el más cercano. Los objetos destruidos **no reaparecen** (tampoco los frutales) y, si estabas escondido en el arbusto destruido, quedas a la vista.
+- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Si hay arbustos solapados (matorral), corta el más cercano. Los objetos destruidos **no reaparecen** (tampoco los frutales) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
 
 | Nivel | Daño | Velocidad | Coste En. | Recarga |
 |---|---|---|---|---|
@@ -285,19 +285,51 @@ Habilidad de **daño mágico** (categoría Ataque). Lanza hacia donde mira el pe
 
 Daño **35 +2 por nivel** (a nivel 20 sube a **75**), velocidad **5 +1 por nivel**, coste **15 +2 por nivel** y recarga **2 s +2 s cada 5 niveles** (sube a propósito). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.11).
 
+### 9.15 Onda Sonora
+
+Habilidad de **daño mágico** (categoría Ataque Mágico). Emite **anillos blancos finos** que se expanden en **360°** hasta el radio máximo, donde se desvanecen. Las ondas salen **una cada 0.8 s**, todas desde el **punto donde se lanzó** (no siguen al personaje aunque se mueva):
+
+- **Nivel 1–9:** 1 onda de **10** de daño.
+- **Nivel 10–19:** 2 ondas (**10** y **20**).
+- **Nivel 20:** 3 ondas (**10**, **20** y **30**).
+
+Atraviesan rocas y arbustos **sin destruir nada** y **solo afectan a enemigos** (no al lanzador ni a sus invocaciones). Cada onda golpea **una sola vez** a cada objetivo; tras golpear sigue visible y las ondas siguientes sí pueden golpearlo. El escudo mágico amortigua su daño.
+
+**Pasiva (ralentización):** según cuántas ondas del mismo lanzamiento golpeen al objetivo: **-5 % / -10 % / -20 %** de velocidad de movimiento durante **3 s**. No se suma: se queda la más fuerte y cada impacto reinicia los 3 s.
+
+**Medio (agua):** cuenta el punto de lanzamiento (agua o tierra, igual para todas sus ondas) y dónde está el objetivo al recibir cada onda.
+
+| Lanzador → objetivo | Daño | Ralentización |
+|---|---|---|
+| Tierra → tierra | normal | -5 / -10 / -20 % |
+| Agua → agua | **x2** (20 / 40 / 60) | **x2** (-10 / -20 / -40 %) |
+| Cambio de medio (tierra ↔ agua) | **x0.5** (5 / 10 / 15) | **x0.5** (-2.5 / -5 / -10 %) |
+
+La onda viaja a **300 px/s** y al **doble (600 px/s)** si se lanza desde el agua; el alcance no cambia.
+
+| Nivel | Ondas | Radio | Coste En. | Recarga |
+|---|---|---|---|---|
+| 1 | 1 | 200 | 10 | 10 s |
+| 5 | 1 | 242 | 15 | 14.2 s |
+| 10 | 2 | 295 | 20 | 19.5 s |
+| 15 | 2 | 347 | 25 | 24.7 s |
+| 20 | 3 | 400 | 30 | 30 s |
+
+Radio **200 → 400** y recarga **10 → 30 s** lineales (la recarga sube a propósito); coste **10 +5 cada 5 niveles** (máx. 30). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.12).
+
 ## 10. Puntos de empuje (retroceso)
 
 Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. La **quemadura** de la Carga de Fuego (1/s por 5 s) sigue preparada para el combate contra enemigos.
 
 ### 10.1 Maniquí de pruebas
 
-En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar). No ataca, pero **recibe daño y desangrado** para probar las invocaciones y las habilidades. Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); si lo destruyen, **reaparece a los 5 s** con la vida llena.
+En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar). No ataca, pero **recibe daño y desangrado** para probar las invocaciones y las habilidades. Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); si lo destruyen, **reaparece a los 5 s** con la vida llena.
 
 ---
 
 ## 11. Interfaz
 
-- **Pantalla de creación (a pantalla completa):** nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Las habilidades se agrupan **por categorías en columnas** (Artes de las Sombras, Potenciadores, Ataque, Defensa y Soporte, Especiales), pensado para escalar al añadir más. Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro; el texto de cada habilidad vive **solo** en ese **[?]**.
+- **Pantalla de creación (a pantalla completa):** nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Las habilidades se agrupan **por categorías en columnas** (Artes de las Sombras, Potenciadores, Ataque Mágico, Defensa y Soporte, Especiales), pensado para escalar al añadir más. Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro; el texto de cada habilidad vive **solo** en ese **[?]**.
 - **Panel izquierdo (en juego):** nivel y puntos, tarjeta del arma (nombre, nivel, daño, debuff/buff y barra de durabilidad) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), Energía, **Escudo** y **Escudo M.** (actual / máximo).
 - **Panel derecho (en juego):** una tarjeta por habilidad con tecla, nivel, coste, estado, recarga y botón **[+]**.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.

@@ -3,7 +3,7 @@ import random
 import pygame
 from personaje import Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
-                         actualizar_anulacion_escudo_magico)
+                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion)
 from herramientas import EspadaLigera
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 
@@ -515,6 +515,9 @@ class Maniqui:
         self.escudo_magico_guardado = 0.0
         self.vivo = True
         self.desangrado = None
+        self.ralentizacion = 0.0          # no se mueve, pero la muestra (Onda Sonora)
+        self.tiempo_ralentizacion = 0.0
+        self.en_agua = False
         self.empuje.update(0, 0)
         self._t_respawn = 0.0
 
@@ -575,6 +578,7 @@ class Maniqui:
                 self.posicion.update(self.ancla)   # reaparece centrado
             return
         self._regenerar_escudos(dt)
+        actualizar_ralentizacion(self, dt)
         if self.desangrado is not None:
             self.desangrado.actualizar(dt, self)
             if not self.desangrado.activo:
@@ -591,7 +595,7 @@ class Maniqui:
         if hacia_ancla.length() > 0.5:
             self.posicion += hacia_ancla * min(1.0, dt * 3.0)
 
-    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+    def dibujar(self, pantalla, desplazamiento=(0, 0), fuente=None):
         if not self.vivo:
             return
         px = round(self.posicion.x - desplazamiento[0])
@@ -629,6 +633,10 @@ class Maniqui:
         if sangrando:
             for i in range(3):
                 pygame.draw.circle(pantalla, (210, 70, 70), (px - 8 + i * 8, by - 16), 2)
+        # Indicador de ralentizacion (no se mueve, pero se ve el debuff recibido)
+        if fuente is not None and self.tiempo_ralentizacion > 0:
+            txt = fuente.render(f"Vel -{self.ralentizacion * 100:g}%", True, (235, 235, 255))
+            pantalla.blit(txt, txt.get_rect(midleft=(bx + bw + 4, by - 3)))
 
 
 def iniciar_mundo(config):
@@ -864,10 +872,18 @@ def iniciar_mundo(config):
             if hasattr(hab, "actualizar_cuchillas"):
                 destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
                 vegetacion.liberar_obstaculos(destruidas)
+
+        # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
+        maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
+        for hab in jugador.habilidades:
+            if hasattr(hab, "actualizar_ondas"):
+                hab.actualizar_ondas(dt, enemigos)
         # Efectos temporales otorgados (ej. por Golpe de Suerte)
         jugador.actualizar_efectos(dt)
         # Desangrado activo (resta vida por intervalo; preparado para el combate)
         jugador.actualizar_desangrado(dt)
+        # Ralentizacion recibida (ej. Onda Sonora de un enemigo)
+        jugador.actualizar_ralentizacion(dt)
 
         # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
         jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
@@ -930,7 +946,7 @@ def iniciar_mundo(config):
                 roca.dibujar(pantalla, desplazamiento)
 
         # Maniqui de pruebas en el centro
-        maniqui.dibujar(pantalla, desplazamiento)
+        maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
 
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
@@ -941,6 +957,8 @@ def iniciar_mundo(config):
                 hab.dibujar_invocaciones(pantalla, desplazamiento)
             if hasattr(hab, "dibujar_cuchillas"):
                 hab.dibujar_cuchillas(pantalla, desplazamiento)
+            if hasattr(hab, "dibujar_ondas"):
+                hab.dibujar_ondas(pantalla, desplazamiento)
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
