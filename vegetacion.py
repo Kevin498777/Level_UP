@@ -35,6 +35,7 @@ DIAMETRO_MIN = 50
 DIAMETRO_MAX = 150
 DIAMETRO_MIN_FRUTAL = 50       # Los frutales siempre deben poder usarse (personaje tamaño 1 = 40 de diámetro)
 DIAMETRO_BROTE = 20            # Tamaño del frutal recién reaparecido (brote)
+DIAMETRO_ARBUSTO_GRANDE = 100  # A partir de este diámetro el arbusto es "grande" (Cortar solo lo corta a nivel 20)
 
 DANO_VENENO = 1
 INTERVALO_VENENO = 2.0         # Segundos entre cada punto de daño
@@ -163,6 +164,11 @@ class Arbusto:
         """True si el punto (centro del personaje) está dentro de la forma del arbusto."""
         return any((punto - c).length() <= r for c, r in self.circulos)
 
+    @property
+    def grande(self):
+        """Arbusto grande: solo lo destruye Cortar a nivel maximo."""
+        return self.radio * 2 > DIAMETRO_ARBUSTO_GRANDE
+
     def puede_entrar(self, personaje):
         """Solo entran los personajes cuyo diámetro cabe en el del arbusto."""
         return personaje.radio <= self.radio
@@ -205,6 +211,12 @@ class SistemaVegetacion:
     def registrar_obstaculos(self, objetos):
         """Añade obstáculos (ej. rocas generadas después) para que los frutales nuevos no caigan encima."""
         self.zonas_ocupadas.extend(o.rect for o in objetos)
+
+    def liberar_obstaculos(self, objetos):
+        """Quita de las zonas ocupadas los obstaculos destruidos (ej. rocas cortadas)."""
+        for o in objetos:
+            if o.rect in self.zonas_ocupadas:
+                self.zonas_ocupadas.remove(o.rect)
 
     def _crear_en_lugar_libre(self, tipo, evitar=None, intentos=500, fase="maduro"):
         minimo = DIAMETRO_MIN_FRUTAL if tipo == TIPO_FRUTAL else DIAMETRO_MIN

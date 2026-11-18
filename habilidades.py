@@ -5,6 +5,34 @@ import random
 # Pixeles de retroceso que provoca cada punto de empuje (compartido por personaje, invocaciones y maniqui)
 PIXELES_POR_PUNTO_EMPUJE = 6
 
+# Anulacion del escudo magico (pasiva de Cortar): el escudo queda en 0 y sin regenerar
+# durante este tiempo; al terminar vuelve al valor que tenia justo despues del golpe.
+DURACION_ANULACION_ESCUDOM = 10.0
+
+
+def anular_escudo_magico(objetivo):
+    """Anula el escudo magico del objetivo (si tiene). Si ya estaba anulado solo reinicia
+    los 10 s y conserva el valor guardado."""
+    if not hasattr(objetivo, "escudo_magico"):
+        return
+    if getattr(objetivo, "anulacion_escudo_magico", 0.0) <= 0:
+        objetivo.escudo_magico_guardado = objetivo.escudo_magico
+        objetivo.escudo_magico = 0.0
+    objetivo.anulacion_escudo_magico = DURACION_ANULACION_ESCUDOM
+
+
+def actualizar_anulacion_escudo_magico(objetivo, dt):
+    """Descuenta la anulacion; al terminar devuelve el escudo guardado. Devuelve True mientras
+    el escudo siga anulado (en ese tiempo no debe regenerarse)."""
+    if getattr(objetivo, "anulacion_escudo_magico", 0.0) <= 0:
+        return False
+    objetivo.anulacion_escudo_magico -= dt
+    if objetivo.anulacion_escudo_magico <= 0:
+        objetivo.anulacion_escudo_magico = 0.0
+        objetivo.escudo_magico = min(objetivo.escudo_magico_max, objetivo.escudo_magico_guardado)
+        return False
+    return True
+
 # -----------------------------
 # CLASE PROYECTIL DE ENERGÍA (DISPARO VELOZ)
 # -----------------------------
@@ -403,6 +431,182 @@ class DisparoVeloz(HabilidadBase):
 
 
 # -----------------------------
+# CUCHILLA CORTANTE (HABILIDAD CORTAR)
+# -----------------------------
+def _distancia_punto_segmento(p, a, b):
+    ab = b - a
+    largo2 = ab.length_squared()
+    if largo2 == 0:
+        return (p - a).length()
+    t = max(0.0, min(1.0, (p - a).dot(ab) / largo2))
+    return (p - (a + ab * t)).length()
+
+
+class CuchillaCortante:
+    """Cuchilla delgada (negra con contorno rojo) que avanza en linea recta, perpendicular a
+    su trayectoria, del largo aproximado de la Espada Ligera. Dano magico.
+    Se detiene en lo primero que toque:
+    - Enemigo: le hace dano y, si llega a hacerlo, anula su escudo magico 10 s.
+    - Roca o arbusto: lo destruye y se rompe con el (solo un objeto). Las rocas gigantes y los
+      arbustos grandes solo se destruyen a nivel maximo; si no, la cuchilla se rompe sin danarlos.
+    Avanza en sub-pasos cortos para no atravesar objetos pequenos a velocidades altas."""
+    LARGO = 32          # aprox. el largo de la Espada Ligera (tamano 1)
+    GROSOR = 4          # grosor maximo del cuerpo (en el centro)
+    PASO_MAX = 6.0      # px por sub-paso al comprobar colisiones
+
+    def __init__(self, x, y, dx, dy, velocidad, dano, corta_grandes, oculta_hasta=0.0):
+        self.posicion = pygame.Vector2(x, y)
+        # Sale desde el centro del lanzador (asi corta el arbusto en el que este escondido),
+        # pero no se dibuja hasta salir de su cuerpo
+        self.recorrido = 0.0
+        self.oculta_hasta = oculta_hasta
+        d = pygame.Vector2(dx, dy)
+        self.direccion = d.normalize() if d.length_squared() > 0 else pygame.Vector2(0, -1)
+        self.lateral = pygame.Vector2(-self.direccion.y, self.direccion.x)
+        self.velocidad = velocidad
+        self.dano = dano
+        self.tipo_dano = "magico"
+        self.corta_grandes = corta_grandes
+        self.activo = True
+        self._actualizar_hitbox()
+
+    def extremos(self):
+        mitad = self.lateral * (self.LARGO / 2)
+        return self.posicion - mitad, self.posicion + mitad
+
+    def _actualizar_hitbox(self):
+        a, b = self.extremos()
+        self.hitbox = pygame.Rect(round(min(a.x, b.x)) - 2, round(min(a.y, b.y)) - 2,
+                                  round(abs(a.x - b.x)) + 4, round(abs(a.y - b.y)) + 4)
+
+    def avanzar(self, rocas, arbustos, enemigos, centro_mundo, radio_mundo):
+        """Mueve la cuchilla un frame. Las rocas y arbustos destruidos se quitan de sus listas.
+        Devuelve la roca destruida (o None) para liberar su zona en la vegetacion."""
+        sub_pasos = max(1, math.ceil(self.velocidad / self.PASO_MAX))
+        paso = self.direccion * (self.velocidad / sub_pasos)
+        for _ in range(sub_pasos):
+            self.posicion += paso
+            self.recorrido += paso.length()
+            a, b = self.extremos()
+            self._actualizar_hitbox()
+
+            for e in enemigos:
+                if getattr(e, "vivo", True) and _distancia_punto_segmento(e.posicion, a, b) <= e.radio:
+                    self._golpear(e)
+                    return None
+
+            for roca in rocas:
+                if roca.rect.clipline(a, b):
+                    self.activo = False
+                    if not getattr(roca, "gigante", False) or self.corta_grandes:
+                        rocas.remove(roca)
+                        return roca
+                    return None
+
+            # Arbustos solapados (matorrales): se queda con el mas cercano a la cuchilla
+            tocados = [arb for arb in arbustos
+                       if any(_distancia_punto_segmento(c, a, b) <= r for c, r in arb.circulos)]
+            if tocados:
+                arbusto = min(tocados, key=lambda arb: (arb.centro - self.posicion).length())
+                self.activo = False
+                if not getattr(arbusto, "grande", False) or self.corta_grandes:
+                    arbustos.remove(arbusto)
+                return None
+
+            if (self.posicion - centro_mundo).length() > radio_mundo:
+                self.activo = False
+                return None
+        return None
+
+    def _golpear(self, enemigo):
+        self.activo = False
+        if hasattr(enemigo, "recibir_dano"):
+            aplicado = enemigo.recibir_dano(self.dano, self.tipo_dano, self.direccion)
+        else:
+            enemigo.vida = max(0.0, round(enemigo.vida - self.dano, 2))
+            aplicado = self.dano
+        if aplicado and aplicado > 0:
+            anular_escudo_magico(enemigo)
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        """Media luna delgada: cuerpo negro con contorno rojo."""
+        if self.recorrido < self.oculta_hasta:
+            return
+        ox, oy = desplazamiento
+        a, b = self.extremos()
+        frente = self.direccion * self.GROSOR
+        atras = self.direccion * (self.GROSOR * 0.25)
+        puntos = [a, self.posicion + frente, b, self.posicion - atras]
+        puntos = [(round(p.x - ox), round(p.y - oy)) for p in puntos]
+        pygame.draw.polygon(pantalla, (10, 10, 12), puntos)
+        pygame.draw.polygon(pantalla, (220, 30, 40), puntos, 2)
+
+
+# -----------------------------
+# HABILIDAD: CORTAR (dano magico)
+# -----------------------------
+class Cortar(HabilidadBase):
+    """Lanza en linea recta una cuchilla cortante (dano magico). Si llega a hacer dano, anula
+    el escudo magico del enemigo 10 s. Destruye una roca o un arbusto al chocar (gigantes y
+    arbustos grandes solo a nivel 20)."""
+    DANO_NIVEL_MAX = 75
+
+    def __init__(self):
+        super().__init__(
+            nombre="Cortar",
+            descripcion="Cuchilla recta de daño mágico. Anula el escudo mágico 10s y destruye una roca o arbusto.",
+            costo_energia=15,
+            duracion_activa=0.0,
+            duracion_cooldown=2.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self.cuchillas = []
+
+    def _aplicar_nivel(self):
+        """
+        Escalado de Cortar (nivel 1 a 20):
+        - Dano: 35 + 2 por nivel (nv19 = 71); a nivel 20 sube a 75
+        - Velocidad de la cuchilla: 5 + 1 por nivel (nv20 = 24)
+        - Coste: 15 + 2 por nivel (nv20 = 53)
+        - Recarga: 2s + 2s cada 5 niveles (nv20 = 10s); sube a proposito
+        - A nivel 20 corta rocas gigantes y arbustos grandes
+        """
+        n = self.nivel
+        self.dano = self.DANO_NIVEL_MAX if n >= self.nivel_max else 35 + 2 * (n - 1)
+        self.velocidad_cuchilla = 5 + (n - 1)
+        self.costo_energia = 15 + 2 * (n - 1)
+        self.duracion_cooldown = 2.0 + 2.0 * (n // 5)
+        self.corta_grandes = n >= self.nivel_max
+
+    def ejecutar_activacion(self, jugador):
+        """Lanza la cuchilla hacia donde mira el personaje y entra en recarga."""
+        rad = math.radians(jugador.angulo)
+        frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
+        origen = jugador.posicion
+        self.cuchillas.append(CuchillaCortante(origen.x, origen.y, frente.x, frente.y,
+                                               self.velocidad_cuchilla, self.dano, self.corta_grandes,
+                                               oculta_hasta=jugador.radio))
+        self.estado = "COOLDOWN"
+        self.tiempo_restante_activo = 0.0
+        self.tiempo_restante_cooldown = self.duracion_cooldown
+
+    def actualizar_cuchillas(self, rocas, arbustos, enemigos, centro_mundo, radio_mundo):
+        """Mueve las cuchillas. Devuelve las rocas destruidas en este frame."""
+        destruidas = []
+        for c in self.cuchillas:
+            roca = c.avanzar(rocas, arbustos, enemigos, centro_mundo, radio_mundo)
+            if roca is not None:
+                destruidas.append(roca)
+        self.cuchillas = [c for c in self.cuchillas if c.activo]
+        return destruidas
+
+    def dibujar_cuchillas(self, pantalla, desplazamiento=(0, 0)):
+        for c in self.cuchillas:
+            c.dibujar(pantalla, desplazamiento)
+
+
+# -----------------------------
 # HELPERS DE INTERFAZ: ICONO DE AYUDA (?) Y TOOLTIP
 # -----------------------------
 def dibujar_badge_ayuda(pantalla, cx, cy, fuente, activo=False):
@@ -654,6 +858,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             detalles = f"Lobo: Vida {hab.vida_lobo} · Vel {hab.velocidad_lobo} · Daño {hab.dano_lobo:.1f} (33% desangrado)"
         elif hab.nombre == "Carga de Fuego":
             detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
+        elif hab.nombre == "Cortar":
+            detalles = f"Daño {hab.dano} mág. · Vel {hab.velocidad_cuchilla} | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Aura Electrica":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Golpe de Suerte":
@@ -1769,6 +1975,7 @@ HABILIDADES_DISPONIBLES = {
     "Destello": Destello,
     "Burst de Fuerza": BurstDeFuerza,
     "Disparo Veloz": DisparoVeloz,
+    "Cortar": Cortar,
     "Invocar Conejos": InvocacionConejos,
     "Invocar Lobos": InvocacionLobos,
     "Carga de Fuego": CargaDeFuego,

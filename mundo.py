@@ -1,8 +1,9 @@
 import math
 import random
 import pygame
-from personaje import Personaje
-from habilidades import dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE
+from personaje import Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
+from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
+                         actualizar_anulacion_escudo_magico)
 from herramientas import EspadaLigera
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 
@@ -125,9 +126,13 @@ def generar_charcos():
 # -----------------------------
 # ROCAS (OBSTÁCULOS DECORATIVOS)
 # -----------------------------
+LADO_ROCA_GIGANTE = 150     # Desde este lado la roca es gigante (Cortar solo la destruye a nivel 20)
+
+
 class Roca:
     def __init__(self, x, y, lado):
         self.rect = pygame.Rect(round(x - lado / 2), round(y - lado / 2), lado, lado)
+        self.gigante = lado >= LADO_ROCA_GIGANTE
         # Tono café pálido con ligera variación para que no todas se vean iguales
         v = random.randint(-14, 14)
         self.color = (186 + v, 160 + v, 124 + v)
@@ -164,7 +169,7 @@ def generar_rocas(zonas_ocupadas=()):
         elif r < 0.95:
             lado = random.randint(70, 130)
         else:
-            lado = random.randint(150, 300)
+            lado = random.randint(LADO_ROCA_GIGANTE, 300)
         media_diagonal = lado * 0.75
 
         # Posición aleatoria uniforme dentro del círculo (dejando la roca completa dentro)
@@ -366,7 +371,9 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         ("Velocidad", f"{jugador.velocidad:.2f}{str_pct}", (90, 220, 255) if pct_vel > 0 else ((255, 100, 70) if pct_vel < 0 else (220, 220, 220)), "velocidad"),
         ("Energía", f"{jugador.energia} / {jugador.energia_max}", (180, 130, 255), "energia"),
         ("Escudo", f"{jugador.escudo:.1f} / {jugador.escudo_max:.0f}", (120, 255, 150), "escudo"),
-        ("Escudo M.", f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}", (90, 200, 255), "escudo_magico")
+        ("Escudo M.", f"ANULADO {jugador.anulacion_escudo_magico:.0f}s" if jugador.anulacion_escudo_magico > 0
+                      else f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}",
+         (220, 60, 60) if jugador.anulacion_escudo_magico > 0 else (90, 200, 255), "escudo_magico")
     ]
 
     puede_subir = jugador.puntos_mejora > 0
@@ -476,10 +483,14 @@ def resolver_solapamientos(entidades):
 
 
 class Maniqui:
-    """Maniqui de pruebas en el centro del mapa: 100 de vida, no ataca, pero recibe dano y
-    desangrado. Al destruirse reaparece a los 5 s con la vida llena. Es un cuerpo fijo:
+    """Maniqui de pruebas en el centro del mapa: 100 de vida y escudos fisico y magico de 50,
+    no ataca, pero recibe dano y desangrado. Los escudos siguen las mismas reglas que los del
+    personaje (reparto, regeneracion tras 10 s sin dano y anulacion del escudo magico por
+    Cortar). Al destruirse reaparece a los 5 s con vida y escudos llenos. Es un cuerpo fijo:
     nada lo atraviesa ni lo desplaza (solo su propio retroceso al recibir dano)."""
     VIDA_MAX = 100
+    ESCUDO_MAX = 50
+    ESCUDO_MAGICO_MAX = 50
     RESPAWN = 5.0
     masa = float("inf")
 
@@ -487,25 +498,62 @@ class Maniqui:
         self.posicion = pygame.Vector2(centro)
         self.ancla = pygame.Vector2(centro)      # vuelve aqui tras el retroceso
         self.vida_max = self.VIDA_MAX
-        self.vida = self.VIDA_MAX
+        self.escudo_max = float(self.ESCUDO_MAX)
+        self.escudo_magico_max = float(self.ESCUDO_MAGICO_MAX)
         self.radio = 18
+        self.empuje = pygame.Vector2(0, 0)
+        self._reiniciar()
+
+    def _reiniciar(self):
+        """Vida y escudos llenos, sin efectos (al crearse y al reaparecer)."""
+        self.vida = self.vida_max
+        self.escudo = self.escudo_max
+        self.escudo_magico = self.escudo_magico_max
+        self.tiempo_sin_dano_escudo = 0.0
+        self.tiempo_sin_dano_escudo_magico = 0.0
+        self.anulacion_escudo_magico = 0.0
+        self.escudo_magico_guardado = 0.0
         self.vivo = True
         self.desangrado = None
-        self.empuje = pygame.Vector2(0, 0)
+        self.empuje.update(0, 0)
         self._t_respawn = 0.0
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
-        """Recibe dano directo a la vida (sin escudos). Devuelve el dano aplicado."""
+        """Reparte el dano entre su escudo y la vida (mismas reglas que el personaje).
+        Devuelve el dano aplicado."""
         d = max(0.0, float(cantidad))
         if d <= 0 or not self.vivo:
             return 0.0
-        self.vida = max(0.0, round(self.vida - d, 2))
+        magico = tipo_dano == "magico"
+        absorbido, dano_vida = repartir_dano(d, tipo_dano, self.escudo_magico if magico else self.escudo)
+        if magico:
+            self.escudo_magico = max(0.0, round(self.escudo_magico - absorbido, 2))
+            self.tiempo_sin_dano_escudo_magico = 0.0
+        else:
+            self.escudo = max(0.0, round(self.escudo - absorbido, 2))
+            self.tiempo_sin_dano_escudo = 0.0
+        self.vida = max(0.0, round(self.vida - dano_vida, 2))
+        total = round(absorbido + dano_vida, 2)
         if direccion_empuje is not None:
-            self.aplicar_empuje(direccion_empuje, d)
+            self.aplicar_empuje(direccion_empuje, total)
         if self.vida <= 0:
             self.vivo = False
             self._t_respawn = self.RESPAWN
-        return d
+        return total
+
+    def _regenerar_escudos(self, dt):
+        """Tras REGEN_ESCUDO_RETRASO s sin dano, +REGEN_ESCUDO_POR_SEGUNDO por segundo.
+        El escudo magico no se regenera mientras esta anulado."""
+        if self.escudo < self.escudo_max:
+            self.tiempo_sin_dano_escudo += dt
+            if self.tiempo_sin_dano_escudo >= REGEN_ESCUDO_RETRASO:
+                self.escudo = min(self.escudo_max, round(self.escudo + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
+        if actualizar_anulacion_escudo_magico(self, dt):
+            return
+        if self.escudo_magico < self.escudo_magico_max:
+            self.tiempo_sin_dano_escudo_magico += dt
+            if self.tiempo_sin_dano_escudo_magico >= REGEN_ESCUDO_RETRASO:
+                self.escudo_magico = min(self.escudo_magico_max, round(self.escudo_magico + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
 
     def aplicar_empuje(self, direccion, puntos):
         """Retroceso al recibir dano; luego regresa a su ancla (ver actualizar)."""
@@ -523,12 +571,10 @@ class Maniqui:
         if not self.vivo:
             self._t_respawn -= dt
             if self._t_respawn <= 0:
-                self.vida = self.vida_max
-                self.vivo = True
-                self.desangrado = None
-                self.empuje.update(0, 0)
+                self._reiniciar()
                 self.posicion.update(self.ancla)   # reaparece centrado
             return
+        self._regenerar_escudos(dt)
         if self.desangrado is not None:
             self.desangrado.actualizar(dt, self)
             if not self.desangrado.activo:
@@ -568,10 +614,21 @@ class Maniqui:
         if prop > 0:
             col = (200, 90, 90) if sangrando else (90, 200, 110)
             pygame.draw.rect(pantalla, col, (bx, by, int(bw * prop), 5), border_radius=2)
+        # Barras de escudo (fisico verde, magico azul) encima de la vida
+        for i, (valor, maximo, color) in enumerate((
+                (self.escudo, self.escudo_max, (120, 255, 150)),
+                (self.escudo_magico, self.escudo_magico_max, (90, 200, 255)))):
+            sy = by - 5 - i * 5
+            pygame.draw.rect(pantalla, (40, 40, 40), (bx, sy, bw, 3))
+            if maximo > 0 and valor > 0:
+                pygame.draw.rect(pantalla, color, (bx, sy, int(bw * valor / maximo), 3))
+        if self.anulacion_escudo_magico > 0:
+            # Escudo magico anulado: barra tachada en rojo
+            pygame.draw.rect(pantalla, (220, 30, 40), (bx - 1, by - 11, bw + 2, 5), 1)
         # Marca de desangrado: tres gotas rojas
         if sangrando:
             for i in range(3):
-                pygame.draw.circle(pantalla, (210, 70, 70), (px - 8 + i * 8, by - 6), 2)
+                pygame.draw.circle(pantalla, (210, 70, 70), (px - 8 + i * 8, by - 16), 2)
 
 
 def iniciar_mundo(config):
@@ -801,6 +858,12 @@ def iniciar_mundo(config):
         # Actualizar todas las habilidades equipadas
         for hab in jugador.habilidades:
             hab.actualizar(dt, jugador)
+
+        # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto
+        for hab in jugador.habilidades:
+            if hasattr(hab, "actualizar_cuchillas"):
+                destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
+                vegetacion.liberar_obstaculos(destruidas)
         # Efectos temporales otorgados (ej. por Golpe de Suerte)
         jugador.actualizar_efectos(dt)
         # Desangrado activo (resta vida por intervalo; preparado para el combate)
@@ -876,6 +939,8 @@ def iniciar_mundo(config):
         for hab in jugador.habilidades:
             if hasattr(hab, "dibujar_invocaciones"):
                 hab.dibujar_invocaciones(pantalla, desplazamiento)
+            if hasattr(hab, "dibujar_cuchillas"):
+                hab.dibujar_cuchillas(pantalla, desplazamiento)
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
@@ -909,6 +974,12 @@ def iniciar_mundo(config):
             for p in jugador.proyectiles:
                 if p.hitbox:
                     pygame.draw.rect(pantalla, (255, 70, 70), p.hitbox.move(-ox, -oy), 1)
+
+            # Filo de cada cuchilla de Cortar (segmento rojo: es lo que colisiona)
+            for hab in jugador.habilidades:
+                for c in getattr(hab, "cuchillas", ()):
+                    a, b = c.extremos()
+                    pygame.draw.line(pantalla, (255, 70, 70), (a.x - ox, a.y - oy), (b.x - ox, b.y - oy), 1)
 
             # Hitbox de cada roca (rectángulo naranja)
             for roca in rocas:

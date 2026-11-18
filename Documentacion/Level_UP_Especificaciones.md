@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y diez habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **Todavía no hay enemigos**, pero sí un **maniquí de pruebas** en el centro del mapa al que las invocaciones ya pueden atacar; el sistema de **puntos de empuje** (retroceso al dar o recibir daño) ya está activo, y efectos como la quemadura quedan preparados para cuando se añadan enemigos.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y once habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **Todavía no hay enemigos**, pero sí un **maniquí de pruebas** en el centro del mapa al que las invocaciones ya pueden atacar; el sistema de **puntos de empuje** (retroceso al dar o recibir daño) ya está activo, y efectos como la quemadura quedan preparados para cuando se añadan enemigos.
 
 ---
 
@@ -41,6 +41,8 @@ Cada mundo genera entre **100 y 250** rocas. Son **sólidas** (no se atraviesan 
 | Pequeña | 60 % | 22 – 45 |
 | Grande | 35 % | 70 – 130 |
 | Gigante | 5 % | 150 – 300 |
+
+La habilidad **Cortar** puede destruir rocas pequeñas y grandes; las gigantes solo a nivel 20 (ver 9.14).
 
 ---
 
@@ -96,7 +98,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 El daño se divide en dos tipos:
 
 - **Físico:** el de las herramientas (espadas, dagas, mandoble) y los conejos.
-- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
+- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica, Cortar). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
 
 Cada tipo lo amortigua su propio escudo del personaje:
 
@@ -106,6 +108,8 @@ Cada tipo lo amortigua su propio escudo del personaje:
 | Mágico | 10 % | 90 % / 10 % |
 
 El escudo absorbe su parte hasta agotarse; si esa parte supera el escudo disponible, el sobrante pasa también a la vida. Ambos escudos empiezan en **0**, se mejoran **+5 por punto hasta un máximo de 15** y luego **+2 por punto**, y **se regeneran +1 por segundo tras 10 s sin recibir ese tipo de daño** (cada uno con su propio contador). El daño de terreno (lago profundo, hierba venenosa) ignora los escudos y se aplica directo a la vida.
+
+**Anulación del escudo mágico (pasiva de Cortar):** el escudo absorbe el golpe con las reglas normales y, si el golpe llegó a hacer daño, el escudo restante queda **anulado 10 s**: se muestra en 0, no absorbe nada (el daño mágico va directo a la vida) y no se regenera. Al terminar **vuelve al valor que le quedó tras el golpe** (ej. 100 → el corte lo deja en 25 → 0 durante 10 s → vuelve a 25). Otro corte durante la anulación reinicia los 10 s. En el panel se ve como **ANULADO**.
 
 Si el **Reforzamiento Mágico** está activo, su campo de fuerza recibe primero cualquier daño físico o mágico; solo lo que sobra cuando se rompe llega a los escudos y a la vida (ver 9.7).
 
@@ -263,13 +267,31 @@ Los conejos tienen la cara `:3` con los **ojos rojos**, que en modo combate bril
 
 El personaje, el maniquí y las invocaciones tienen **hitbox circular** (su radio): pueden **recibir daño** y **no se solapan** entre sí. Al chocar se separan según su **masa**: conejo 1, lobo 3, personaje 100 (sus invocaciones apenas lo desplazan) y maniquí fijo (nada lo mueve, salvo su propio retroceso). Con [H] se ven las hitboxes del maniquí y de las invocaciones (círculos magenta).
 
+### 9.14 Cortar
+
+Habilidad de **daño mágico** (categoría Ataque). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
+
+- **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 10 s** (ver 6.3).
+- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Si hay arbustos solapados (matorral), corta el más cercano. Los objetos destruidos **no reaparecen** (tampoco los frutales) y, si estabas escondido en el arbusto destruido, quedas a la vista.
+
+| Nivel | Daño | Velocidad | Coste En. | Recarga |
+|---|---|---|---|---|
+| 1 | 35 | 5 | 15 | 2 s |
+| 5 | 43 | 9 | 23 | 4 s |
+| 10 | 53 | 14 | 33 | 6 s |
+| 15 | 63 | 19 | 43 | 8 s |
+| 19 | 71 | 23 | 51 | 8 s |
+| 20 | 75 | 24 | 53 | 10 s |
+
+Daño **35 +2 por nivel** (a nivel 20 sube a **75**), velocidad **5 +1 por nivel**, coste **15 +2 por nivel** y recarga **2 s +2 s cada 5 niveles** (sube a propósito). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.11).
+
 ## 10. Puntos de empuje (retroceso)
 
 Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. La **quemadura** de la Carga de Fuego (1/s por 5 s) sigue preparada para el combate contra enemigos.
 
 ### 10.1 Maniquí de pruebas
 
-En el centro del mapa hay un **maniquí**: **100 de vida**, no ataca, pero **recibe daño y desangrado** para probar las invocaciones. Muestra una **barra de vida** (roja mientras sangra). Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); si lo destruyen, **reaparece a los 5 s** con la vida llena.
+En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar). No ataca, pero **recibe daño y desangrado** para probar las invocaciones y las habilidades. Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); si lo destruyen, **reaparece a los 5 s** con la vida llena.
 
 ---
 

@@ -1,7 +1,7 @@
 import pygame
 import math
 from herramientas import EspadaLigera
-from habilidades import combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE
+from habilidades import combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE, actualizar_anulacion_escudo_magico
 
 # Masa del personaje frente a otros cuerpos (conejo 1, lobo 3): apenas lo desplazan sus
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
@@ -33,6 +33,21 @@ ESCUDOM_BLOQUEO = 0.10
 ESCUDOM_REPARTO_ESCUDO = 0.90
 ESCUDOM_REPARTO_VIDA = 0.10
 
+
+def repartir_dano(cantidad, tipo_dano, escudo_disp):
+    """Reparto comun del dano entre escudo y vida (personaje, maniqui...).
+    Devuelve (absorbido por el escudo, dano a la vida). Si la parte del escudo supera el
+    escudo disponible, el sobrante pasa tambien a la vida."""
+    if tipo_dano == "magico":
+        bloqueo, reparto_escudo, reparto_vida = ESCUDOM_BLOQUEO, ESCUDOM_REPARTO_ESCUDO, ESCUDOM_REPARTO_VIDA
+    else:
+        bloqueo, reparto_escudo, reparto_vida = ESCUDO_BLOQUEO_FISICO, ESCUDO_REPARTO_ESCUDO, ESCUDO_REPARTO_VIDA
+    reducido = cantidad * (1.0 - bloqueo)
+    parte_escudo = reducido * reparto_escudo
+    absorbido = min(parte_escudo, escudo_disp)
+    dano_vida = reducido * reparto_vida + (parte_escudo - absorbido)
+    return absorbido, dano_vida
+
 # -----------------------------
 # CLASE PERSONAJE
 # -----------------------------
@@ -63,6 +78,8 @@ class Personaje:
         self.escudo_magico_max = float(escudo_magico)
         self.escudo_magico = float(escudo_magico)
         self.tiempo_sin_dano_escudo_magico = 0.0
+        self.anulacion_escudo_magico = 0.0   # Segundos restantes de escudo magico anulado (Cortar)
+        self.escudo_magico_guardado = 0.0    # Valor que recupera al terminar la anulacion
         self.color = color
 
         # Progresión: nivel del personaje y puntos de mejora (empieza con 3)
@@ -180,7 +197,10 @@ class Personaje:
         elif nombre == "escudo_magico":
             incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_magico_max < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
             self.escudo_magico_max += incremento
-            self.escudo_magico = self.escudo_magico_max
+            if self.anulacion_escudo_magico > 0:
+                self.escudo_magico_guardado = self.escudo_magico_max   # se rellena al terminar la anulacion
+            else:
+                self.escudo_magico = self.escudo_magico_max
         else:
             return False
         self.puntos_mejora -= 1
@@ -224,7 +244,10 @@ class Personaje:
         """
         Regeneración del escudo mágico: igual que el físico, tras REGEN_ESCUDO_RETRASO s
         sin recibir daño mágico, recupera REGEN_ESCUDO_POR_SEGUNDO por segundo hasta su máximo.
+        Mientras está anulado (pasiva de Cortar) se queda en 0 y no se regenera.
         """
+        if actualizar_anulacion_escudo_magico(self, dt):
+            return
         if self.escudo_magico >= self.escudo_magico_max:
             self.escudo_magico = self.escudo_magico_max
             return
@@ -430,24 +453,8 @@ class Personaje:
         if cantidad <= 0:
             return 0.0
 
-        if tipo_dano == "magico":
-            bloqueo = ESCUDOM_BLOQUEO
-            reparto_escudo = ESCUDOM_REPARTO_ESCUDO
-            reparto_vida = ESCUDOM_REPARTO_VIDA
-            escudo_disp = self.escudo_magico
-        else:
-            bloqueo = ESCUDO_BLOQUEO_FISICO
-            reparto_escudo = ESCUDO_REPARTO_ESCUDO
-            reparto_vida = ESCUDO_REPARTO_VIDA
-            escudo_disp = self.escudo
-
-        reducido = cantidad * (1.0 - bloqueo)
-        parte_escudo = reducido * reparto_escudo
-        parte_vida = reducido * reparto_vida
-
-        absorbido = min(parte_escudo, escudo_disp)
-        sobrante = parte_escudo - absorbido              # Lo que el escudo no pudo absorber
-        dano_vida = parte_vida + sobrante
+        escudo_disp = self.escudo_magico if tipo_dano == "magico" else self.escudo
+        absorbido, dano_vida = repartir_dano(cantidad, tipo_dano, escudo_disp)
         dano_total = round(absorbido + dano_vida, 2)
 
         # Descontar del escudo correspondiente y cortar su regeneración

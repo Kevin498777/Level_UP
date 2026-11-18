@@ -359,3 +359,32 @@ Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar 
 | 18 | 61 | 16 | 27.68 | 90 |
 | 19 | 64 | 16 | 28.84 | 90 |
 | 20 | 67 | 18 | 30 | 90 |
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
+
+### 2.11 Cortar
+
+Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno rojo, del largo de la Espada Ligera) que se detiene en el **primer enemigo**. Si llega a hacer daño, **anula el escudo mágico** del enemigo **10 s** (queda en 0 sin regenerar y luego vuelve al valor que tenía tras el golpe; otro corte reinicia los 10 s). Al chocar con una **roca o un arbusto** lo destruye y se rompe (solo un objeto); las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**. La recarga **sube** con el nivel a propósito.
+
+| Nivel | Daño | Velocidad | Coste En. | Recarga | Corta gigantes/grandes |
+|---|---|---|---|---|---|
+| 1 | 35 | 5 | 15 | 2 s | No |
+| 2 | 37 | 6 | 17 | 2 s | No |
+| 3 | 39 | 7 | 19 | 2 s | No |
+| 4 | 41 | 8 | 21 | 2 s | No |
+| 5 | 43 | 9 | 23 | 4 s | No |
+| 6 | 45 | 10 | 25 | 4 s | No |
+| 7 | 47 | 11 | 27 | 4 s | No |
+| 8 | 49 | 12 | 29 | 4 s | No |
+| 9 | 51 | 13 | 31 | 4 s | No |
+| 10 | 53 | 14 | 33 | 6 s | No |
+| 11 | 55 | 15 | 35 | 6 s | No |
+| 12 | 57 | 16 | 37 | 6 s | No |
+| 13 | 59 | 17 | 39 | 6 s | No |
+| 14 | 61 | 18 | 41 | 6 s | No |
+| 15 | 63 | 19 | 43 | 8 s | No |
+| 16 | 65 | 20 | 45 | 8 s | No |
+| 17 | 67 | 21 | 47 | 8 s | No |
+| 18 | 69 | 22 | 49 | 8 s | No |
+| 19 | 71 | 23 | 51 | 8 s | No |
+| 20 | 75 | 24 | 53 | 10 s | Sí |
