@@ -21,7 +21,7 @@ Hablar siempre en **espanol** con el usuario. Ejecutar con `python main.py`.
 Mundo, movimiento/camara, progresion por niveles con puntos, **5 armas** y **12 habilidades** e interfaz con paneles a ambos lados. **Aun no hay enemigos**: hay un **maniqui de pruebas** (`mundo.Maniqui`) al que atacan las invocaciones en **modo combate** (mantener tecla + clic derecho; persiguen al enemigo marcado). Empuje y desangrado (5 golpes) activos; jugador, maniqui e invocaciones son cuerpos solidos que no se solapan (`mundo.resolver_solapamientos`, por masa). La quemadura sigue sin dispararse.
 
 ## Archivos
-- `main.py`: ventana Tkinter de creacion (nombre, color, seleccion de 1 arma y hasta 3 habilidades con tooltips [?], stats). Personaje de pruebas `shadow498` (`NOMBRE_CLAVE_PRUEBAS` / `STATS_PRUEBAS`). Habilidades vienen de `HABILIDADES_DISPONIBLES`.
+- `main.py`: ventana Tkinter de creacion (nombre, color, seleccion de 1 arma y hasta 3 habilidades con tooltips [?], stats). Adaptable: `construir_interfaz(ventana, ancho, alto, al_comenzar)` escala segun pantalla (`calcular_escala`), reorganiza en 2/1 columnas, desplazamiento vertical si no cabe y boton Comenzar fijo abajo. `al_comenzar` permite probarla sin lanzar el mundo. Personaje de pruebas `shadow498` (`NOMBRE_CLAVE_PRUEBAS` / `STATS_PRUEBAS`). Habilidades vienen de `HABILIDADES_DISPONIBLES`.
 - `mundo.py`: bucle pygame a pantalla completa, paneles laterales (izq. stats, der. habilidades).
   - Mapa **circular de radio 5000** (`RADIO_MUNDO`), spawn en el centro con zona segura (`ZONA_SEGURA_SPAWN`), camara suave (`SUAVIZADO_CAMARA`). Solo se dibuja lo visible con offset `desplazamiento`.
   - **Rocas**: 100 a 250 (`MIN_ROCAS`/`MAX_ROCAS`), pequenas/grandes/gigantes, solidas y bloquean proyectiles.

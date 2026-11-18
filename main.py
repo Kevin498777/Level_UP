@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import ttk
 import pygame
 from habilidades import HABILIDADES_DISPONIBLES, crear_habilidad
@@ -121,67 +122,116 @@ def aplicar_stats_pruebas(nombre, stats):
 
 
 # -----------------------------
-# INTERFAZ PRINCIPAL DE CREACIÓN
+# DISEÑO ADAPTABLE DE LA PANTALLA DE CREACIÓN
+# Las medidas base están pensadas para 1600x900 y se escalan según la pantalla. El contenido
+# se reorganiza al ancho disponible (2 columnas o 1) y, si aun así no cabe en alto, aparece
+# una barra de desplazamiento. El botón de comenzar queda fijo abajo, siempre visible.
 # -----------------------------
-def iniciar_aplicacion():
+RESOLUCION_BASE = (1600, 900)
+ESCALA_MIN = 0.6
+ESCALA_MAX = 1.6
+
+COLOR_FONDO = "#1E2229"
+COLOR_PANEL = "#282C34"
+COLOR_CAJA = "#21252B"
+COLOR_BORDE = "#3A3F4B"
+
+TARJETA_ANCHO = 240          # px base de cada tarjeta (herramienta / habilidad)
+TARJETA_ANCHO_MIN = 170      # px reales mínimos, para que los nombres quepan en pantallas pequeñas
+TARJETA_ALTO = 46
+SEPARACION = 6               # px base entre tarjetas
+MARGEN = 24                  # px base del margen exterior
+RELLENO_PANEL = 14           # px base de relleno dentro de cada panel
+ANCHO_MIN_DOS_COLUMNAS = 1150   # px base: por debajo, todo va en una sola columna
+TARJETAS_HERR_POR_FILA = 2      # en 2 columnas, el panel izquierdo lleva 2 tarjetas por fila
+
+
+def calcular_escala(ancho, alto):
+    """Factor de escala de la interfaz según el tamaño de pantalla (limitado)."""
+    return max(ESCALA_MIN, min(ESCALA_MAX, min(ancho / RESOLUCION_BASE[0], alto / RESOLUCION_BASE[1])))
+
+
+def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
+    """
+    Construye la pantalla de creación dentro de `ventana`, escalada para una pantalla de
+    `ancho` x `alto`. `al_comenzar(config)` recibe la configuración del mundo (por defecto
+    cierra la ventana e inicia el mundo). Devuelve un dict con los elementos principales
+    (lo usan también las pruebas de integración).
+    """
     stats_actuales = generar_estadisticas()
+    escala = calcular_escala(ancho, alto)
 
-    ventana = tk.Tk()
-    ventana.title("Creador de Personaje - Level")
-    ventana.configure(bg="#1E2229")
+    def px(valor):
+        return max(1, round(valor * escala))
 
-    # Pantalla completa, como el juego. [ESC] sale de pantalla completa por si se necesita.
-    ventana.attributes("-fullscreen", True)
-    ventana.bind("<Escape>", lambda e: ventana.attributes("-fullscreen", False))
+    def fuente(tam, negrita=False):
+        # Tamaño negativo = píxeles: así la fuente escala igual que el resto de medidas
+        return ("Segoe UI", -max(9, px(tam)), "bold" if negrita else "normal")
 
-    # Contenedor central: mantiene el bloque de creación centrado en la pantalla.
-    contenedor = tk.Frame(ventana, bg="#1E2229")
-    contenedor.place(relx=0.5, rely=0.5, anchor="center")
+    ancho_tarjeta = max(TARJETA_ANCHO_MIN, px(TARJETA_ANCHO))
 
-    # Título Principal
-    tk.Label(
-        contenedor, text="CREACIÓN DE PERSONAJE",
-        font=("Segoe UI", 18, "bold"), fg="#FFFFFF", bg="#1E2229"
-    ).pack(pady=(12, 2))
-    tk.Label(
-        contenedor, text="Elige nombre, color, herramienta y habilidades.",
-        font=("Segoe UI", 9), fg="#9DA5B4", bg="#1E2229"
-    ).pack(pady=(0, 8))
+    ventana.configure(bg=COLOR_FONDO)
+    ventana.option_add("*TCombobox*Listbox.font", fuente(15))
+    ventana.grid_rowconfigure(0, weight=1)
+    ventana.grid_columnconfigure(0, weight=1)
+
+    # -----------------------------
+    # ÁREA DESPLAZABLE (todo menos el botón de comenzar)
+    # -----------------------------
+    canvas = tk.Canvas(ventana, bg=COLOR_FONDO, highlightthickness=0, bd=0)
+    canvas.grid(row=0, column=0, sticky="nsew")
+    barra = tk.Scrollbar(ventana, orient="vertical", command=canvas.yview)
+    canvas.configure(yscrollcommand=barra.set)
+    cuerpo = tk.Frame(canvas, bg=COLOR_FONDO)
+    item_cuerpo = canvas.create_window(0, 0, window=cuerpo, anchor="nw")
+
+    # Título
+    cabecera = tk.Frame(cuerpo, bg=COLOR_FONDO)
+    tk.Label(cabecera, text="CREACIÓN DE PERSONAJE", font=fuente(30, True),
+             fg="#FFFFFF", bg=COLOR_FONDO).pack()
+    tk.Label(cabecera, text="Elige nombre, color, herramienta y habilidades.  [ESC] sale de pantalla completa.",
+             font=fuente(14), fg="#9DA5B4", bg=COLOR_FONDO).pack()
+
+    def panel(padre, titulo, color_titulo):
+        return tk.LabelFrame(padre, text=f"  {titulo}  ", font=fuente(17, True), fg=color_titulo,
+                             bg=COLOR_PANEL, padx=px(RELLENO_PANEL), pady=px(10), relief="groove", bd=1)
+
+    columna_izq = tk.Frame(cuerpo, bg=COLOR_FONDO)
+    columna_der = tk.Frame(cuerpo, bg=COLOR_FONDO)
 
     # -----------------------------
     # NOMBRE Y COLOR
     # -----------------------------
-    frame_top = tk.Frame(contenedor, bg="#1E2229")
-    frame_top.pack(padx=30, fill="x")
+    panel_pj = panel(columna_izq, "Personaje", "#E5C07B")
+    panel_pj.pack(fill="x", pady=(0, px(10)))
+    panel_pj.grid_columnconfigure(0, weight=1)
 
-    frame_nombre = tk.Frame(frame_top, bg="#1E2229")
-    frame_nombre.pack(side="left", fill="both", expand=True)
-    tk.Label(frame_nombre, text="Nombre del Personaje:", font=("Segoe UI", 10, "bold"),
-             fg="#E5C07B", bg="#1E2229").pack(anchor="w", pady=(0, 2))
+    tk.Label(panel_pj, text="Nombre del personaje:", font=fuente(15, True),
+             fg="#E5C07B", bg=COLOR_PANEL).grid(row=0, column=0, sticky="w")
     nombre_var = tk.StringVar(value="Héroe")
-    tk.Entry(frame_nombre, textvariable=nombre_var, font=("Segoe UI", 11),
-             bg="#282C34", fg="white", insertbackground="white", relief="flat",
+    tk.Entry(panel_pj, textvariable=nombre_var, font=fuente(16),
+             bg=COLOR_FONDO, fg="white", insertbackground="white", relief="flat",
              highlightthickness=1, highlightbackground="#4B5263",
-             highlightcolor="#61AFEF").pack(fill="x", ipady=4)
+             highlightcolor="#61AFEF").grid(row=1, column=0, sticky="ew", ipady=px(3))
 
-    tk.Label(frame_nombre, text="Color:", font=("Segoe UI", 10, "bold"),
-             fg="#61AFEF", bg="#1E2229").pack(anchor="w", pady=(8, 2))
+    tk.Label(panel_pj, text="Color:", font=fuente(15, True),
+             fg="#61AFEF", bg=COLOR_PANEL).grid(row=2, column=0, sticky="w", pady=(px(8), 0))
     color_var = tk.StringVar(value="Azul")
-    ttk.Combobox(frame_nombre, textvariable=color_var, values=list(COLORES.keys()),
-                 state="readonly", font=("Segoe UI", 10)).pack(anchor="w", fill="x")
+    ttk.Combobox(panel_pj, textvariable=color_var, values=list(COLORES.keys()),
+                 state="readonly", font=fuente(15)).grid(row=3, column=0, sticky="ew")
 
-    vista_canvas = tk.Canvas(frame_top, width=70, height=70, bg="#282C34",
+    lado_vista = px(70)
+    vista_canvas = tk.Canvas(panel_pj, width=lado_vista, height=lado_vista, bg=COLOR_FONDO,
                              highlightthickness=1, highlightbackground="#4B5263")
-    vista_canvas.pack(side="right", padx=(14, 0))
+    vista_canvas.grid(row=0, column=1, rowspan=4, padx=(px(14), 0))
 
     def actualizar_vista_previa(*args):
         vista_canvas.delete("all")
         rgb = COLORES.get(color_var.get(), (0, 150, 255))
         color_hex = "#{:02x}{:02x}{:02x}".format(*rgb)
-        cx, cy, radio = 35, 35, 20
-        vista_canvas.create_oval(cx - radio, cy - radio, cx + radio, cy + radio,
-                                 fill=color_hex, outline="white", width=2)
-        vista_canvas.create_line(cx + radio + 4, cy - 12, cx + radio + 4, cy + 12, fill="#B0B5C0", width=2)
+        c, r = lado_vista / 2, lado_vista * 0.29
+        vista_canvas.create_oval(c - r, c - r, c + r, c + r, fill=color_hex, outline="white", width=2)
+        vista_canvas.create_line(c + r + 4, c - r * 0.6, c + r + 4, c + r * 0.6, fill="#B0B5C0", width=2)
 
     color_var.trace_add("write", actualizar_vista_previa)
 
@@ -195,9 +245,8 @@ def iniciar_aplicacion():
     info_var = tk.StringVar(value="Pulsa el ? de una tarjeta para ver qué hace.")
 
     def _estilo_tarjeta(card, lbl, chk, color, seleccionado, numero=None):
-        bg = "#30363F" if seleccionado else "#282C34"
-        card.config(bg=bg, highlightthickness=2,
-                    highlightbackground=(color if seleccionado else "#3A3F4B"))
+        bg = "#30363F" if seleccionado else COLOR_PANEL
+        card.config(bg=bg, highlightbackground=(color if seleccionado else COLOR_BORDE))
         lbl.config(bg=bg)
         if seleccionado:
             chk.config(text=(str(numero) if numero else "●"), bg=bg, fg=color)
@@ -205,19 +254,25 @@ def iniciar_aplicacion():
             chk.config(text="○", bg=bg, fg="#555C6A")
 
     def _construir_tarjeta(parent, nombre, color_hex, on_select, on_info):
-        card = tk.Frame(parent, bg="#282C34", highlightthickness=2,
-                        highlightbackground="#3A3F4B", width=205, height=50, cursor="hand2")
+        card = tk.Frame(parent, bg=COLOR_PANEL, highlightthickness=2, highlightbackground=COLOR_BORDE,
+                        width=ancho_tarjeta, height=px(TARJETA_ALTO), cursor="hand2")
         card.pack_propagate(False)
-        chk = tk.Label(card, text="○", font=("Segoe UI", 11, "bold"), fg="#555C6A", bg="#282C34")
-        chk.place(x=8, y=14)
-        lbl = tk.Label(card, text=nombre, font=("Segoe UI", 10, "bold"), fg=color_hex, bg="#282C34")
-        lbl.place(x=32, y=15)
-        info = tk.Label(card, text=" ? ", font=("Segoe UI", 9, "bold"),
-                        fg="#1E2229", bg="#8A93A6", cursor="hand2")
-        info.place(x=178, y=6)
+        chk = tk.Label(card, text="○", font=fuente(17, True), fg="#555C6A", bg=COLOR_PANEL, width=2)
+        chk.pack(side="left", padx=(px(4), 0))
+        info = tk.Label(card, text=" ? ", font=fuente(13, True), fg=COLOR_FONDO, bg="#8A93A6", cursor="hand2")
+        info.pack(side="right", padx=px(6))
+        # El nombre usa la fuente base y se reduce solo si no cabe (nombres largos)
+        disponible = (ancho_tarjeta - 4 - chk.winfo_reqwidth() - px(4)
+                      - info.winfo_reqwidth() - 2 * px(6) - 4 - 8)   # 8 = bordes y relleno del Label
+        tam = px(15)
+        while tam > 9 and tkfont.Font(family="Segoe UI", size=-tam, weight="bold").measure(nombre) > disponible:
+            tam -= 1
+        lbl = tk.Label(card, text=nombre, font=("Segoe UI", -tam, "bold"), fg=color_hex, bg=COLOR_PANEL, anchor="w")
+        lbl.pack(side="left", fill="x", expand=True)
         for w in (card, chk, lbl):
             w.bind("<Button-1>", lambda e, n=nombre: on_select(n))
         info.bind("<Button-1>", lambda e, n=nombre: on_info(n))
+        card.info = info
         return card, lbl, chk
 
     def refrescar():
@@ -252,79 +307,23 @@ def iniciar_aplicacion():
         info_var.set(f"{nombre}: {DESC_HABILIDADES.get(nombre, '')}")
 
     # -----------------------------
-    # BLOQUE: EQUIPO Y HABILIDADES
+    # HERRAMIENTA
     # -----------------------------
-    frame_equipo = tk.LabelFrame(
-        contenedor, text="  Equipo y Habilidades  ",
-        font=("Segoe UI", 11, "bold"), fg="#61AFEF", bg="#282C34",
-        padx=14, pady=10, relief="groove", bd=1
-    )
-    frame_equipo.pack(padx=30, pady=8, fill="x")
-
-    tk.Label(frame_equipo, text="Herramienta principal  —  tecla [1]",
-             font=("Segoe UI", 10, "bold"), fg="#CDD2DE", bg="#282C34").pack(anchor="w")
-    grid_herr = tk.Frame(frame_equipo, bg="#282C34")
-    grid_herr.pack(fill="x", pady=(6, 2))
-    for i, nombre in enumerate(HERRAMIENTAS_DISPONIBLES.keys()):
-        card, lbl, chk = _construir_tarjeta(grid_herr, nombre,
-                                            COLOR_HERRAMIENTAS.get(nombre, "#B0B5C0"),
-                                            seleccionar_herramienta, info_herramienta)
-        card.grid(row=i // 3, column=i % 3, padx=5, pady=5, sticky="w")
-        tarjetas_herr[nombre] = (card, lbl, chk)
-
-    tk.Label(frame_equipo, text="Habilidades  —  elige hasta 3  (teclas [2] [3] [4])",
-             font=("Segoe UI", 10, "bold"), fg="#CDD2DE", bg="#282C34").pack(anchor="w", pady=(12, 0))
-
-    # Separa las habilidades en columnas por categoria (se reparten a lo ancho). Cada columna
-    # lleva una cabecera de color; las descripciones siguen solo en el boton [?].
-    cont_categorias = tk.Frame(frame_equipo, bg="#282C34")
-    cont_categorias.pack(fill="x", pady=(6, 2))
-
-    def _columna_categoria(parent, col, titulo, color, nombres):
-        columna = tk.Frame(parent, bg="#282C34")
-        columna.grid(row=0, column=col, padx=6, sticky="n")
-        tk.Label(columna, text=titulo.upper(), font=("Segoe UI", 8, "bold"),
-                 fg=color, bg="#282C34").pack(anchor="w")
-        tk.Frame(columna, bg=color, height=2).pack(fill="x", pady=(2, 8))
-        for nombre in nombres:
-            card, lbl, chk = _construir_tarjeta(columna, nombre,
-                                                COLOR_HABILIDADES.get(nombre, "#98C379"),
-                                                alternar_habilidad, info_habilidad)
-            card.pack(pady=4)
-            tarjetas_hab[nombre] = (card, lbl, chk)
-
-    categorizadas = set()
-    col = 0
-    for titulo, color, nombres in CATEGORIAS_HABILIDADES:
-        visibles = [n for n in nombres if n in HABILIDADES_DISPONIBLES]
-        if not visibles:
-            continue
-        _columna_categoria(cont_categorias, col, titulo, color, visibles)
-        categorizadas.update(visibles)
-        col += 1
-
-    # Respaldo: cualquier habilidad sin categoria asignada va a "Otras"
-    sin_categoria = [n for n in HABILIDADES_DISPONIBLES if n not in categorizadas]
-    if sin_categoria:
-        _columna_categoria(cont_categorias, col, "Otras", "#8A93A6", sin_categoria)
-
-    # Caja de información (la que alimenta el botón ?)
-    tk.Label(frame_equipo, textvariable=info_var, font=("Segoe UI", 9),
-             fg="#CDD2DE", bg="#21252B", justify="left", anchor="w",
-             wraplength=900, padx=12, pady=10).pack(fill="x", pady=(12, 2))
+    panel_herr = panel(columna_izq, "Herramienta principal  ·  tecla [1]", "#61AFEF")
+    panel_herr.pack(fill="x", pady=(0, px(10)))
+    for nombre in HERRAMIENTAS_DISPONIBLES:
+        tarjetas_herr[nombre] = _construir_tarjeta(panel_herr, nombre,
+                                                   COLOR_HERRAMIENTAS.get(nombre, "#B0B5C0"),
+                                                   seleccionar_herramienta, info_herramienta)
 
     # -----------------------------
     # ESTADÍSTICAS INICIALES
     # -----------------------------
-    frame_stats = tk.LabelFrame(
-        contenedor, text="  Estadísticas Iniciales (Fijas · Nivel 1)  ",
-        font=("Segoe UI", 10, "bold"), fg="#ABB2BF", bg="#282C34",
-        padx=14, pady=8, relief="groove", bd=1
-    )
-    frame_stats.pack(padx=30, pady=4, fill="x")
+    panel_stats = panel(columna_izq, "Estadísticas iniciales (fijas · nivel 1)", "#ABB2BF")
+    panel_stats.pack(fill="x")
 
     def renderizar_stats():
-        for widget in frame_stats.winfo_children():
+        for widget in panel_stats.winfo_children():
             widget.destroy()
         stats_vista = aplicar_stats_pruebas(nombre_var.get(), stats_actuales)
         filas = [
@@ -336,20 +335,131 @@ def iniciar_aplicacion():
             ("Escudo M.:", stats_vista["escudo_magico"], "#56B6C2"),
             ("Tamaño:", stats_vista["tamano"], "#E5C07B")
         ]
+        mitad = (len(filas) + 1) // 2
         for idx, (etiqueta, valor, color_destaque) in enumerate(filas):
-            mitad = (len(filas) + 1) // 2
             col = 0 if idx < mitad else 2
             fila = idx if idx < mitad else idx - mitad
-            tk.Label(frame_stats, text=etiqueta, font=("Segoe UI", 9, "bold"),
-                     fg="#ABB2BF", bg="#282C34").grid(row=fila, column=col, sticky="w", pady=3, padx=(0, 4))
-            tk.Label(frame_stats, text=str(valor), font=("Segoe UI", 9, "bold"),
-                     fg=color_destaque, bg="#1E2229", width=6, relief="solid",
-                     bd=1).grid(row=fila, column=col + 1, sticky="w", pady=3, padx=(0, 20))
+            tk.Label(panel_stats, text=etiqueta, font=fuente(14, True),
+                     fg="#ABB2BF", bg=COLOR_PANEL).grid(row=fila, column=col, sticky="w", pady=px(2), padx=(0, px(4)))
+            tk.Label(panel_stats, text=str(valor), font=fuente(14, True),
+                     fg=color_destaque, bg=COLOR_FONDO, width=6, relief="solid",
+                     bd=1).grid(row=fila, column=col + 1, sticky="w", pady=px(2), padx=(0, px(20)))
 
     # -----------------------------
-    # BOTÓN: COMENZAR MUNDO
+    # HABILIDADES POR CATEGORÍAS
     # -----------------------------
-    def al_comenzar_mundo():
+    panel_hab = panel(columna_der, "Habilidades  ·  elige hasta 3  (teclas [2] [3] [4])", "#C678DD")
+    panel_hab.pack(fill="both", expand=True)
+    cont_categorias = tk.Frame(panel_hab, bg=COLOR_PANEL)
+    cont_categorias.pack(fill="x")
+
+    columnas_cat = []
+
+    def _columna_categoria(titulo, color, nombres):
+        columna = tk.Frame(cont_categorias, bg=COLOR_PANEL)
+        tk.Label(columna, text=titulo.upper(), font=fuente(13, True),
+                 fg=color, bg=COLOR_PANEL).pack(anchor="w")
+        tk.Frame(columna, bg=color, height=2).pack(fill="x", pady=(px(2), px(6)))
+        for nombre in nombres:
+            card, lbl, chk = _construir_tarjeta(columna, nombre, COLOR_HABILIDADES.get(nombre, "#98C379"),
+                                                alternar_habilidad, info_habilidad)
+            card.pack(pady=px(3))
+            tarjetas_hab[nombre] = (card, lbl, chk)
+        columnas_cat.append(columna)
+
+    categorizadas = set()
+    for titulo, color, nombres in CATEGORIAS_HABILIDADES:
+        visibles = [n for n in nombres if n in HABILIDADES_DISPONIBLES]
+        if visibles:
+            _columna_categoria(titulo, color, visibles)
+            categorizadas.update(visibles)
+    # Respaldo: cualquier habilidad sin categoría asignada va a "Otras"
+    sin_categoria = [n for n in HABILIDADES_DISPONIBLES if n not in categorizadas]
+    if sin_categoria:
+        _columna_categoria("Otras", "#8A93A6", sin_categoria)
+
+    # Caja de información (la que alimenta el botón ?)
+    caja_info = tk.Label(panel_hab, textvariable=info_var, font=fuente(14),
+                         fg="#CDD2DE", bg=COLOR_CAJA, justify="left", anchor="nw",
+                         padx=px(12), pady=px(10))
+    caja_info.pack(fill="x", pady=(px(10), 0))
+
+    # -----------------------------
+    # REORGANIZACIÓN SEGÚN EL ANCHO DISPONIBLE
+    # -----------------------------
+    disposicion = {"clave": None}
+    paso_tarjeta = ancho_tarjeta + 2 * px(SEPARACION)
+    relleno_panel = 2 * px(RELLENO_PANEL) + 6     # relleno interno + bordes del LabelFrame
+
+    def _repartir(widgets, columnas, padx, pady):
+        for i, w in enumerate(widgets):
+            w.grid(row=i // columnas, column=i % columnas, padx=padx, pady=pady, sticky="nw")
+
+    def reorganizar(ancho_disp):
+        margen = px(MARGEN)
+        util = max(paso_tarjeta + relleno_panel, ancho_disp - 2 * margen)
+        dos_columnas = ancho_disp >= px(ANCHO_MIN_DOS_COLUMNAS)
+        if dos_columnas:
+            ancho_izq = TARJETAS_HERR_POR_FILA * paso_tarjeta + relleno_panel
+            ancho_der = util - ancho_izq - margen
+        else:
+            ancho_izq = ancho_der = util
+        por_fila_herr = max(1, (ancho_izq - relleno_panel) // paso_tarjeta)
+        por_fila_cat = max(1, (ancho_der - relleno_panel) // paso_tarjeta)
+        clave = (dos_columnas, por_fila_herr, por_fila_cat, ancho_der)
+        if clave == disposicion["clave"]:
+            return
+        disposicion["clave"] = clave
+
+        for w in (cabecera, columna_izq, columna_der):
+            w.grid_forget()
+        cuerpo.grid_columnconfigure(0, weight=0)
+        cuerpo.grid_columnconfigure(1, weight=0)
+        cabecera.grid(row=0, column=0, columnspan=2, pady=(px(14), px(10)))
+        if dos_columnas:
+            columna_izq.grid(row=1, column=0, sticky="nw", padx=(margen, margen // 2), pady=(0, margen))
+            columna_der.grid(row=1, column=1, sticky="nsew", padx=(margen // 2, margen), pady=(0, margen))
+            cuerpo.grid_columnconfigure(1, weight=1)
+        else:
+            columna_izq.grid(row=1, column=0, sticky="ew", padx=margen, pady=(0, px(10)))
+            columna_der.grid(row=2, column=0, sticky="ew", padx=margen, pady=(0, margen))
+            cuerpo.grid_columnconfigure(0, weight=1)
+
+        _repartir([tarjetas_herr[n][0] for n in tarjetas_herr], por_fila_herr, px(SEPARACION), px(SEPARACION))
+        _repartir(columnas_cat, por_fila_cat, px(SEPARACION), (0, px(10)))
+        caja_info.configure(wraplength=max(px(150), ancho_der - relleno_panel - 2 * px(12)))
+
+    # -----------------------------
+    # DESPLAZAMIENTO (solo si el contenido no cabe en alto)
+    # -----------------------------
+    def actualizar_desplazamiento(event=None):
+        canvas.configure(scrollregion=(0, 0, cuerpo.winfo_reqwidth(), cuerpo.winfo_reqheight()))
+        if cuerpo.winfo_reqheight() > canvas.winfo_height() + 1:
+            barra.grid(row=0, column=1, sticky="ns")
+        else:
+            barra.grid_remove()
+            canvas.yview_moveto(0)
+
+    def al_cambiar_tamano(event):
+        canvas.itemconfigure(item_cuerpo, width=event.width)
+        # La disposición se calcula con el ancho de la ventana menos el hueco de la barra, así
+        # mostrar u ocultar la barra no vuelve a reorganizar (evita un bucle de redimensionado)
+        reorganizar(max(1, ventana.winfo_width() - barra.winfo_reqwidth()))
+        ventana.after_idle(actualizar_desplazamiento)
+
+    canvas.bind("<Configure>", al_cambiar_tamano)
+    cuerpo.bind("<Configure>", actualizar_desplazamiento)
+
+    def rueda(event):
+        if barra.winfo_ismapped():
+            canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+
+    ventana.bind_all("<MouseWheel>", rueda)
+
+    # -----------------------------
+    # BOTÓN: COMENZAR MUNDO (fijo abajo, siempre visible)
+    # -----------------------------
+    def construir_config():
         nombre = nombre_var.get().strip() or "Héroe"
         color_rgb = COLORES.get(color_var.get(), (0, 150, 255))
 
@@ -361,7 +471,7 @@ def iniciar_aplicacion():
             hab.asignar_tecla(tecla, tecla_str)
 
         stats_finales = aplicar_stats_pruebas(nombre, stats_actuales)
-        config_mundo = {
+        return {
             "nombre": nombre,
             "color": color_rgb,
             "tamano": stats_finales["tamano"],
@@ -374,19 +484,61 @@ def iniciar_aplicacion():
             "habilidades": habilidades,
             "herramienta": crear_herramienta(herramienta_var.get())
         }
+
+    def al_comenzar_mundo():
+        config_mundo = construir_config()
+        if al_comenzar is not None:
+            al_comenzar(config_mundo)
+            return
         ventana.destroy()
         iniciar_mundo(config_mundo)
 
-    tk.Button(contenedor, text="▶ Comenzar mundo (Pantalla Completa)",
-              font=("Segoe UI", 13, "bold"), bg="#98C379", fg="#1E2229",
-              activebackground="#7FA961", activeforeground="#1E2229", relief="flat",
-              cursor="hand2", command=al_comenzar_mundo).pack(fill="x", padx=30, pady=(8, 14), ipady=6)
+    pie = tk.Frame(ventana, bg=COLOR_FONDO)
+    pie.grid(row=1, column=0, columnspan=2, sticky="ew")
+    boton = tk.Button(pie, text="▶ Comenzar mundo (pantalla completa)",
+                      font=fuente(20, True), bg="#98C379", fg=COLOR_FONDO,
+                      activebackground="#7FA961", activeforeground=COLOR_FONDO, relief="flat",
+                      cursor="hand2", command=al_comenzar_mundo)
+    boton.pack(fill="x", padx=px(MARGEN), pady=(px(6), px(12)), ipady=px(5))
 
     nombre_var.trace_add("write", lambda *args: renderizar_stats())
 
     actualizar_vista_previa()
     renderizar_stats()
     refrescar()
+    reorganizar(ancho - barra.winfo_reqwidth())
+
+    return {
+        "escala": escala,
+        "canvas": canvas,
+        "barra": barra,
+        "cuerpo": cuerpo,
+        "boton": boton,
+        "nombre_var": nombre_var,
+        "color_var": color_var,
+        "herramienta_var": herramienta_var,
+        "hab_seleccionadas": hab_seleccionadas,
+        "tarjetas_herr": tarjetas_herr,
+        "tarjetas_hab": tarjetas_hab,
+        "info_var": info_var,
+        "caja_info": caja_info,
+        "comenzar": al_comenzar_mundo,
+    }
+
+
+# -----------------------------
+# INTERFAZ PRINCIPAL DE CREACIÓN
+# -----------------------------
+def iniciar_aplicacion():
+    ventana = tk.Tk()
+    ventana.title("Creador de Personaje - Level")
+
+    # Pantalla completa, como el juego. [ESC] sale de pantalla completa por si se necesita
+    # (la interfaz se reorganiza sola al nuevo tamaño).
+    ventana.attributes("-fullscreen", True)
+    ventana.bind("<Escape>", lambda e: ventana.attributes("-fullscreen", False))
+
+    construir_interfaz(ventana, ventana.winfo_screenwidth(), ventana.winfo_screenheight())
     ventana.mainloop()
 
 
