@@ -41,12 +41,12 @@ DESC_HABILIDADES = {
     "Destello": "Buff de velocidad +52% a +90% por 10-18s. Recarga 5-1s con fatiga al acabar. Costo 10-40 En. Máx nivel 20.",
     "Burst de Fuerza": "Buff de fuerza +21% a +40% por 6-10s. Recarga 12-8s. Costo 15-35 En.",
     "Disparo Veloz": "Esfera recta. Velocidad 11-30 y daño 20.5%-30% del total. Costo 15-35. Recarga 2-0.5s.",
-    "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En. Mantén la tecla para modo combate (dirige con clic). 30s de recarga al morir todos.",
+    "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En. Mantén la tecla para modo combate (dirige con clic derecho). 30s de recarga al morir todos.",
     "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15 al pulsar y se cobra cada segundo cargado (hasta 45 En.).",
     "Aura Electrica": "Aura que te sigue: +5% a +15% velocidad y 1 a 5 daño/s a enemigos cercanos. Autodaño 0.5/s (mágico, lo frena tu escudo mágico). Costo 20-58 En., CD 40-60s.",
     "Reforzamiento Mágico": "Campo de fuerza que bloquea daño físico y mágico. Dureza 200-500, duración 1-6s. Si se agota la dureza se rompe. Costo 25-50 En., CD 10-35s.",
     "Regeneración Inversa": "Mágica. Mantén pulsado para curar: +1 vida/-10 En. cada 2s hasta +6 vida/-40 En. cada 3s. Sin recarga. Máx nivel 10 (mejora: 2 puntos).",
-    "Invocar Lobos": "Mágica (invocación sombría). Invoca 3 lobos; máx nivel 20, cuesta 90 En. Vida 10-67, velocidad 10-18, daño 8-30. Golpes con 33% de desangrado (1 vida/2s por 10s y -50% curación). Mantén la tecla para modo combate (dirige con clic). 30s de recarga al morir todos.",
+    "Invocar Lobos": "Mágica (invocación sombría). Invoca 3 lobos; máx nivel 20, cuesta 90 En. Vida 10-67, velocidad 10-18, daño 8-30. Golpes con 33% de desangrado (1 vida/2s por 10s y -50% curación). Mantén la tecla para modo combate (dirige con clic derecho). 30s de recarga al morir todos.",
     "Golpe de Suerte": "Efecto aleatorio: Burst, Destello, Reforzamiento, Regeneración, Aura, energía o escudos al máximo (10% c/u) o nada (30%; 5% a nv20). La habilidad otorgada dura 5-30s; no se relanza hasta que termine. Costo 15-50 En., CD 5-20s."
 }
 
@@ -62,6 +62,20 @@ COLOR_HABILIDADES = {
     "Golpe de Suerte": "#F2C94C",
     "Invocar Lobos": "#8A8F98"
 }
+
+# -----------------------------
+# CATEGORIAS DE HABILIDADES (para separar la seleccion por grupos)
+# Cada entrada: (nombre de la categoria, color de la cabecera, [habilidades]).
+# Para agregar habilidades nuevas, basta con sumarlas a su categoria (o crear otra).
+# Cualquier habilidad de HABILIDADES_DISPONIBLES que no este aqui aparece en "Otras".
+# -----------------------------
+CATEGORIAS_HABILIDADES = [
+    ("Artes de las Sombras", "#9B8CFF", ["Invocar Conejos", "Invocar Lobos"]),
+    ("Potenciadores",        "#E5C07B", ["Destello", "Burst de Fuerza", "Aura Electrica"]),
+    ("Ataque",               "#E06C4A", ["Disparo Veloz", "Carga de Fuego"]),
+    ("Defensa y Soporte",    "#87CEFA", ["Reforzamiento Mágico", "Regeneración Inversa"]),
+    ("Especiales",           "#F2C94C", ["Golpe de Suerte"]),
+]
 
 # -----------------------------
 # ESTADÍSTICAS INICIALES (FIJAS)
@@ -256,19 +270,44 @@ def iniciar_aplicacion():
 
     tk.Label(frame_equipo, text="Habilidades  —  elige hasta 3  (teclas [2] [3] [4])",
              font=("Segoe UI", 10, "bold"), fg="#CDD2DE", bg="#282C34").pack(anchor="w", pady=(12, 0))
-    grid_hab = tk.Frame(frame_equipo, bg="#282C34")
-    grid_hab.pack(fill="x", pady=(6, 2))
-    for i, nombre in enumerate(HABILIDADES_DISPONIBLES.keys()):
-        card, lbl, chk = _construir_tarjeta(grid_hab, nombre,
-                                            COLOR_HABILIDADES.get(nombre, "#98C379"),
-                                            alternar_habilidad, info_habilidad)
-        card.grid(row=i // 3, column=i % 3, padx=5, pady=5, sticky="w")
-        tarjetas_hab[nombre] = (card, lbl, chk)
+
+    # Separa las habilidades en columnas por categoria (se reparten a lo ancho). Cada columna
+    # lleva una cabecera de color; las descripciones siguen solo en el boton [?].
+    cont_categorias = tk.Frame(frame_equipo, bg="#282C34")
+    cont_categorias.pack(fill="x", pady=(6, 2))
+
+    def _columna_categoria(parent, col, titulo, color, nombres):
+        columna = tk.Frame(parent, bg="#282C34")
+        columna.grid(row=0, column=col, padx=6, sticky="n")
+        tk.Label(columna, text=titulo.upper(), font=("Segoe UI", 8, "bold"),
+                 fg=color, bg="#282C34").pack(anchor="w")
+        tk.Frame(columna, bg=color, height=2).pack(fill="x", pady=(2, 8))
+        for nombre in nombres:
+            card, lbl, chk = _construir_tarjeta(columna, nombre,
+                                                COLOR_HABILIDADES.get(nombre, "#98C379"),
+                                                alternar_habilidad, info_habilidad)
+            card.pack(pady=4)
+            tarjetas_hab[nombre] = (card, lbl, chk)
+
+    categorizadas = set()
+    col = 0
+    for titulo, color, nombres in CATEGORIAS_HABILIDADES:
+        visibles = [n for n in nombres if n in HABILIDADES_DISPONIBLES]
+        if not visibles:
+            continue
+        _columna_categoria(cont_categorias, col, titulo, color, visibles)
+        categorizadas.update(visibles)
+        col += 1
+
+    # Respaldo: cualquier habilidad sin categoria asignada va a "Otras"
+    sin_categoria = [n for n in HABILIDADES_DISPONIBLES if n not in categorizadas]
+    if sin_categoria:
+        _columna_categoria(cont_categorias, col, "Otras", "#8A93A6", sin_categoria)
 
     # Caja de información (la que alimenta el botón ?)
     tk.Label(frame_equipo, textvariable=info_var, font=("Segoe UI", 9),
              fg="#CDD2DE", bg="#21252B", justify="left", anchor="w",
-             wraplength=640, padx=12, pady=10).pack(fill="x", pady=(12, 2))
+             wraplength=900, padx=12, pady=10).pack(fill="x", pady=(12, 2))
 
     # -----------------------------
     # ESTADÍSTICAS INICIALES

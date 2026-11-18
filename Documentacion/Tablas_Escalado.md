@@ -158,7 +158,7 @@ Esfera de energía recta (daño mágico). Su daño es un porcentaje del daño to
 
 ### 2.4 Invocar Conejos
 
-Invoca **5 conejos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos. Con 2 o más vivos nacen floor(vivos/2) cada 10 s, hasta **50**. Las estadísticas son por conejo.
+Invoca **5 conejos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos. Con 2 o más vivos nacen floor(vivos/2) cada 10 s, hasta **50**. Al morir todos hay **30 s de recarga**. Las estadísticas son por conejo.
 
 | Nivel | Vida | Velocidad | Daño | Coste En. |
 |---|---|---|---|---|
@@ -332,3 +332,30 @@ Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Deste
 | 10 – 14 | 8 s | +1 | 2 s | +4 |
 | 15 – 19 | 10 s | +2 | 2 s | +10 |
 | 20 | 10 s | +2 | 1 s | +20 |
+
+### 2.10 Invocar Lobos
+
+Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Segunda de las 10 Artes de las Sombras. Cada golpe tiene un **33 %** de causar **desangrado** (1 vida/2 s por 10 s, no acumulable, y -50 % a toda curación). Las estadísticas son por lobo.
+
+| Nivel | Vida | Velocidad | Daño | Coste En. |
+|---|---|---|---|---|
+| 1 | 10 | 10 | 8 | 90 |
+| 2 | 13 | 10 | 9.16 | 90 |
+| 3 | 16 | 10 | 10.32 | 90 |
+| 4 | 19 | 10 | 11.47 | 90 |
+| 5 | 22 | 12 | 12.63 | 90 |
+| 6 | 25 | 12 | 13.79 | 90 |
+| 7 | 28 | 12 | 14.95 | 90 |
+| 8 | 31 | 12 | 16.11 | 90 |
+| 9 | 34 | 12 | 17.26 | 90 |
+| 10 | 37 | 14 | 18.42 | 90 |
+| 11 | 40 | 14 | 19.58 | 90 |
+| 12 | 43 | 14 | 20.74 | 90 |
+| 13 | 46 | 14 | 21.89 | 90 |
+| 14 | 49 | 14 | 23.05 | 90 |
+| 15 | 52 | 16 | 24.21 | 90 |
+| 16 | 55 | 16 | 25.37 | 90 |
+| 17 | 58 | 16 | 26.53 | 90 |
+| 18 | 61 | 16 | 27.68 | 90 |
+| 19 | 64 | 16 | 28.84 | 90 |
+| 20 | 67 | 18 | 30 | 90 |

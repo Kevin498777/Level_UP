@@ -2,7 +2,7 @@
 
 > Documento de información (no técnico) sobre el estado actual del juego.
 > Pensado como contexto de referencia para la IA y para el equipo.
-> Actualizado: 17 de noviembre de 2026.
+> Actualizado: 18 de noviembre de 2026.
 
 ---
 
@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y nueve habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **El combate contra enemigos todavía no existe**: las zonas de daño (hitboxes), el sistema de puntos de empuje y los efectos como la quemadura ya están preparados para cuando se añada.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y diez habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **Todavía no hay enemigos**, pero sí un **maniquí de pruebas** en el centro del mapa al que las invocaciones ya pueden atacar; el sistema de **puntos de empuje** (retroceso al dar o recibir daño) ya está activo, y efectos como la quemadura quedan preparados para cuando se añadan enemigos.
 
 ---
 
@@ -171,7 +171,7 @@ Esfera recta. Velocidad del proyectil **11 → 30**, daño **20.5 % → 30 %** d
 
 ### 9.4 Invocar Conejos
 
-Invoca **5 conejos** detrás del personaje (esferas verdes con cara `:3`). No se puede reinvocar hasta que todos mueran; con 2 o más vivos nacen **floor(vivos/2) cada 10 s**, hasta un máximo de **50**. Por conejo: Vida **5 → 20** (+3 cada 4 niveles), Velocidad **3 → 12.5**, Daño **0.1 → 7.7**. Coste fijo **80 En.**
+Invoca **5 conejos** detrás del personaje (esferas verdes con cara `:3`). No se puede reinvocar hasta que todos mueran; con 2 o más vivos nacen **floor(vivos/2) cada 10 s**, hasta un máximo de **50**. Por conejo: Vida **5 → 20** (+3 cada 4 niveles), Velocidad **3 → 12.5**, Daño **0.1 → 7.7**. Coste fijo **80 En.** Al morir todos, **30 s de recarga** antes de reinvocar. Se les puede poner en **modo combate** (ver 9.11).
 
 ### 9.5 Carga de Fuego
 
@@ -233,21 +233,43 @@ Lanzar una habilidad mientras otra sigue activa cuesta un **+5 % de la energía 
 
 ---
 
-## 10. Puntos de empuje (mecánica de combate)
+### 9.11 Invocar Lobos
 
-Sistema preparado para el combate futuro:
+Invocación **mágica** (segunda de las 10 Artes de las Sombras). Invoca **3 lobos** detrás del personaje (cuerpo gris con orejas y ojos rojos). No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Cada golpe tiene un **33 %** de aplicar **desangrado** al objetivo: pierde **1 de vida cada 2 s durante 10 s** (ignora escudos), **no es acumulable** (reaplicar solo reinicia la duración) y mientras dura reduce **toda curación un 50 %**.
 
-- Cada punto de **daño** que recibe un personaje u objeto le aplica **1 punto de empuje**, que lo hace retroceder una cantidad de píxeles.
-- El **Escudo** aplica 2 puntos de empuje a su propio portador cada vez que lo golpean.
-- La **quemadura** de la Carga de Fuego (1/s por 5 s) también está lista para aplicarse al impactar.
+| Nivel | Vida | Velocidad | Daño | Coste En. |
+|---|---|---|---|---|
+| 1 | 10 | 10 | 8 | 90 |
+| 5 | 22 | 12 | 12.6 | 90 |
+| 10 | 37 | 14 | 18.4 | 90 |
+| 15 | 52 | 16 | 24.2 | 90 |
+| 20 | 67 | 18 | 30 | 90 |
 
-Como aún no hay enemigos, estas reglas están implementadas pero todavía no se disparan en la práctica.
+La vida sube **+3 por nivel**, la velocidad **+2 cada 5 niveles** y el daño escala de forma lineal de **8 a 30** (nivel 1 a 20). Coste fijo **90 En.** Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.10).
+
+### 9.12 Modo combate (invocaciones sombrías)
+
+Conejos y lobos comparten el **modo combate**. Con la invocación ya activa, **mantener su tecla** ([2], [3] o [4]) las pasa a modo combate (se les **encienden los ojos**). Mientras mantienes la tecla, el **clic derecho** da la orden:
+
+- **Clic derecho sobre un enemigo** (p. ej. el maniquí): van hacia él y lo atacan.
+- **Clic derecho en terreno libre**: van a ese punto.
+- **Clic derecho junto a ti**: las llama de vuelta (vuelven a seguirte).
+
+La orden **persiste aunque sueltes la tecla**, así conservas tu movilidad (el **clic izquierdo** sigue moviendo solo a tu personaje) mientras las sombras siguen atacando. Atacan **por intervalos** (1 golpe/s por criatura) y, por el retroceso al golpear (ver sección 10), no apilan todo su daño de golpe.
+
+## 10. Puntos de empuje (retroceso)
+
+Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. La **quemadura** de la Carga de Fuego (1/s por 5 s) sigue preparada para el combate contra enemigos.
+
+### 10.1 Maniquí de pruebas
+
+En el centro del mapa hay un **maniquí**: **100 de vida**, no ataca, pero **recibe daño y desangrado** para probar las invocaciones. Muestra una **barra de vida** (roja mientras sangra). Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); si lo destruyen, **reaparece a los 5 s** con la vida llena.
 
 ---
 
 ## 11. Interfaz
 
-- **Pantalla de creación (a pantalla completa):** nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro.
+- **Pantalla de creación (a pantalla completa):** nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Las habilidades se agrupan **por categorías en columnas** (Artes de las Sombras, Potenciadores, Ataque, Defensa y Soporte, Especiales), pensado para escalar al añadir más. Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro; el texto de cada habilidad vive **solo** en ese **[?]**.
 - **Panel izquierdo (en juego):** nivel y puntos, tarjeta del arma (nombre, nivel, daño, debuff/buff y barra de durabilidad) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), Energía, **Escudo** y **Escudo M.** (actual / máximo).
 - **Panel derecho (en juego):** una tarjeta por habilidad con tecla, nivel, coste, estado, recarga y botón **[+]**.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
@@ -262,6 +284,9 @@ Como aún no hay enemigos, estas reglas están implementadas pero todavía no se
 | Clic izquierdo | Mover el personaje (o pulsar botones [+] y [?] de la interfaz) |
 | [1] | Sacar / guardar la herramienta |
 | [2] [3] [4] | Usar las habilidades equipadas (mantener pulsado para cargar la Carga de Fuego) |
+| Mantener [2] [3] [4] | Poner esa invocación sombría en **modo combate** (ojos encendidos) |
+| Clic derecho (en modo combate) | Enviar a las sombras a un punto o a atacar al enemigo bajo el clic (la orden persiste al soltar la tecla) |
+| Clic derecho junto a ti | Llamar de vuelta a las sombras (vuelven a seguirte) |
 | [H] | Mostrar / ocultar las hitboxes |
 | [L] | (Prueba) Subir de nivel al personaje (+3 puntos) |
 | [J] | (Prueba) Simular un golpe del arma (desgasta durabilidad) |

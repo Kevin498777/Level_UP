@@ -1,10 +1,7 @@
 import pygame
 import math
 from herramientas import EspadaLigera
-from habilidades import combinar_buffs, factor_duplicado
-
-# Píxeles de retroceso que provoca cada punto de empuje
-PIXELES_POR_PUNTO_EMPUJE = 6
+from habilidades import combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE
 
 # --- Escudo del personaje (reserva que absorbe daño físico) ---
 # Progresión del escudo: inicial 0, +5 por mejora hasta un máximo de 15 y, a partir

@@ -2,6 +2,9 @@ import pygame
 import math
 import random
 
+# Pixeles de retroceso que provoca cada punto de empuje (compartido por personaje, invocaciones y maniqui)
+PIXELES_POR_PUNTO_EMPUJE = 6
+
 # -----------------------------
 # CLASE PROYECTIL DE ENERGÍA (DISPARO VELOZ)
 # -----------------------------
@@ -711,6 +714,8 @@ class EntidadInvocada:
     MULT_COMBATE = 30.0
     MERODEO_MIN = 12
     MERODEO_MAX = 45
+    RADIO_SELECCION = 30        # margen para considerar que el clic cae sobre un enemigo
+    RETROCESO_ATAQUE = 3        # puntos de empuje que recibe el atacante al golpear (dano por intervalos)
     radio = 8
 
     def __init__(self, x, y, vida, velocidad, dano):
@@ -725,30 +730,60 @@ class EntidadInvocada:
         self.destino = pygame.Vector2(x, y)
         self._t_merodeo = random.uniform(0.0, 1.5)
         self._cd_ataque = 0.0
+        self.empuje = pygame.Vector2(0, 0)
 
     def atacar(self, objetivo):
-        """Inflige dano fisico al objetivo. Devuelve el dano aplicado."""
+        """Inflige dano fisico al objetivo (lo empuja) y retrocede a si mismo para espaciar
+        el dano y evitar el dano explosivo en conjunto. Devuelve el dano aplicado."""
+        direccion = objetivo.posicion - self.posicion
         if hasattr(objetivo, "recibir_dano"):
-            return objetivo.recibir_dano(self.dano, "fisico")
-        objetivo.vida = max(0.0, round(getattr(objetivo, "vida", 0) - self.dano, 2))
-        return self.dano
+            aplicado = objetivo.recibir_dano(self.dano, "fisico", direccion)
+        else:
+            objetivo.vida = max(0.0, round(getattr(objetivo, "vida", 0) - self.dano, 2))
+            aplicado = self.dano
+        if aplicado and aplicado > 0:
+            self.aplicar_empuje(-direccion, self.RETROCESO_ATAQUE)
+        return aplicado
 
-    def _enemigo_mas_cercano(self, enemigos):
-        vivos = [e for e in (enemigos or []) if getattr(e, "vivo", True)]
-        if not vivos:
+    def aplicar_empuje(self, direccion, puntos):
+        """Anade retroceso en la direccion dada (se decae en _actualizar_empuje)."""
+        if puntos <= 0:
+            return
+        d = pygame.Vector2(direccion)
+        if d.length_squared() == 0:
+            return
+        self.empuje += d.normalize() * (puntos * PIXELES_POR_PUNTO_EMPUJE)
+
+    def _actualizar_empuje(self, dt):
+        if self.empuje.length_squared() < 0.25:
+            self.empuje.update(0, 0)
+            return
+        paso = self.empuje * min(1.0, dt * 14.0)
+        self.posicion += paso
+        self.empuje -= paso
+
+    def _enemigo_en(self, punto, enemigos):
+        """Enemigo vivo mas cercano al punto marcado, dentro de un radio de seleccion
+        (clic derecho sobre un enemigo => atacarlo). None si el clic cae en terreno libre."""
+        cand = [e for e in (enemigos or []) if getattr(e, "vivo", True)]
+        cand = [e for e in cand if (e.posicion - punto).length() <= getattr(e, "radio", 0) + self.RADIO_SELECCION]
+        if not cand:
             return None
-        return min(vivos, key=lambda e: (e.posicion - self.posicion).length())
+        return min(cand, key=lambda e: (e.posicion - punto).length())
 
-    def actualizar(self, dt, jugador, modo_combate=False, objetivo=None, enemigos=None):
+    def actualizar(self, dt, jugador, objetivo=None, enemigos=None):
         if self.vida <= 0:
             self.vivo = False
             return
-        self.modo_combate = modo_combate
+        # En combate mientras tenga un objetivo asignado (persiste aunque se suelte la tecla,
+        # para no quitarle movilidad al jugador). Sin objetivo, sigue al personaje.
+        self.modo_combate = objetivo is not None
         self._cd_ataque = max(0.0, self._cd_ataque - dt)
 
-        # Modo combate: ir hacia el enemigo cercano (y atacarlo) o hacia el punto objetivo.
-        if modo_combate and objetivo is not None:
-            blanco = self._enemigo_mas_cercano(enemigos)
+        if objetivo is not None:
+            # Si el punto marcado cae sobre un enemigo, ir a el y atacarlo; si cae en
+            # terreno libre, ir hasta ese punto.
+            blanco = self._enemigo_en(objetivo, enemigos)
             if blanco is not None:
                 hacia = blanco.posicion - self.posicion
                 rango = self.radio + getattr(blanco, "radio", 0) + 4
@@ -760,8 +795,9 @@ class EntidadInvocada:
                     self.posicion += hacia.normalize() * self.velocidad * dt * self.MULT_COMBATE
             else:
                 hacia = objetivo - self.posicion
-                if hacia.length() > 2:
+                if hacia.length() > 4:
                     self.posicion += hacia.normalize() * self.velocidad * dt * self.MULT_COMBATE
+            self._actualizar_empuje(dt)
             return
 
         # Modo seguir: acompanan al personaje (lo siguen y merodean cerca)
@@ -777,6 +813,7 @@ class EntidadInvocada:
             d = self.destino - self.posicion
             if d.length() > 2:
                 self.posicion += d.normalize() * self.velocidad * dt * self.MULT_MERODEO
+        self._actualizar_empuje(dt)
 
 
 # -----------------------------
@@ -917,11 +954,9 @@ class InvocacionConejos(HabilidadBase):
 
     def actualizar(self, dt, jugador, enemigos=None):
         super().actualizar(dt, jugador)  # alertas y temporizador de recarga
-        if not self.modo_combate:
-            self.objetivo = None
 
         for c in self.conejos:
-            c.actualizar(dt, jugador, self.modo_combate, self.objetivo, enemigos)
+            c.actualizar(dt, jugador, self.objetivo, enemigos)
         self.conejos = [c for c in self.conejos if c.vivo]
 
         # Reproduccion: con 2+ vivos, cada 10s nacen floor(vivos/2) conejos (max 50)
@@ -1046,11 +1081,9 @@ class InvocacionLobos(HabilidadBase):
 
     def actualizar(self, dt, jugador, enemigos=None):
         super().actualizar(dt, jugador)  # alertas y temporizador de recarga
-        if not self.modo_combate:
-            self.objetivo = None
 
         for l in self.lobos:
-            l.actualizar(dt, jugador, self.modo_combate, self.objetivo, enemigos)
+            l.actualizar(dt, jugador, self.objetivo, enemigos)
         self.lobos = [l for l in self.lobos if l.vivo]
 
         # Al morir todos: 30s de recarga antes de poder reinvocar

@@ -2,7 +2,7 @@ import math
 import random
 import pygame
 from personaje import Personaje
-from habilidades import dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip
+from habilidades import dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE
 from herramientas import EspadaLigera
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 
@@ -443,11 +443,13 @@ class Maniqui:
 
     def __init__(self, centro):
         self.posicion = pygame.Vector2(centro)
+        self.ancla = pygame.Vector2(centro)      # vuelve aqui tras el retroceso
         self.vida_max = self.VIDA_MAX
         self.vida = self.VIDA_MAX
         self.radio = 18
         self.vivo = True
         self.desangrado = None
+        self.empuje = pygame.Vector2(0, 0)
         self._t_respawn = 0.0
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
@@ -456,10 +458,21 @@ class Maniqui:
         if d <= 0 or not self.vivo:
             return 0.0
         self.vida = max(0.0, round(self.vida - d, 2))
+        if direccion_empuje is not None:
+            self.aplicar_empuje(direccion_empuje, d)
         if self.vida <= 0:
             self.vivo = False
             self._t_respawn = self.RESPAWN
         return d
+
+    def aplicar_empuje(self, direccion, puntos):
+        """Retroceso al recibir dano; luego regresa a su ancla (ver actualizar)."""
+        if puntos <= 0:
+            return
+        dirv = pygame.Vector2(direccion)
+        if dirv.length_squared() == 0:
+            return
+        self.empuje += dirv.normalize() * (puntos * PIXELES_POR_PUNTO_EMPUJE)
 
     def curar(self, cantidad):
         return 0.0  # el maniqui no se cura
@@ -471,6 +484,8 @@ class Maniqui:
                 self.vida = self.vida_max
                 self.vivo = True
                 self.desangrado = None
+                self.empuje.update(0, 0)
+                self.posicion.update(self.ancla)   # reaparece centrado
             return
         if self.desangrado is not None:
             self.desangrado.actualizar(dt, self)
@@ -479,6 +494,14 @@ class Maniqui:
             if self.vida <= 0:
                 self.vivo = False
                 self._t_respawn = self.RESPAWN
+        # Retroceso y regreso suave a su ancla (sigue siendo un blanco centrado)
+        if self.empuje.length_squared() >= 0.25:
+            paso = self.empuje * min(1.0, dt * 14.0)
+            self.posicion += paso
+            self.empuje -= paso
+        hacia_ancla = self.ancla - self.posicion
+        if hacia_ancla.length() > 0.5:
+            self.posicion += hacia_ancla * min(1.0, dt * 3.0)
 
     def dibujar(self, pantalla, desplazamiento=(0, 0)):
         if not self.vivo:
@@ -682,17 +705,26 @@ def iniciar_mundo(config):
                         info_abierta = None
                         # Convertir clic de pantalla a coordenadas del mundo según la cámara
                         vista = vista_camara()
+                        jugador.destino = pygame.Vector2(
+                            vista.x + (mouse_x - mundo_x),
+                            vista.y + (mouse_y - mundo_y)
+                        )
+
+                elif evento.button == 3:
+                    # Clic derecho: dirige a las sombras en modo combate (mantener su tecla).
+                    # No afecta al jugador, asi el clic izquierdo sigue libre para moverse.
+                    mouse_x, mouse_y = evento.pos
+                    if mundo_x <= mouse_x <= (mundo_x + mundo_w):
+                        vista = vista_camara()
                         punto = pygame.Vector2(
                             vista.x + (mouse_x - mundo_x),
                             vista.y + (mouse_y - mundo_y)
                         )
-                        sombras = [hab for hab in jugador.habilidades if getattr(hab, "modo_combate", False)]
-                        if sombras:
-                            # Dirigir las invocaciones en modo combate (no mover al jugador)
-                            for hab in sombras:
-                                hab.objetivo = pygame.Vector2(punto)
-                        else:
-                            jugador.destino = punto
+                        # Clic cerca del jugador = llamarlas de vuelta (seguir); lejos = orden
+                        recall = (punto - jugador.posicion).length() <= jugador.radio + 50
+                        for hab in jugador.habilidades:
+                            if getattr(hab, "modo_combate", False):
+                                hab.objetivo = None if recall else pygame.Vector2(punto)
 
         # Actualizar herramienta (temporizador y cálculo de su hitbox)
         if jugador.herramienta:
