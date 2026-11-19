@@ -27,7 +27,8 @@ DESC_HERRAMIENTAS = {
     "Espada Larga": "Más larga y potente. Daño Fza x3.4 a x5.0, debuff -34% a -10%, durabilidad 190-230.",
     "Mandoble": "Pesada y lenta. Daño Fza x6.6 a x9.0, debuff -70% a -30%, durabilidad 148-180.",
     "Dagas Simples": "Dos dagas rápidas y pequeñas. Daño Fza x1.5 a x2.5; a nivel máximo dan +10% de velocidad. Durabilidad 150-400 compartida.",
-    "Escudo": "No golpea, protege. Debuff -34% a -10%, durabilidad 100-300. Al bloquear empuja al portador."
+    "Escudo": "No golpea, protege. Debuff -34% a -10%, durabilidad 100-300. Al bloquear empuja al portador.",
+    "Arco": "Daño físico a distancia. Mantén [Espacio] para cargar y suelta para disparar: 1s=100px/20% ... 5s=300px/100% del daño (menos de 1s no dispara; cargando -10% velocidad). Daño Fza x5 a x10, debuff -15% a -3%, durabilidad 100-150, empuje 25. Carcaj 10-30 flechas; [R] compra 10 por 10-30 En. (las que no caben se pierden)."
 }
 
 COLOR_HERRAMIENTAS = {
@@ -35,7 +36,8 @@ COLOR_HERRAMIENTAS = {
     "Espada Larga": "#9DA5B4",
     "Mandoble": "#7F8694",
     "Dagas Simples": "#C0C8D6",
-    "Escudo": "#8FB0D6"
+    "Escudo": "#8FB0D6",
+    "Arco": "#C49A6C"
 }
 
 DESC_HABILIDADES = {
@@ -43,13 +45,13 @@ DESC_HABILIDADES = {
     "Burst de Fuerza": "Buff de fuerza +21% a +40% por 6-10s. Recarga 12-8s. Costo 15-35 En.",
     "Disparo Veloz": "Esfera recta. Velocidad 11-30 y daño 20.5%-30% del total. Costo 15-35. Recarga 2-0.5s.",
     "Onda Sonora": "Mágica. Anillos blancos en 360° desde donde la lanzas (1 onda de 10; 2 desde nv10: 10+20; 3 a nv20: 10+20+30), uno cada 0.8s. Radio 200-400. Atraviesan obstáculos sin destruir nada y solo afectan a enemigos. Ralentizan -5%/-10%/-20% (3s) según cuántas ondas golpeen. Agua->agua: daño y ralentización x2; si la onda cambia de medio: x0.5. Desde el agua viajan al doble de velocidad. Costo 10-30 En., recarga 10-30s.",
-    "Cortar": "Mágica. Cuchilla recta que se detiene en el primer enemigo. Daño 35-75, velocidad 5-24, costo 15-53 En., recarga 2-10s (sube con el nivel). Si hace daño, anula el escudo mágico del enemigo 10s. Destruye una roca o arbusto al chocar, salvo el arbusto en el que estás (gigantes y arbustos grandes solo a nivel 20).",
+    "Cortar": "Mágica. Cuchilla recta que se detiene en el primer enemigo. Daño 5-40, velocidad 5-24, costo 15-53 En., recarga 2-10s (sube con el nivel). Si hace daño, anula el escudo mágico del enemigo 8s. Destruye una roca o arbusto al chocar, salvo el arbusto en el que estás (gigantes y arbustos grandes solo a nivel 20).",
     "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50). Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En. Mantén la tecla para modo combate (clic derecho: persiguen al enemigo marcado; mantén y suelta de nuevo para volver a pasivo). 30s de recarga al morir todos.",
     "Carga de Fuego": "Pulsa para disparo rápido o mantén hasta 5s para más daño (+25%) y tamaño. Al golpear quema 1/s por 5s. Costo 15 al pulsar y se cobra cada segundo cargado (hasta 45 En.).",
     "Aura Electrica": "Aura que te sigue: +5% a +15% velocidad y 1 a 5 daño/s a enemigos cercanos. Autodaño 0.5/s (mágico, lo frena tu escudo mágico). Costo 20-58 En., CD 40-60s.",
     "Reforzamiento Mágico": "Campo de fuerza que bloquea daño físico y mágico. Dureza 200-500, duración 1-6s. Si se agota la dureza se rompe. Costo 25-50 En., CD 10-35s.",
     "Regeneración Inversa": "Mágica. Mantén pulsado para curar: +1 vida/-10 En. cada 2s hasta +6 vida/-40 En. cada 3s. Sin recarga. Máx nivel 10 (mejora: 2 puntos).",
-    "Sombra Araña": "Arte de las sombras. Invoca una araña (1 HP). Mantén la tecla (ojos rojos) y marca un punto con clic derecho; al llegar teje una telaraña de un solo uso que inmoviliza al primer enemigo que la pise (5s nv1 -> 20s nv20). Máx 3 telarañas; 5s de recarga. Costo 50->100 En. A nivel 20 la telaraña hace 1 daño/s mientras inmoviliza.",
+    "Sombra Araña": "Arte de las sombras. Invoca una araña (1 HP). Mantén la tecla (ojos rojos) y marca un punto con clic derecho; al llegar teje una telaraña de un solo uso que inmoviliza al primer enemigo que la pise (5s nv1 -> 20s nv20). Máx 3 telarañas; 5s de recarga. Costo 50->100 En. A nivel 20 la telaraña hace 1 daño mágico/s mientras inmoviliza (lo amortigua el escudo mágico).",
     "Invocar Lobos": "Mágica (invocación sombría). Invoca 3 lobos; máx nivel 20, cuesta 90 En. Vida 10-67, velocidad 10-18, daño 8-30. Golpes con 33% de desangrado (5 golpes de 1 vida cada 2s y -50% curación mientras dure). Mantén la tecla para modo combate (clic derecho: persiguen al enemigo marcado; mantén y suelta de nuevo para volver a pasivo). 30s de recarga al morir todos.",
     "Golpe de Suerte": "Efecto aleatorio: Burst, Destello, Reforzamiento, Regeneración, Aura, energía o escudos al máximo (10% c/u) o nada (30%; 5% a nv20). La habilidad otorgada dura 5-30s; no se relanza hasta que termine. Costo 15-50 En., CD 5-20s."
 }

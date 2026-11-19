@@ -293,6 +293,8 @@ class Personaje:
         # Modificador acumulable de herramienta activa
         if self.herramienta and self.herramienta.activa:
             modificador -= self.herramienta.debuff_velocidad
+            # Arco tensando la cuerda: ralentizacion extra mientras carga
+            modificador -= getattr(self.herramienta, "ralentizacion_carga", 0.0)
 
         # Ralentizacion recibida (ej. Onda Sonora)
         modificador -= self.ralentizacion
@@ -489,7 +491,8 @@ class Personaje:
         for p in self.proyectiles:
             p.actualizar(dt, limites_mundo)
             # Las balas no atraviesan las rocas: se destruyen al impactar
-            if rocas and p.activo:
+            # (una flecha ya clavada en el suelo es solo decorado)
+            if rocas and p.activo and not getattr(p, "clavada", False):
                 for roca in rocas:
                     if p.hitbox.colliderect(roca.rect):
                         p.activo = False

@@ -9,65 +9,90 @@
 
 Se sacan o guardan con **[1]**. Nivel máximo **5**. Cada mejora cuesta **2 puntos** y repara toda la durabilidad. La velocidad indica el modificador mientras el arma está desenfundada (negativo = debuff, positivo = buff).
 
+**Cadencia** (golpes por segundo con [Espacio]): la del arma por nivel **más** el bonus de cadencia del personaje (+0.1 por punto de mejora). El tiempo entre golpes es 1 / cadencia; la tabla muestra el del arma sola (bonus 0). **Empuje**: puntos de empuje fijos que aplica cada golpe al enemigo.
+
 ### 1.1 Espada Ligera
 
 Arma equilibrada: daño moderado y poca penalización de velocidad.
 
-| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. |
-|---|---|---|---|---|
-| 1 | ×2.2 | 4.4 | -17 % | 220 |
-| 2 | ×2.4 | 4.8 | -14 % | 240 |
-| 3 | ×2.6 | 5.2 | -11 % | 260 |
-| 4 | ×2.8 | 5.6 | -8 % | 280 |
-| 5 | ×3 | 6 | -5 % | 300 |
+| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. | Cadencia (golpes/s) | Tiempo entre golpes | Empuje |
+|---|---|---|---|---|---|---|---|
+| 1 | ×2.2 | 4.4 | -17 % | 220 | 1.475 | 0.68 s | 8 |
+| 2 | ×2.4 | 4.8 | -14 % | 240 | 1.55 | 0.65 s | 8 |
+| 3 | ×2.6 | 5.2 | -11 % | 260 | 1.625 | 0.62 s | 8 |
+| 4 | ×2.8 | 5.6 | -8 % | 280 | 1.7 | 0.59 s | 8 |
+| 5 | ×3 | 6 | -5 % | 300 | 1.775 | 0.56 s | 8 |
 
 ### 1.2 Espada Larga
 
 Más larga y potente que la ligera, a cambio de más lentitud.
 
-| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. |
-|---|---|---|---|---|
-| 1 | ×3.4 | 6.8 | -34 % | 190 |
-| 2 | ×3.8 | 7.6 | -28 % | 200 |
-| 3 | ×4.2 | 8.4 | -22 % | 210 |
-| 4 | ×4.6 | 9.2 | -16 % | 220 |
-| 5 | ×5 | 10 | -10 % | 230 |
+| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. | Cadencia (golpes/s) | Tiempo entre golpes | Empuje |
+|---|---|---|---|---|---|---|---|
+| 1 | ×3.4 | 6.8 | -34 % | 190 | 1.06 | 0.94 s | 12 |
+| 2 | ×3.8 | 7.6 | -28 % | 200 | 1.12 | 0.89 s | 12 |
+| 3 | ×4.2 | 8.4 | -22 % | 210 | 1.18 | 0.85 s | 12 |
+| 4 | ×4.6 | 9.2 | -16 % | 220 | 1.24 | 0.81 s | 12 |
+| 5 | ×5 | 10 | -10 % | 230 | 1.3 | 0.77 s | 12 |
 
 ### 1.3 Mandoble
 
 Arma pesada: el mayor daño del juego con una fuerte penalización de velocidad.
 
-| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. |
-|---|---|---|---|---|
-| 1 | ×6.6 | 13.2 | -70 % | 148 |
-| 2 | ×7.2 | 14.4 | -60 % | 156 |
-| 3 | ×7.8 | 15.6 | -50 % | 164 |
-| 4 | ×8.4 | 16.8 | -40 % | 172 |
-| 5 | ×9 | 18 | -30 % | 180 |
+| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. | Cadencia (golpes/s) | Tiempo entre golpes | Empuje |
+|---|---|---|---|---|---|---|---|
+| 1 | ×6.6 | 13.2 | -70 % | 148 | 0.64 | 1.56 s | 20 |
+| 2 | ×7.2 | 14.4 | -60 % | 156 | 0.68 | 1.47 s | 20 |
+| 3 | ×7.8 | 15.6 | -50 % | 164 | 0.72 | 1.39 s | 20 |
+| 4 | ×8.4 | 16.8 | -40 % | 172 | 0.76 | 1.32 s | 20 |
+| 5 | ×9 | 18 | -30 % | 180 | 0.8 | 1.25 s | 20 |
 
 ### 1.4 Dagas Simples
 
 Dos dagas pequeñas, una por flanco, que comparten durabilidad. A nivel máximo dan un buff de velocidad.
 
-| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. |
-|---|---|---|---|---|
-| 1 | ×1.5 | 3 | -20 % | 150 |
-| 2 | ×1.75 | 3.5 | -12.5 % | 212 |
-| 3 | ×2 | 4 | -5 % | 275 |
-| 4 | ×2.25 | 4.5 | +2.5 % | 338 |
-| 5 | ×2.5 | 5 | +10 % | 400 |
+| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. | Cadencia (golpes/s) | Tiempo entre golpes | Empuje |
+|---|---|---|---|---|---|---|---|
+| 1 | ×1.5 | 3 | -20 % | 150 | 2.125 | 0.47 s | 4 |
+| 2 | ×1.75 | 3.5 | -12.5 % | 212 | 2.25 | 0.44 s | 4 |
+| 3 | ×2 | 4 | -5 % | 275 | 2.375 | 0.42 s | 4 |
+| 4 | ×2.25 | 4.5 | +2.5 % | 338 | 2.5 | 0.4 s | 4 |
+| 5 | ×2.5 | 5 | +10 % | 400 | 2.625 | 0.38 s | 4 |
 
 ### 1.5 Escudo
 
 No inflige daño, protege. Cada golpe recibido lo desgasta y empuja al portador 2 puntos de empuje.
 
-| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. |
-|---|---|---|---|---|
-| 1 | — | — | -34 % | 100 |
-| 2 | — | — | -28 % | 150 |
-| 3 | — | — | -22 % | 200 |
-| 4 | — | — | -16 % | 250 |
-| 5 | — | — | -10 % | 300 |
+| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. | Cadencia (golpes/s) | Tiempo entre golpes | Empuje |
+|---|---|---|---|---|---|---|---|
+| 1 | — | — | -34 % | 100 | — | — | 0 |
+| 2 | — | — | -28 % | 150 | — | — | 0 |
+| 3 | — | — | -22 % | 200 | — | — | 0 |
+| 4 | — | — | -16 % | 250 | — | — | 0 |
+| 5 | — | — | -10 % | 300 | — | — | 0 |
+
+### 1.6 Arco
+
+Arma de **daño físico** a distancia: no golpea cuerpo a cuerpo. Mantener **[Espacio]** carga la flecha y soltar la dispara; cuentan los segundos completos de carga (menos de 1 s no dispara; desde 5 s se queda al 100 %). Mientras carga, **−10 %** de velocidad extra. La flecha se detiene en el primer enemigo (empuje **25**, gasta 1 de durabilidad si hace daño), las rocas la bloquean y atraviesa los arbustos; si no choca, queda clavada 3 s al final del alcance. Flechas en **lotes de 10** comprados con energía ([R]); lo que no cabe en el carcaj se pierde.
+
+| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 (carga 5 s) | Velocidad | Durabilidad máx. | Carcaj | Lote de 10 flechas | Empuje |
+|---|---|---|---|---|---|---|---|
+| 1 | ×5 | 10 | -15 % | 100 | 10 | 10 En. | 25 |
+| 2 | ×6.25 | 12.5 | -12 % | 110 | 15 | 15 En. | 25 |
+| 3 | ×7.5 | 15 | -9 % | 120 | 20 | 20 En. | 25 |
+| 4 | ×8.75 | 17.5 | -6 % | 130 | 25 | 25 En. | 25 |
+| 5 | ×10 | 20 | -3 % | 150 | 30 | 30 En. | 25 |
+
+**Escalado por segundo de carga** (igual en todos los niveles):
+
+| Carga | Alcance | Daño (% del daño del arma) | Daño con Fuerza 2, nivel 1 |
+|---|---|---|---|
+| < 1 s | — | no dispara | — |
+| 1 s | 100 | 20 % | 2 |
+| 2 s | 150 | 40 % | 4 |
+| 3 s | 200 | 60 % | 6 |
+| 4 s | 250 | 80 % | 8 |
+| 5 s o más | 300 | 100 % | 10 |
 
 ---
 
@@ -359,36 +384,33 @@ Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar 
 | 18 | 61 | 16 | 27.68 | 90 |
 | 19 | 64 | 16 | 28.84 | 90 |
 | 20 | 67 | 18 | 30 | 90 |
-pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
-pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
 
 ### 2.11 Cortar
 
-Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno rojo, del largo de la Espada Ligera) que se detiene en el **primer enemigo**. Lanzada desde dentro de un arbusto no lo corta. Si llega a hacer daño, **anula el escudo mágico** del enemigo **10 s** (queda en 0 sin regenerar y luego vuelve al valor que tenía tras el golpe; otro corte reinicia los 10 s). Al chocar con una **roca o un arbusto** lo destruye y se rompe (solo un objeto); las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**. La recarga **sube** con el nivel a propósito.
+Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno rojo, del largo de la Espada Ligera) que se detiene en el **primer enemigo**. Lanzada desde dentro de un arbusto no lo corta. Si llega a hacer daño, **anula el escudo mágico** del enemigo **8 s** (queda en 0 sin regenerar y luego vuelve al valor que tenía tras el golpe; otro corte reinicia los 8 s). Al chocar con una **roca o un arbusto** lo destruye y se rompe (solo un objeto); las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**. Daño **5 → 40** lineal (redondeado a 1 decimal). La recarga **sube** con el nivel a propósito.
 
 | Nivel | Daño | Velocidad | Coste En. | Recarga | Corta gigantes/grandes |
 |---|---|---|---|---|---|
-| 1 | 35 | 5 | 15 | 2 s | No |
-| 2 | 37 | 6 | 17 | 2 s | No |
-| 3 | 39 | 7 | 19 | 2 s | No |
-| 4 | 41 | 8 | 21 | 2 s | No |
-| 5 | 43 | 9 | 23 | 4 s | No |
-| 6 | 45 | 10 | 25 | 4 s | No |
-| 7 | 47 | 11 | 27 | 4 s | No |
-| 8 | 49 | 12 | 29 | 4 s | No |
-| 9 | 51 | 13 | 31 | 4 s | No |
-| 10 | 53 | 14 | 33 | 6 s | No |
-| 11 | 55 | 15 | 35 | 6 s | No |
-| 12 | 57 | 16 | 37 | 6 s | No |
-| 13 | 59 | 17 | 39 | 6 s | No |
-| 14 | 61 | 18 | 41 | 6 s | No |
-| 15 | 63 | 19 | 43 | 8 s | No |
-| 16 | 65 | 20 | 45 | 8 s | No |
-| 17 | 67 | 21 | 47 | 8 s | No |
-| 18 | 69 | 22 | 49 | 8 s | No |
-| 19 | 71 | 23 | 51 | 8 s | No |
-| 20 | 75 | 24 | 53 | 10 s | Sí |
-pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
+| 1 | 5 | 5 | 15 | 2 s | No |
+| 2 | 6.8 | 6 | 17 | 2 s | No |
+| 3 | 8.7 | 7 | 19 | 2 s | No |
+| 4 | 10.5 | 8 | 21 | 2 s | No |
+| 5 | 12.4 | 9 | 23 | 4 s | No |
+| 6 | 14.2 | 10 | 25 | 4 s | No |
+| 7 | 16.1 | 11 | 27 | 4 s | No |
+| 8 | 17.9 | 12 | 29 | 4 s | No |
+| 9 | 19.7 | 13 | 31 | 4 s | No |
+| 10 | 21.6 | 14 | 33 | 6 s | No |
+| 11 | 23.4 | 15 | 35 | 6 s | No |
+| 12 | 25.3 | 16 | 37 | 6 s | No |
+| 13 | 27.1 | 17 | 39 | 6 s | No |
+| 14 | 28.9 | 18 | 41 | 6 s | No |
+| 15 | 30.8 | 19 | 43 | 8 s | No |
+| 16 | 32.6 | 20 | 45 | 8 s | No |
+| 17 | 34.5 | 21 | 47 | 8 s | No |
+| 18 | 36.3 | 22 | 49 | 8 s | No |
+| 19 | 38.2 | 23 | 51 | 8 s | No |
+| 20 | 40 | 24 | 53 | 10 s | Sí |
 
 ### 2.12 Onda Sonora
 
@@ -416,3 +438,30 @@ Habilidad de **daño mágico** en área: anillos blancos en 360°, uno cada **0.
 | 18 | 2 (10 + 20) | 378.9 | 25 | 27.89 s |
 | 19 | 2 (10 + 20) | 389.5 | 25 | 28.95 s |
 | 20 | 3 (10 + 20 + 30) | 400 | 30 | 30 s |
+
+### 2.13 Sombra Araña
+
+Tercera de las Artes de las Sombras. Invoca **una araña** (1 HP, sin ataque, velocidad 6) detrás del personaje. Manteniendo la tecla (ojos rojos) el **clic derecho** la envía a un **punto** (no persigue enemigos); al llegar teje una **telaraña** de un solo uso, de radio 1.6 veces el del personaje, que **inmoviliza** (no puede moverse, pero sí atacar) al primer enemigo que la pise. Máximo **3 telarañas** (la nueva quita la más vieja). Tras tejer, o si la araña muere antes, hay **5 s de recarga**. A **nivel 20** la telaraña además hace **1 de daño mágico por segundo** mientras dura la inmovilización (lo amortigua el escudo mágico del enemigo). Coste e inmovilización escalan de forma lineal (redondeados).
+
+| Nivel | Coste En. | Inmovilización | Daño mágico telaraña (por s) | Recarga |
+|---|---|---|---|---|
+| 1 | 50 | 5 s | 0 | 5 s |
+| 2 | 53 | 5.8 s | 0 | 5 s |
+| 3 | 55 | 6.6 s | 0 | 5 s |
+| 4 | 58 | 7.4 s | 0 | 5 s |
+| 5 | 61 | 8.2 s | 0 | 5 s |
+| 6 | 63 | 8.9 s | 0 | 5 s |
+| 7 | 66 | 9.7 s | 0 | 5 s |
+| 8 | 68 | 10.5 s | 0 | 5 s |
+| 9 | 71 | 11.3 s | 0 | 5 s |
+| 10 | 74 | 12.1 s | 0 | 5 s |
+| 11 | 76 | 12.9 s | 0 | 5 s |
+| 12 | 79 | 13.7 s | 0 | 5 s |
+| 13 | 82 | 14.5 s | 0 | 5 s |
+| 14 | 84 | 15.3 s | 0 | 5 s |
+| 15 | 87 | 16.1 s | 0 | 5 s |
+| 16 | 89 | 16.8 s | 0 | 5 s |
+| 17 | 92 | 17.6 s | 0 | 5 s |
+| 18 | 95 | 18.4 s | 0 | 5 s |
+| 19 | 97 | 19.2 s | 0 | 5 s |
+| 20 | 100 | 20 s | 1 | 5 s |

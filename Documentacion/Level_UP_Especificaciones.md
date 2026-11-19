@@ -2,7 +2,7 @@
 
 > Documento de información (no técnico) sobre el estado actual del juego.
 > Pensado como contexto de referencia para la IA y para el equipo.
-> Actualizado: 18 de noviembre de 2026.
+> Actualizado: 19 de noviembre de 2026.
 
 ---
 
@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, cinco armas y doce habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. **Todavía no hay enemigos**, pero sí un **maniquí de pruebas** en el centro del mapa al que las invocaciones ya pueden atacar; el sistema de **puntos de empuje** (retroceso al dar o recibir daño) ya está activo, y efectos como la quemadura quedan preparados para cuando se añadan enemigos.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y trece habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). **Todavía no hay enemigos reales**, pero sí un **maniquí de pruebas** en el centro del mapa que hace de primer enemigo (versión beta): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
 
 ---
 
@@ -79,6 +79,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 | Vida | 20 | +2 |
 | Fuerza (Daño) | 2 | +0.2 |
 | Velocidad | 1 | +0.1 |
+| Cadencia (bonus) | +0 golpes/s | +0.1 golpes/s |
 | Escudo (físico) | 0 | +5 hasta 15, luego +2 |
 | Escudo mágico | 0 | +5 hasta 15, luego +2 |
 | Energía | 100 | +5 |
@@ -89,7 +90,8 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 - **Vida:** puntos de vida; se recupera con los orbes de los frutales.
 - **Fuerza (Daño):** base del golpe del arma; en el panel de mejora se muestra como **Daño**. Sube con la habilidad Burst de Fuerza.
 - **Velocidad:** desplazamiento; cambia con el agua, el arma desenfundada y la habilidad Destello.
-- **Escudo (físico):** reserva que absorbe el **daño físico** (armas y conejos). Se gasta al recibir golpes y se regenera.
+- **Cadencia:** golpes por segundo del arma. La cadencia real es la del arma (según su nivel) **más** este bonus del personaje (ver 8.5).
+- **Escudo (físico):** reserva que absorbe el **daño físico** (armas e invocaciones). Se gasta al recibir golpes y se regenera.
 - **Escudo mágico:** reserva que absorbe el **daño mágico** (habilidades que consumen energía). Se gasta y regenera igual que el físico.
 - **Energía:** coste de las habilidades. Regenera **+1 cada 3 s** quieto y **+1 cada 6 s** en movimiento.
 
@@ -97,7 +99,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 
 El daño se divide en dos tipos:
 
-- **Físico:** el de las herramientas (espadas, dagas, mandoble) y los conejos.
+- **Físico:** el de las herramientas (espadas, dagas, mandoble, también la espada del maniquí) y las invocaciones (conejos y lobos).
 - **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica, Cortar, Onda Sonora). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
 
 Cada tipo lo amortigua su propio escudo del personaje:
@@ -109,7 +111,7 @@ Cada tipo lo amortigua su propio escudo del personaje:
 
 El escudo absorbe su parte hasta agotarse; si esa parte supera el escudo disponible, el sobrante pasa también a la vida. Ambos escudos empiezan en **0**, se mejoran **+5 por punto hasta un máximo de 15** y luego **+2 por punto**, y **se regeneran +1 por segundo tras 10 s sin recibir ese tipo de daño** (cada uno con su propio contador). El daño de terreno (lago profundo, hierba venenosa) ignora los escudos y se aplica directo a la vida.
 
-**Anulación del escudo mágico (pasiva de Cortar):** el escudo absorbe el golpe con las reglas normales y, si el golpe llegó a hacer daño, el escudo restante queda **anulado 10 s**: se muestra en 0, no absorbe nada (el daño mágico va directo a la vida) y no se regenera. Al terminar **vuelve al valor que le quedó tras el golpe** (ej. 100 → el corte lo deja en 25 → 0 durante 10 s → vuelve a 25). Otro corte durante la anulación reinicia los 10 s. En el panel se ve como **ANULADO**.
+**Anulación del escudo mágico (pasiva de Cortar):** el escudo absorbe el golpe con las reglas normales y, si el golpe llegó a hacer daño, el escudo restante queda **anulado 8 s**: se muestra en 0, no absorbe nada (el daño mágico va directo a la vida) y no se regenera. Al terminar **vuelve al valor que le quedó tras el golpe** (ej. 100 → el corte lo deja en 25 → 0 durante 8 s → vuelve a 25). Otro corte durante la anulación reinicia los 8 s. En el panel se ve como **ANULADO**.
 
 Si el **Reforzamiento Mágico** está activo, su campo de fuerza recibe primero cualquier daño físico o mágico; solo lo que sobra cuando se rompe llega a los escudos y a la vida (ver 9.7).
 
@@ -126,17 +128,18 @@ El personaje empieza con **3 puntos de mejora** y gana **3 por cada nivel**. Son
 
 ## 8. Herramientas (armas)
 
-Se saca o guarda con la tecla **[1]**. Desenfundada reduce la velocidad y permite hacer daño. Hay **cinco** a elegir en la creación. Nivel máximo **5**; al alcanzarlo, la hoja toma un tono dorado.
+Se saca o guarda con la tecla **[1]** y se golpea con **[Espacio]** (ver 8.5; el Arco carga y dispara, ver 8.6). Desenfundada reduce la velocidad. Hay **seis** a elegir en la creación. Nivel máximo **5**; al alcanzarlo, la hoja toma un tono dorado.
 
 ### 8.1 Comparativa
 
-| Arma | Nivel | Daño (×Fuerza) | Debuff velocidad | Durabilidad |
-|---|---|---|---|---|
-| Espada Ligera | 1 → 5 | ×2.2 → ×3.0 | −17 % → −5 % | 220 → 300 |
-| Espada Larga | 1 → 5 | ×3.4 → ×5.0 | −34 % → −10 % | 190 → 230 |
-| Mandoble | 1 → 5 | ×6.6 → ×9.0 | −70 % → −30 % | 148 → 180 |
-| Dagas Simples | 1 → 5 | ×1.5 → ×2.5 | −20 % → **+10 % (buff)** | 150 → 400 (compartida) |
-| Escudo | 1 → 5 | — (no golpea) | −34 % → −10 % | 100 → 300 |
+| Arma | Nivel | Daño (×Fuerza) | Debuff velocidad | Durabilidad | Cadencia (golpes/s) | Empuje |
+|---|---|---|---|---|---|---|
+| Espada Ligera | 1 → 5 | ×2.2 → ×3.0 | −17 % → −5 % | 220 → 300 | 1.475 → 1.775 | 8 |
+| Espada Larga | 1 → 5 | ×3.4 → ×5.0 | −34 % → −10 % | 190 → 230 | 1.06 → 1.30 | 12 |
+| Mandoble | 1 → 5 | ×6.6 → ×9.0 | −70 % → −30 % | 148 → 180 | 0.64 → 0.80 | 20 |
+| Dagas Simples | 1 → 5 | ×1.5 → ×2.5 | −20 % → **+10 % (buff)** | 150 → 400 (compartida) | 2.125 → 2.625 | 4 |
+| Escudo | 1 → 5 | — (no golpea) | −34 % → −10 % | 100 → 300 | — | — |
+| Arco | 1 → 5 | ×5.0 → ×10.0 (según la carga) | −15 % → −3 % | 100 → 150 | — (carga, ver 8.6) | 25 |
 
 > El daño se calcula sobre la **fuerza actual**, así que también se beneficia de Burst de Fuerza.
 
@@ -147,13 +150,50 @@ Se saca o guarda con la tecla **[1]**. Desenfundada reduce la velocidad y permit
 
 ### 8.3 Durabilidad y rotura
 
-- **Desgaste:** cada golpe que hace daño gasta 1 punto de durabilidad.
+- **Desgaste:** cada golpe que hace daño gasta 1 punto de durabilidad, y cada **choque de armas** gasta 1 punto a cada arma (ver 8.5).
 - **Rotura:** al llegar a 0, el arma se rompe, pierde todos los niveles (vuelve a nivel 1) y queda inutilizable.
 - **Reparación:** la única forma de repararla es **subirla de nivel**; recupera toda su durabilidad.
 
 ### 8.4 Diferencias estéticas de tamaño
 
 Solo visual: Espada Ligera 20 % más grande; Espada Larga 20 % más larga y 10 % más ancha; Mandoble 20 % más largo y 30 % más ancho.
+
+### 8.5 Golpe con el arma (combate cuerpo a cuerpo)
+
+- **Golpear:** con el arma desenfundada (y sin romper), **[Espacio]** lanza un golpe. **Mantener [Espacio]** encadena golpes seguidos al ritmo de la cadencia. El Escudo no golpea.
+- **Animación:** la hoja barre un **arco** (de 70° a −40°) durante **0.18 s**, con un destello blanco en el filo. La **hitbox del arma está activa durante toda la animación**, y cada golpe solo puede dañar **una vez** a cada enemigo.
+- **Cadencia:** golpes por segundo = cadencia del arma (sube con su nivel) **+** bonus de cadencia del personaje (+0.1 por punto). El tiempo entre golpes es 1 / cadencia. El panel izquierdo muestra la cadencia real.
+- **Al acertar en el cuerpo:** hace el daño del arma (físico, Fuerza × multiplicador), gasta 1 de durabilidad y **empuja** al enemigo con los puntos de empuje fijos del arma (dagas 4, ligera 8, larga 12, mandoble 20).
+- **Choque de armas:** si durante el golpe tu hoja toca la espada del enemigo, **chocan**: ambos salen repelidos con la misma fuerza (la mayor de los empujes de las dos armas), las **dos armas pierden 1 de durabilidad** y ese golpe ya no daña el cuerpo. El choque tiene **prioridad** sobre el golpe al cuerpo.
+
+### 8.6 Arco (daño físico a distancia)
+
+Arma de **daño físico** que dispara **flechas de energía** (la energía es solo su aspecto y lo que cuesta comprarlas; el daño es físico y lo amortigua el escudo físico). No golpea cuerpo a cuerpo y no tiene hitbox de hoja, así que **no choca** con las espadas.
+
+- **Cargar y disparar:** con el arco desenfundado, **mantén [Espacio]** para tensar la cuerda y **suelta** para disparar hacia donde mira el personaje. Cuentan los **segundos completos** de carga:
+
+| Carga | Alcance | Daño (% del daño del arma) |
+|---|---|---|
+| menos de 1 s | — (no dispara ni gasta flecha, para evitar el spam) | — |
+| 1 s | 100 | 20 % |
+| 2 s | 150 | 40 % |
+| 3 s | 200 | 60 % |
+| 4 s | 250 | 80 % |
+| 5 s o más | 300 | **100 %** (se queda al máximo hasta soltar) |
+
+- **Moverse cargando:** se puede, con una ralentización extra de **−10 %** de velocidad mientras se tensa (se suma al debuff del arma). Guardar el arco cancela la carga.
+- **La flecha:** el daño se calcula al soltar (Fuerza actual × multiplicador × % de la carga). Se detiene en el **primer enemigo** que toca: le hace el daño físico, lo **empuja 25 puntos** y gasta **1 de durabilidad** del arco. Las **rocas la bloquean** (desaparece) y **atraviesa los arbustos** sin romperlos. Si no choca con nada, se queda **clavada** al final de su alcance **3 s** solo como ambientación (ya no hace daño).
+- **Carcaj y compra de flechas:** el arco empieza con el carcaj lleno. Las flechas se compran en **lotes de 10** con energía, con **[R]** o con el botón del panel izquierdo. Las que **no caben se pierden** y la energía se cobra entera (ej. con 9 de 10 y comprando 10, solo se suma 1). No se puede comprar con el carcaj lleno ni sin energía suficiente. Si el arco **se rompe**, vuelve a nivel 1 y el carcaj se reduce a 10.
+
+| Nivel | Daño (×Fuerza) | Daño con Fuerza 2 (5 s) | Debuff velocidad | Durabilidad | Carcaj | Lote de 10 flechas |
+|---|---|---|---|---|---|---|
+| 1 | ×5.0 | 10 | −15 % | 100 | 10 | 10 En. |
+| 2 | ×6.25 | 12.5 | −12 % | 110 | 15 | 15 En. |
+| 3 | ×7.5 | 15 | −9 % | 120 | 20 | 20 En. |
+| 4 | ×8.75 | 17.5 | −6 % | 130 | 25 | 25 En. |
+| 5 | ×10.0 | 20 | −3 % | 150 | 30 | 30 En. |
+
+El coste del lote **sube** con el nivel a propósito. **Aspecto:** arco de madera delante del personaje; la cuerda se tensa según la carga y muestra la flecha cian encajada. En el panel izquierdo se ven las flechas (x / carcaj), la carga actual (alcance y %) con su barra, y el botón de compra (gris si no se puede).
 
 ---
 
@@ -171,7 +211,7 @@ Buff de fuerza **+21 % → +40 %**, duración **6 → 10 s**, recarga **12 → 8
 
 ### 9.3 Disparo Veloz
 
-Esfera recta. Velocidad del proyectil **11 → 30**, daño **20.5 % → 30 %** del daño total, coste fijo **15 → 35 En.** (15 +5 cada 5 niveles), recarga **2 → 0.5 s**.
+Esfera recta. Velocidad del proyectil **11 → 30**, daño **20.5 % → 30 %** del daño total, coste fijo **15 → 35 En.** (15 +5 cada 5 niveles), recarga **2 → 0.5 s**. Se detiene en el **primer enemigo** que toca (daño mágico) o en las rocas.
 
 ### 9.4 Invocar Conejos
 
@@ -179,13 +219,13 @@ Invoca **5 conejos** detrás del personaje (esferas verdes con cara `:3`). No se
 
 ### 9.5 Carga de Fuego
 
-Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **20 → 39** (+1 por nivel). La carga añade daño (hasta **+25 %**) y tamaño. Al golpear aplica **quemadura**: 1 de daño por segundo durante 5 segundos.
+Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **20 → 39** (+1 por nivel). La carga añade daño (hasta **+25 %**) y tamaño. Se detiene en el **primer enemigo** que toca y le aplica **quemadura**: 1 de daño por segundo durante 5 segundos (**ignora escudos**, como el desangrado). **No es acumulable**: reaplicarla reinicia la duración y se queda con el mayor daño por segundo. El enemigo quemado muestra un **anillo naranja**.
 
 La energía se gasta **en tiempo real**: al pulsar se cobran 15 y cada segundo completo de carga cobra su parte (+5, +5, +5, +5 y +10; 45 en total a 5 s). Si no queda energía para el siguiente segundo, la carga se detiene en el nivel ya pagado y dispara con él al soltar.
 
 ### 9.6 Aura Eléctrica
 
-Aura de 100 px de radio que sigue al personaje. Buff de velocidad **+5 % → +15 %** y **1 → 5** de daño por segundo a los enemigos cercanos (preparado para cuando existan). Mientras está activa, el portador recibe **0.5 de daño mágico por segundo** (lo amortigua su escudo mágico). Duración **10 → 20 s**, recarga **40 → 60 s**, coste **20 → 58 En.** (+2 por nivel).
+Aura de 100 px de radio que sigue al personaje. Buff de velocidad **+5 % → +15 %** y **1 → 5** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico). Mientras está activa, el portador recibe **0.5 de daño mágico por segundo** (lo amortigua su escudo mágico). Duración **10 → 20 s**, recarga **40 → 60 s**, coste **20 → 58 En.** (+2 por nivel).
 
 ### 9.7 Reforzamiento Mágico
 
@@ -253,7 +293,7 @@ La vida sube **+3 por nivel**, la velocidad **+2 cada 5 niveles** y el daño esc
 
 ### 9.12 Modo combate (invocaciones sombrías)
 
-Conejos y lobos comparten el **modo combate**. Con la invocación ya activa, **mantener su tecla** ([2], [3] o [4]) las pone en guardia (se les **encienden los ojos** al instante). Mientras mantienes la tecla, el **clic derecho** da la orden:
+Conejos, lobos y la araña (ver 9.16) comparten el **modo combate**. Con la invocación ya activa, **mantener su tecla** ([2], [3] o [4]) las pone en guardia (se les **encienden los ojos** al instante). Mientras mantienes la tecla, el **clic derecho** da la orden:
 
 - **Clic derecho sobre un enemigo** (p. ej. el maniquí): lo fijan como objetivo y lo **persiguen aunque se mueva**, atacándolo hasta que muera. Al morir el objetivo vuelven a seguirte.
 - **Clic derecho en terreno libre**: van a ese punto.
@@ -261,29 +301,29 @@ Conejos y lobos comparten el **modo combate**. Con la invocación ya activa, **m
 
 La orden **persiste aunque sueltes la tecla**, así conservas tu movilidad (el **clic izquierdo** sigue moviendo solo a tu personaje) mientras las sombras siguen atacando. Con una orden en curso, **volver a mantener la tecla y soltarla sin dar otra orden** las devuelve al **estado pasivo** (te siguen); si mientras la mantienes das otra orden con el clic derecho, se queda la nueva. Atacan **por intervalos** (1 golpe/s por criatura) y, por el retroceso al golpear (ver sección 10), no apilan todo su daño de golpe.
 
-Los conejos tienen la cara `:3` con los **ojos rojos**, que en modo combate brillan con un halo.
+Los conejos tienen la cara `:3` con los **ojos rojos**, que en modo combate brillan con un halo. La araña es la excepción: el clic derecho **siempre la manda a un punto** (no persigue enemigos).
 
 ### 9.13 Cuerpos sólidos (sin solapamientos)
 
-El personaje, el maniquí y las invocaciones tienen **hitbox circular** (su radio): pueden **recibir daño** y **no se solapan** entre sí. Al chocar se separan según su **masa**: conejo 1, lobo 3, personaje 100 (sus invocaciones apenas lo desplazan) y maniquí fijo (nada lo mueve, salvo su propio retroceso). Con [H] se ven las hitboxes del maniquí y de las invocaciones (círculos magenta).
+El personaje, el maniquí y las invocaciones tienen **hitbox circular** (su radio): pueden **recibir daño** y **no se solapan** entre sí. Al chocar se separan según su **masa**: araña 0.6, conejo 1, lobo 3, personaje 100 (sus invocaciones apenas lo desplazan) y maniquí fijo (nada lo mueve, salvo su propio retroceso). Con [H] se ven las hitboxes del maniquí y de las invocaciones (círculos magenta).
 
 ### 9.14 Cortar
 
 Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
 
-- **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 10 s** (ver 6.3).
+- **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 8 s** (ver 6.3).
 - **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Si hay arbustos solapados (matorral), corta el más cercano. Los objetos destruidos **no reaparecen** (tampoco los frutales) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
 
 | Nivel | Daño | Velocidad | Coste En. | Recarga |
 |---|---|---|---|---|
-| 1 | 35 | 5 | 15 | 2 s |
-| 5 | 43 | 9 | 23 | 4 s |
-| 10 | 53 | 14 | 33 | 6 s |
-| 15 | 63 | 19 | 43 | 8 s |
-| 19 | 71 | 23 | 51 | 8 s |
-| 20 | 75 | 24 | 53 | 10 s |
+| 1 | 5 | 5 | 15 | 2 s |
+| 5 | 12.4 | 9 | 23 | 4 s |
+| 10 | 21.6 | 14 | 33 | 6 s |
+| 15 | 30.8 | 19 | 43 | 8 s |
+| 19 | 38.2 | 23 | 51 | 8 s |
+| 20 | 40 | 24 | 53 | 10 s |
 
-Daño **35 +2 por nivel** (a nivel 20 sube a **75**), velocidad **5 +1 por nivel**, coste **15 +2 por nivel** y recarga **2 s +2 s cada 5 niveles** (sube a propósito). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.11).
+Daño **5 → 40** lineal (redondeado a 1 decimal), velocidad **5 +1 por nivel**, coste **15 +2 por nivel** y recarga **2 s +2 s cada 5 niveles** (sube a propósito). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.11).
 
 ### 9.15 Onda Sonora
 
@@ -317,21 +357,45 @@ La onda viaja a **300 px/s** y al **doble (600 px/s)** si se lanza desde el agua
 
 Radio **200 → 400** y recarga **10 → 30 s** lineales (la recarga sube a propósito); coste **10 +5 cada 5 niveles** (máx. 30). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.12).
 
+### 9.16 Sombra Araña
+
+Invocación **mágica** (tercera de las 10 Artes de las Sombras). Invoca **una araña** detrás del personaje: esfera oscura pequeña con 8 patas y ojos rojos, **1 de vida**, sin ataque. Si no recibe orden, te sigue como las demás invocaciones.
+
+- **Orden:** mantén la tecla (los ojos se encienden) y marca un **punto** con el clic derecho. La araña va hasta allí (no persigue enemigos).
+- **Telaraña:** al llegar teje una **telaraña en el suelo** (círculo con radios, algo más grande que el personaje: 1.6 veces su radio) y desaparece. Es una **trampa de un solo uso**: el **primer enemigo** que la pisa queda **inmovilizado** (no puede moverse, pero sí atacar) y la telaraña se consume. Los enemigos no la ven ni la evitan. El enemigo inmovilizado muestra un **anillo gris azulado**.
+- **Límite:** máximo **3 telarañas** a la vez; tejer una cuarta quita la más vieja.
+- **Recarga:** **5 s** fijos, que empiezan al tejer o si la araña muere antes de llegar (en ese caso no hay telaraña).
+- **Nivel 20:** la telaraña además hace **1 de daño mágico por segundo** mientras dura la inmovilización: lo amortigua el **escudo mágico** del enemigo (bloqueo 10 %, reparto 90 / 10, ver 6.3) y no lo empuja.
+
+| Nivel | Coste En. | Inmovilización |
+|---|---|---|
+| 1 | 50 | 5 s |
+| 5 | 61 | 8.2 s |
+| 10 | 74 | 12.1 s |
+| 15 | 87 | 16.1 s |
+| 20 | 100 | 20 s (+1 daño mágico/s) |
+
+Coste **50 → 100 En.** e inmovilización **5 → 20 s**, ambos lineales. Nivel máximo **20**. En el panel derecho muestra la inmovilización actual y las telarañas colocadas (x/3). Tabla completa en `Tablas_Escalado.md` (2.13).
+
 ## 10. Puntos de empuje (retroceso)
 
-Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. La **quemadura** de la Carga de Fuego (1/s por 5 s) sigue preparada para el combate contra enemigos.
+Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. Los **golpes con arma** no usan esta regla: empujan con los puntos fijos de cada arma (ver 8.5), y en el **choque de armas** ambos retroceden con la misma fuerza.
 
-### 10.1 Maniquí de pruebas
+### 10.1 Maniquí de pruebas (beta de enemigos)
 
-En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar). No ataca, pero **recibe daño y desangrado** para probar las invocaciones y las habilidades. Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); si lo destruyen, **reaparece a los 5 s** con la vida llena.
+En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar).
+
+- **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
+- **Daño recibido:** le afectan el arma del personaje y **todas las habilidades con daño**: Disparo Veloz, Carga de Fuego (con quemadura), Cortar, Onda Sonora, Aura Eléctrica, las invocaciones (con el desangrado de los lobos) y la telaraña de la Sombra Araña (inmovilización). Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); mientras está **inmovilizado** no retrocede ni vuelve. Si lo destruyen, **reaparece a los 5 s** con la vida y los escudos llenos y una espada nueva.
 
 ---
 
 ## 11. Interfaz
 
 - **Pantalla de creación (a pantalla completa y adaptable):** se escala al tamaño de la pantalla (diseño base 1600x900, factor 0.6–1.6) y se reorganiza al ancho disponible: en pantallas anchas va en **dos columnas** (personaje, herramienta y estadísticas a la izquierda; habilidades a la derecha) y en estrechas en **una**. Las tarjetas se reparten en filas según quepan, los nombres largos reducen su fuente para no cortarse y, si el contenido no cabe en alto, aparece una **barra de desplazamiento** (rueda del ratón). El botón **Comenzar mundo** queda **fijo abajo**, siempre visible. [ESC] sale de pantalla completa y la interfaz se reacomoda sola. Contiene nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Las habilidades se agrupan **por categorías en columnas** (Artes de las Sombras, Potenciadores, Ataque Mágico, Defensa y Soporte, Especiales), pensado para escalar al añadir más. Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro; el texto de cada habilidad vive **solo** en ese **[?]**.
-- **Panel izquierdo (en juego):** nivel y puntos, tarjeta del arma (nombre, nivel, daño, debuff/buff y barra de durabilidad) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), Energía, **Escudo** y **Escudo M.** (actual / máximo).
-- **Panel derecho (en juego):** una tarjeta por habilidad con tecla, nivel, coste, estado, recarga y botón **[+]**.
+- **Panel izquierdo (en juego):** nivel y puntos, tarjeta del arma (nombre, nivel, daño y cadencia real "Daño X · Cad Y/s", debuff/buff y barra de durabilidad; con el **Arco**: flechas en el carcaj, carga actual con su barra y botón de compra de flechas) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), **Cadencia** (la real con el arma desenfundada; si no, el bonus del personaje), Energía, **Escudo** y **Escudo M.** (actual / máximo). Abajo, el botón **Volver a selección [M]**.
+- **Panel derecho (en juego):** más ancho y con letra más grande y de alto contraste. Una tarjeta por habilidad con tecla, nivel, coste, estado, recarga, resumen del efecto según el nivel y botón **[+]**.
+- **Volver a selección:** el botón del panel izquierdo o **[M]** cierran el mundo y reabren la pantalla de creación para probar otro personaje sin salir del juego.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
 - **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo u oculto en un arbusto.
 
@@ -343,6 +407,8 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 |---|---|
 | Clic izquierdo | Mover el personaje (o pulsar botones [+] y [?] de la interfaz) |
 | [1] | Sacar / guardar la herramienta |
+| [Espacio] | Golpear con el arma (mantener = golpes seguidos según la cadencia). Con el **Arco**: mantener = cargar, soltar = disparar |
+| [R] | Arco: comprar un lote de 10 flechas con energía (también con el botón del panel izquierdo) |
 | [2] [3] [4] | Usar las habilidades equipadas (mantener pulsado para cargar la Carga de Fuego) |
 | Mantener [2] [3] [4] | Poner esa invocación sombría en **modo combate** (ojos encendidos) |
 | Clic derecho (en modo combate) | Enviar a las sombras a un punto o a perseguir y atacar al enemigo bajo el clic (la orden persiste al soltar la tecla) |
@@ -351,12 +417,12 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 | [H] | Mostrar / ocultar las hitboxes |
 | [L] | (Prueba) Subir de nivel al personaje (+3 puntos) |
 | [J] | (Prueba) Simular un golpe del arma (desgasta durabilidad) |
+| [M] | Volver a la pantalla de selección (también con el botón del panel izquierdo) |
 | [ESC] | Salir del juego |
 
 ---
 
 ## 13. Pendiente (a futuro)
 
-- Sistema de **enemigos y combate**, que activará el daño real del arma y las habilidades, el desgaste de la durabilidad, los puntos de empuje, la quemadura y una fuente de experiencia para subir de nivel sin teclas de prueba.
-- La **segunda daga** de las Dagas Simples y los conejos ya pueden hacer daño cuando exista un objetivo.
+- **Enemigos reales:** generalizar el maniquí (beta) a varios enemigos con IA propia, y añadir una fuente de experiencia para subir de nivel sin teclas de prueba.
 - Mecánica adicional prevista a partir del **nivel 20** del personaje.

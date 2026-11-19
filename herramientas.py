@@ -509,6 +509,214 @@ class Escudo(HerramientaBase):
 
 
 # -----------------------------
+# PROYECTIL: FLECHA DE ENERGÍA (ARCO)
+# -----------------------------
+class Flecha:
+    """Flecha del Arco: proyectil recto de daño FISICO con aspecto de energia. El mundo la
+    detiene en el primer enemigo que toca y las rocas la bloquean; atraviesa los arbustos.
+    Si no choca con nada, al llegar al final de su alcance se queda clavada en el suelo
+    TIEMPO_CLAVADA segundos solo como ambientacion (ya no hace daño)."""
+    VELOCIDAD = 12.0        # px por frame (como los demas proyectiles)
+    LARGO = 16              # largo dibujado de la flecha
+    TIEMPO_CLAVADA = 3.0    # segundos que queda en el suelo al final del alcance
+    radio = 3
+
+    def __init__(self, x, y, direccion, dano, alcance, puntos_empuje, arco):
+        self.posicion = pygame.Vector2(x, y)
+        self.origen = pygame.Vector2(x, y)
+        d = pygame.Vector2(direccion)
+        self.direccion = d.normalize() if d.length_squared() > 0 else pygame.Vector2(0, -1)
+        self.velocidad = self.VELOCIDAD
+        self.dano = dano
+        self.tipo_dano = "fisico"
+        self.alcance = alcance
+        self.puntos_empuje = puntos_empuje   # empuje fijo del arma al acertar
+        self.arco = arco                     # se desgasta cuando la flecha hace daño
+        self.activo = True
+        self.clavada = False
+        self.tiempo_clavada = 0.0
+        self.hitbox = pygame.Rect(round(x - self.radio), round(y - self.radio), self.radio * 2, self.radio * 2)
+
+    def actualizar(self, dt, limites_mundo):
+        if self.clavada:
+            self.tiempo_clavada -= dt
+            if self.tiempo_clavada <= 0:
+                self.activo = False
+            return
+        restante = self.alcance - (self.posicion - self.origen).length()
+        paso = max(0.0, min(self.velocidad, restante))
+        self.posicion += self.direccion * paso
+        self.hitbox.x = round(self.posicion.x - self.radio)
+        self.hitbox.y = round(self.posicion.y - self.radio)
+        if paso >= restante:
+            self.clavada = True
+            self.tiempo_clavada = self.TIEMPO_CLAVADA
+        min_x, min_y, max_x, max_y = limites_mundo
+        if not (min_x <= self.posicion.x <= max_x and min_y <= self.posicion.y <= max_y):
+            self.activo = False
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        punta = self.posicion - pygame.Vector2(desplazamiento)
+        cola = punta - self.direccion * self.LARGO
+        lateral = pygame.Vector2(-self.direccion.y, self.direccion.x)
+        base_punta = punta - self.direccion * 5
+        if self.clavada:
+            col_cuerpo, col_punta = (90, 140, 160), (120, 175, 195)
+        else:
+            col_cuerpo, col_punta = (120, 230, 255), (235, 255, 255)
+            pygame.draw.line(pantalla, (40, 120, 170), cola, punta, 4)    # resplandor de energia
+        pygame.draw.line(pantalla, col_cuerpo, cola, punta, 2)
+        pygame.draw.polygon(pantalla, col_punta, [punta, base_punta + lateral * 3, base_punta - lateral * 3])
+        pygame.draw.line(pantalla, col_cuerpo, cola, cola - self.direccion * 3 + lateral * 3, 1)   # plumas
+        pygame.draw.line(pantalla, col_cuerpo, cola, cola - self.direccion * 3 - lateral * 3, 1)
+
+
+# -----------------------------
+# HERRAMIENTA: ARCO (daño físico a distancia, dispara flechas cargadas)
+# -----------------------------
+class Arco(HerramientaBase):
+    """Arco: no golpea cuerpo a cuerpo. Manteniendo [Espacio] se carga la flecha y al soltar
+    se dispara segun los segundos COMPLETOS de carga (menos de 1 s no dispara, para evitar el
+    spam; a partir de 5 s se queda al 100 % hasta soltar). Mientras carga, el portador va un
+    10 % mas lento. Las flechas salen de un carcaj que se rellena comprando lotes de 10 con
+    energia; las que no caben se pierden (y la energia se cobra entera)."""
+    # Segundos completos de carga -> (alcance en px, porcentaje del daño del arma)
+    TRAMOS_CARGA = {1: (100, 0.20), 2: (150, 0.40), 3: (200, 0.60), 4: (250, 0.80), 5: (300, 1.00)}
+    CARGA_MAX = 5.0
+    RALENTIZACION_CARGA = 0.10
+    DURABILIDAD_POR_NIVEL = (100, 110, 120, 130, 150)
+    CAPACIDAD_CARCAJ = (10, 15, 20, 25, 30)     # flechas maximas por nivel
+    COSTO_LOTE_FLECHAS = (10, 15, 20, 25, 30)   # energia por cada lote de 10 flechas, por nivel
+    FLECHAS_POR_LOTE = 10
+
+    def __init__(self):
+        self.flechas = 0   # se llena al final; _aplicar_nivel lo ajusta a la capacidad
+        super().__init__(
+            nombre="Arco",
+            cadencia_base=0.0, cadencia_por_nivel=0.0, puntos_empuje=25,   # no golpea cuerpo a cuerpo
+            tecla=pygame.K_1,
+            tecla_str="1",
+            mult_dano_base=3.75, mult_dano_por_nivel=1.25,      # Daño = Fuerza x (5.0 a 10.0)
+            debuff_base=0.18, debuff_reduccion_por_nivel=0.03,  # -15% a -3% de velocidad
+            durabilidad_base=0, durabilidad_por_nivel=0,        # usa DURABILIDAD_POR_NIVEL
+            inclinacion=0.0,
+            factor_largo=1.0,
+        )
+        self.cargando = False
+        self.tiempo_carga = 0.0
+        self.flechas = self.capacidad_carcaj   # empieza con el carcaj lleno
+        self.color_hoja = (150, 105, 60)        # madera
+        self.color_empunadura = (225, 225, 210) # cuerda
+        self.color_filo = (120, 230, 255)       # flecha de energia
+
+    def _aplicar_nivel(self, reparar=False):
+        super()._aplicar_nivel(reparar=False)
+        self.durabilidad_max = self.DURABILIDAD_POR_NIVEL[self.nivel - 1]
+        if reparar:
+            self.durabilidad = self.durabilidad_max
+        self.capacidad_carcaj = self.CAPACIDAD_CARCAJ[self.nivel - 1]
+        self.costo_flechas = self.COSTO_LOTE_FLECHAS[self.nivel - 1]
+        self.flechas = min(self.flechas, self.capacidad_carcaj)
+
+    def _romper(self):
+        super()._romper()
+        self.cancelar_carga()
+        self._aplicar_nivel()   # vuelve a nivel 1: el carcaj se reduce a su capacidad
+
+    def toggle(self):
+        cambiado = super().toggle()
+        if not self.activa:
+            self.cancelar_carga()
+        return cambiado
+
+    def actualizar_hitbox(self, jugador):
+        self.hitbox = None   # sin hitbox cuerpo a cuerpo (no golpea ni choca con espadas)
+
+    # --- Carga y disparo ---
+    @property
+    def tramo_carga(self):
+        """Segundos completos de carga (0 a 5)."""
+        return int(min(self.tiempo_carga, self.CARGA_MAX))
+
+    @property
+    def ralentizacion_carga(self):
+        return self.RALENTIZACION_CARGA if self.cargando else 0.0
+
+    def iniciar_carga(self):
+        """Empieza a tensar si esta desenfundado, sin romper y con flechas."""
+        if self.activa and not self.roto and self.flechas > 0:
+            self.cargando = True
+            self.tiempo_carga = 0.0
+            return True
+        return False
+
+    def cancelar_carga(self):
+        self.cargando = False
+        self.tiempo_carga = 0.0
+
+    def actualizar(self, dt, jugador=None):
+        super().actualizar(dt, jugador)
+        if self.cargando:
+            if not self.activa or self.roto:
+                self.cancelar_carga()
+            else:
+                self.tiempo_carga = min(self.CARGA_MAX, self.tiempo_carga + dt)
+
+    def soltar_carga(self, jugador):
+        """Al soltar [Espacio]: devuelve la Flecha disparada, o None si la carga no llego a 1 s."""
+        if not self.cargando:
+            return None
+        tramo = self.tramo_carga
+        self.cancelar_carga()
+        if tramo < 1 or self.flechas <= 0:
+            return None
+        alcance, porcentaje = self.TRAMOS_CARGA[tramo]
+        self.flechas -= 1
+        rad = math.radians(jugador.angulo)
+        frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
+        salida = jugador.posicion + frente * (jugador.radio + 4)
+        dano = round(self.calcular_dano(jugador) * porcentaje, 2)
+        return Flecha(salida.x, salida.y, frente, dano, alcance, self.puntos_empuje, self)
+
+    def comprar_flechas(self, jugador):
+        """Compra un lote de 10 flechas con energia. Las que no caben en el carcaj se pierden.
+        No compra si el carcaj esta lleno o no hay energia suficiente."""
+        if self.flechas >= self.capacidad_carcaj or jugador.energia < self.costo_flechas:
+            return False
+        jugador.energia -= self.costo_flechas
+        self.flechas = min(self.capacidad_carcaj, self.flechas + self.FLECHAS_POR_LOTE)
+        return True
+
+    def dibujar(self, pantalla, jugador, desplazamiento=(0, 0)):
+        """Arco delante del personaje; la cuerda se tensa con la carga y muestra la flecha."""
+        if not self.activa or self.roto:
+            return
+        color_madera, color_cuerda, color_flecha = self._colores_actuales()
+        rad = math.radians(jugador.angulo)
+        frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
+        derecha = pygame.Vector2(math.cos(rad), math.sin(rad))
+        centro = jugador.posicion - pygame.Vector2(desplazamiento) + frente * (jugador.radio + 4)
+        media = max(12.0, jugador.radio * 0.9)   # media longitud del arco
+        curva = media * 0.45
+        puntos = []
+        for i in range(9):
+            t = -1.0 + 2.0 * i / 8
+            puntos.append(centro + derecha * (t * media) + frente * (curva * (1 - t * t)))
+        pygame.draw.lines(pantalla, (18, 22, 28), False, puntos, 5)
+        pygame.draw.lines(pantalla, color_madera, False, puntos, 3)
+        tension = (self.tiempo_carga / self.CARGA_MAX) * media * 0.6 if self.cargando else 0.0
+        culata = centro - frente * tension
+        pygame.draw.line(pantalla, color_cuerda, puntos[0], culata, 1)
+        pygame.draw.line(pantalla, color_cuerda, culata, puntos[-1], 1)
+        if self.cargando:
+            punta = culata + frente * (Flecha.LARGO + curva + 4)
+            pygame.draw.line(pantalla, color_flecha, culata, punta, 2)
+            lateral = derecha * 3
+            base = punta - frente * 5
+            pygame.draw.polygon(pantalla, (235, 255, 255), [punta, base + lateral, base - lateral])
+
+
+# -----------------------------
 # CATÁLOGO DE HERRAMIENTAS DISPONIBLES
 # -----------------------------
 HERRAMIENTAS_DISPONIBLES = {
@@ -517,6 +725,7 @@ HERRAMIENTAS_DISPONIBLES = {
     "Mandoble": Mandoble,
     "Dagas Simples": DagasSimples,
     "Escudo": Escudo,
+    "Arco": Arco,
 }
 
 def crear_herramienta(nombre):

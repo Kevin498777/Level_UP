@@ -7,7 +7,7 @@ PIXELES_POR_PUNTO_EMPUJE = 6
 
 # Anulacion del escudo magico (pasiva de Cortar): el escudo queda en 0 y sin regenerar
 # durante este tiempo; al terminar vuelve al valor que tenia justo despues del golpe.
-DURACION_ANULACION_ESCUDOM = 10.0
+DURACION_ANULACION_ESCUDOM = 8.0
 
 
 def anular_escudo_magico(objetivo):
@@ -574,14 +574,15 @@ class CuchillaCortante:
 # -----------------------------
 class Cortar(HabilidadBase):
     """Lanza en linea recta una cuchilla cortante (dano magico). Si llega a hacer dano, anula
-    el escudo magico del enemigo 10 s. Destruye una roca o un arbusto al chocar (gigantes y
+    el escudo magico del enemigo 8 s. Destruye una roca o un arbusto al chocar (gigantes y
     arbustos grandes solo a nivel 20)."""
-    DANO_NIVEL_MAX = 75
+    DANO_NIVEL_1 = 5
+    DANO_NIVEL_MAX = 40
 
     def __init__(self):
         super().__init__(
             nombre="Cortar",
-            descripcion="Cuchilla recta de daño mágico. Anula el escudo mágico 10s y destruye una roca o arbusto.",
+            descripcion="Cuchilla recta de daño mágico. Anula el escudo mágico 8s y destruye una roca o arbusto.",
             costo_energia=15,
             duracion_activa=0.0,
             duracion_cooldown=2.0,
@@ -593,14 +594,14 @@ class Cortar(HabilidadBase):
     def _aplicar_nivel(self):
         """
         Escalado de Cortar (nivel 1 a 20):
-        - Dano: 35 + 2 por nivel (nv19 = 71); a nivel 20 sube a 75
+        - Dano: 5 (nv1) -> 40 (nv20), lineal (redondeado a 1 decimal)
         - Velocidad de la cuchilla: 5 + 1 por nivel (nv20 = 24)
         - Coste: 15 + 2 por nivel (nv20 = 53)
         - Recarga: 2s + 2s cada 5 niveles (nv20 = 10s); sube a proposito
         - A nivel 20 corta rocas gigantes y arbustos grandes
         """
         n = self.nivel
-        self.dano = self.DANO_NIVEL_MAX if n >= self.nivel_max else 35 + 2 * (n - 1)
+        self.dano = round(self.DANO_NIVEL_1 + (self.DANO_NIVEL_MAX - self.DANO_NIVEL_1) * (n - 1) / (self.nivel_max - 1), 1)
         self.velocidad_cuchilla = 5 + (n - 1)
         self.costo_energia = 15 + 2 * (n - 1)
         self.duracion_cooldown = 2.0 + 2.0 * (n // 5)
@@ -2222,7 +2223,10 @@ class GolpeDeSuerte(HabilidadBase):
 # -----------------------------
 class EfectoInmovilizado:
     """Inmoviliza a un enemigo (no se mueve) durante una duracion. Puede hacer dano por
-    segundo (telarana de nivel 20). Ignora escudos. No acumulable: se sobreescribe."""
+    segundo (telarana de nivel 20): es dano MAGICO, asi que lo amortigua el escudo magico
+    del objetivo (sin empuje, porque esta inmovilizado). No acumulable: se sobreescribe."""
+    TIPO_DANO = "magico"
+
     def __init__(self, duracion, dano_por_segundo=0):
         self.duracion = duracion
         self.restante = duracion
@@ -2241,7 +2245,7 @@ class EfectoInmovilizado:
             self._acum += dt
             while self._acum >= 1.0:
                 self._acum -= 1.0
-                objetivo.vida = max(0.0, round(objetivo.vida - self.dano, 2))
+                objetivo.recibir_dano(self.dano, self.TIPO_DANO)
         if self.restante < 0:
             self.restante = 0
 

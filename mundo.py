@@ -287,7 +287,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     # Tarjeta de Herramienta / Arma
     arma = jugador.herramienta
     arma_y = avatar_y + 60
-    arma_h = 84
+    es_arco = arma is not None and hasattr(arma, "comprar_flechas")
+    arma_h = 136 if es_arco else 84   # el Arco suma la fila de carga y la compra de flechas
     pygame.draw.rect(pantalla, (28, 33, 44), (x + 12, arma_y, ancho - 24, arma_h), border_radius=6)
     if arma and arma.roto:
         color_borde_arma = (210, 80, 70)
@@ -335,6 +336,9 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             txt_est_arma = fuente_mini.render(f"DESENFUNDADA ({txt_vel})", True, color_est)
             if arma.es_escudo:
                 txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 200, 255))
+            elif es_arco:
+                dano_arma = arma.calcular_dano(jugador)
+                txt_dano = fuente_mini.render(f"Daño {dano_arma:.1f} · Flechas {arma.flechas}/{arma.capacidad_carcaj}", True, (255, 215, 0))
             else:
                 dano_arma = arma.calcular_dano(jugador)
                 txt_dano = fuente_mini.render(f"Daño {dano_arma:.1f} · Cad {arma.cadencia_efectiva(jugador):.2f}/s", True, (255, 215, 0))
@@ -342,6 +346,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             txt_est_arma = fuente_mini.render("GUARDADA (Pulsa [1])", True, (140, 150, 170))
             if arma.es_escudo:
                 txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 150, 180))
+            elif es_arco:
+                txt_dano = fuente_mini.render(f"Daño: Fuerza x{arma.multiplicador_dano:.2f} · Flechas {arma.flechas}/{arma.capacidad_carcaj}", True, (180, 160, 90))
             else:
                 txt_dano = fuente_mini.render(f"Daño: Fuerza x{arma.multiplicador_dano:.1f}", True, (180, 160, 90))
 
@@ -358,14 +364,42 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         if not arma.roto and prog_dur > 0:
             pygame.draw.rect(pantalla, col_dur, (x + 20, arma_y + 71, int(bw * prog_dur), 6), border_radius=3)
 
+        if es_arco:
+            # Carga actual: tramo completo alcanzado (alcance y % de daño) y barra hasta 5 s
+            if arma.cargando and arma.tramo_carga >= 1:
+                alcance, pct = arma.TRAMOS_CARGA[arma.tramo_carga]
+                txt_carga = f"Carga {arma.tiempo_carga:.1f}s · {alcance} px · {pct * 100:.0f}%"
+                col_carga = (130, 225, 255)
+            elif arma.cargando:
+                txt_carga = f"Carga {arma.tiempo_carga:.1f}s · sin disparo (<1s)"
+                col_carga = (200, 170, 120)
+            else:
+                txt_carga = "Mantén [Espacio] para cargar"
+                col_carga = (140, 150, 170)
+            pantalla.blit(fuente_mini.render(txt_carga, True, col_carga), (x + 20, arma_y + 82))
+            prog_carga = arma.tiempo_carga / arma.CARGA_MAX
+            pygame.draw.rect(pantalla, (40, 45, 55), (x + 20, arma_y + 97, bw, 6), border_radius=3)
+            if prog_carga > 0:
+                pygame.draw.rect(pantalla, (120, 220, 255), (x + 20, arma_y + 97, int(bw * prog_carga), 6), border_radius=3)
+
+            # Boton de compra de flechas (lote de 10). Gris si el carcaj esta lleno o falta energia
+            puede_comprar = arma.flechas < arma.capacidad_carcaj and jugador.energia >= arma.costo_flechas
+            rect_flechas = pygame.Rect(x + 20, arma_y + 108, bw, 20)
+            pygame.draw.rect(pantalla, (34, 60, 78) if puede_comprar else (36, 40, 50), rect_flechas, border_radius=5)
+            pygame.draw.rect(pantalla, (120, 210, 255) if puede_comprar else (70, 78, 92), rect_flechas, width=1, border_radius=5)
+            txt_comprar = fuente_mini.render(f"[R] Comprar {arma.FLECHAS_POR_LOTE} flechas · {arma.costo_flechas} En.", True,
+                                             (190, 235, 255) if puede_comprar else (120, 128, 140))
+            pantalla.blit(txt_comprar, txt_comprar.get_rect(center=rect_flechas.center))
+            botones["__flechas__"] = rect_flechas
+
     # Lista de Estadísticas
-    offset_y = arma_y + 96
+    offset_y = arma_y + arma_h + 12
     pct_vel = int(round((jugador.velocidad / jugador.velocidad_base - 1.0) * 100))
     str_pct = f" ({pct_vel:+d}%)" if pct_vel != 0 else ""
 
     # Cada stat: (etiqueta, valor, color, clave_mejora). clave None = no se puede subir.
     arma_cad = jugador.herramienta
-    if arma_cad and not arma_cad.es_escudo and not arma_cad.roto:
+    if arma_cad and arma_cad.cadencia > 0 and not arma_cad.roto:
         cad_txt = f"{arma_cad.cadencia_efectiva(jugador):.2f}/s"
     else:
         cad_txt = f"+{jugador.cadencia:.2f}/s"
@@ -847,10 +881,16 @@ def iniciar_mundo(config):
                 elif evento.key == pygame.K_l:
                     jugador.subir_nivel()
 
-                # [Espacio] Golpe cuerpo a cuerpo con el arma (manual)
+                # [Espacio] Golpe cuerpo a cuerpo con el arma (manual); con el Arco empieza a cargar
                 elif evento.key == pygame.K_SPACE:
-                    if jugador.herramienta:
+                    if jugador.herramienta and hasattr(jugador.herramienta, "iniciar_carga"):
+                        jugador.herramienta.iniciar_carga()
+                    elif jugador.herramienta:
                         jugador.herramienta.atacar(jugador)
+                # [R] Arco: comprar un lote de 10 flechas con energia
+                elif evento.key == pygame.K_r:
+                    if jugador.herramienta and hasattr(jugador.herramienta, "comprar_flechas"):
+                        jugador.herramienta.comprar_flechas(jugador)
                 # [J] (debug) Simular un golpe del arma (desgasta 1) para probar la rotura
                 elif evento.key == pygame.K_j:
                     if jugador.herramienta:
@@ -872,6 +912,12 @@ def iniciar_mundo(config):
             # Soltar la tecla de una habilidad cargable: dispara la carga acumulada.
             # Soltar la de una invocacion: si no se dio otra orden, vuelve al estado pasivo.
             elif evento.type == pygame.KEYUP:
+                # Soltar [Espacio] con el Arco: dispara la flecha si la carga llego a 1 s
+                if evento.key == pygame.K_SPACE and jugador.herramienta \
+                        and hasattr(jugador.herramienta, "soltar_carga"):
+                    flecha = jugador.herramienta.soltar_carga(jugador)
+                    if flecha:
+                        jugador.proyectiles.append(flecha)
                 for hab in jugador.habilidades:
                     if evento.key != hab.tecla:
                         continue
@@ -908,6 +954,9 @@ def iniciar_mundo(config):
                             # Cada habilidad define cuántos puntos cuesta su mejora (1 por defecto)
                             if jugador.puntos_mejora >= hab_mejora.costo_mejora and hab_mejora.subir_nivel():
                                 jugador.puntos_mejora -= hab_mejora.costo_mejora
+                    elif click_btn == "__flechas__":
+                        info_abierta = None
+                        jugador.herramienta.comprar_flechas(jugador)
                     elif click_btn == "__menu__":
                         info_abierta = None
                         motivo_salida = "menu"
@@ -1014,15 +1063,21 @@ def iniciar_mundo(config):
             if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
         ]
 
-        # Proyectiles magicos (Disparo Veloz, Carga de Fuego) golpean a los enemigos
+        # Proyectiles (Disparo Veloz, Carga de Fuego, flechas del Arco) golpean a los enemigos
         for p in jugador.proyectiles:
-            if not p.activo:
+            if not p.activo or getattr(p, "clavada", False):
                 continue
             for enemigo in enemigos:
                 if not getattr(enemigo, "vivo", True):
                     continue
                 if rect_circulo_colisionan(p.hitbox, enemigo.posicion, enemigo.radio):
-                    if hasattr(enemigo, "recibir_dano"):
+                    if hasattr(p, "puntos_empuje"):
+                        # Flecha: daño fisico, empuje fijo del arma y desgaste del arco si hace daño
+                        aplicado = enemigo.recibir_dano(p.dano, p.tipo_dano)
+                        enemigo.aplicar_empuje(p.direccion, p.puntos_empuje)
+                        if aplicado > 0:
+                            p.arco.desgastar(1)
+                    elif hasattr(enemigo, "recibir_dano"):
                         enemigo.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"),
                                              enemigo.posicion - p.posicion)
                     if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
