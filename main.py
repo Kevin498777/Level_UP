@@ -530,16 +530,30 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
 # INTERFAZ PRINCIPAL DE CREACIÓN
 # -----------------------------
 def iniciar_aplicacion():
-    ventana = tk.Tk()
-    ventana.title("Creador de Personaje - Level")
+    # Bucle de sesión: creación -> mundo -> (botón/[M] Volver) -> creación de nuevo.
+    while True:
+        ventana = tk.Tk()
+        ventana.title("Creador de Personaje - Level")
 
-    # Pantalla completa, como el juego. [ESC] sale de pantalla completa por si se necesita
-    # (la interfaz se reorganiza sola al nuevo tamaño).
-    ventana.attributes("-fullscreen", True)
-    ventana.bind("<Escape>", lambda e: ventana.attributes("-fullscreen", False))
+        # Pantalla completa, como el juego. [ESC] sale de pantalla completa por si se necesita
+        # (la interfaz se reorganiza sola al nuevo tamaño).
+        ventana.attributes("-fullscreen", True)
+        ventana.bind("<Escape>", lambda e: ventana.attributes("-fullscreen", False))
 
-    construir_interfaz(ventana, ventana.winfo_screenwidth(), ventana.winfo_screenheight())
-    ventana.mainloop()
+        sesion = {"config": None}
+
+        def al_comenzar(config):
+            sesion["config"] = config
+            ventana.destroy()
+
+        construir_interfaz(ventana, ventana.winfo_screenwidth(), ventana.winfo_screenheight(),
+                           al_comenzar=al_comenzar)
+        ventana.mainloop()
+
+        if sesion["config"] is None:
+            break  # Se cerró la creación sin comenzar: salir del programa.
+        if iniciar_mundo(sesion["config"]) != "menu":
+            break  # Salida total ([ESC]); si fue "menu", el while reabre la creación.
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ pantalla = mundo - desplazamiento. Las funciones `dibujar(...)` reciben ese offs
 Orden: suelo -> agua -> rocas -> personaje -> arbustos -> capa oscura + orbes (si oculto) -> hitboxes.
 
 ## Controles
-[Clic izq] mover / botones de interfaz · [1] sacar/guardar arma · [Espacio] golpear con el arma (mantener = golpes seguidos) · [2][3][4] habilidades (mantener para cargar la Carga de Fuego; con una invocacion activa, mantener = modo combate y [Clic der] da la orden; mantener y soltar de nuevo = pasivo) · [H] hitboxes · [L] subir nivel (+3 puntos, prueba) · [J] simular golpe (prueba) · [ESC] salir.
+[Clic izq] mover / botones de interfaz · [1] sacar/guardar arma · [Espacio] golpear con el arma (mantener = golpes seguidos) · [2][3][4] habilidades (mantener para cargar la Carga de Fuego; con una invocacion activa, mantener = modo combate y [Clic der] da la orden; mantener y soltar de nuevo = pasivo) · [H] hitboxes · [L] subir nivel (+3 puntos, prueba) · [J] simular golpe (prueba) · [M] / boton "Volver a seleccion" regresa a la pantalla de creacion (main.py reabre la creacion; `iniciar_mundo` devuelve "menu") · [ESC] salir.
 
 ## Pendiente / ideas
 - Sistema de enemigos y combate: activara el dano real, el desgaste de durabilidad, los puntos de empuje, la quemadura y una fuente de experiencia para subir sin teclas de prueba.

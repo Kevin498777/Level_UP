@@ -363,7 +363,7 @@ class EspadaLigera(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Espada Ligera",
-            cadencia_base=1.4, cadencia_por_nivel=0.15, puntos_empuje=8,
+            cadencia_base=1.4, cadencia_por_nivel=0.075, puntos_empuje=8,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=2.0, mult_dano_por_nivel=0.2,      # Daño = Fuerza x (2.2 a 3.0)
@@ -382,7 +382,7 @@ class EspadaLarga(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Espada Larga",
-            cadencia_base=1.0, cadencia_por_nivel=0.12, puntos_empuje=12,
+            cadencia_base=1.0, cadencia_por_nivel=0.06, puntos_empuje=12,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=3.0, mult_dano_por_nivel=0.4,      # Daño = Fuerza x (3.4 a 5.0)
@@ -401,7 +401,7 @@ class Mandoble(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Mandoble",
-            cadencia_base=0.6, cadencia_por_nivel=0.08, puntos_empuje=20,
+            cadencia_base=0.6, cadencia_por_nivel=0.04, puntos_empuje=20,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=6.0, mult_dano_por_nivel=0.6,      # Daño = Fuerza x (6.6 a 9.0)
@@ -420,7 +420,7 @@ class DagasSimples(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Dagas Simples",
-            cadencia_base=2.0, cadencia_por_nivel=0.25, puntos_empuje=4,
+            cadencia_base=2.0, cadencia_por_nivel=0.125, puntos_empuje=4,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=1.25, mult_dano_por_nivel=0.25,       # Daño = Fuerza x (1.5 a 2.5)

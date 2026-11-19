@@ -415,6 +415,14 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 
         offset_y += 26
 
+    # Boton para volver a la pantalla de seleccion (reprobar rapido)
+    rect_menu = pygame.Rect(x + 12, alto - 100, ancho - 24, 24)
+    pygame.draw.rect(pantalla, (40, 46, 60), rect_menu, border_radius=6)
+    pygame.draw.rect(pantalla, (120, 160, 220), rect_menu, width=1, border_radius=6)
+    txt_menu = fuente_sub.render("Volver a selección [M]", True, (180, 210, 255))
+    pantalla.blit(txt_menu, txt_menu.get_rect(center=rect_menu.center))
+    botones["__menu__"] = rect_menu
+
     # Pie de página con indicadores
     txt_lvl = fuente_mini.render("[Espacio] golpe · [L] nivel · [J] debug", True, (150, 200, 255))
     pantalla.blit(txt_lvl, (x + 14, alto - 68))
@@ -728,6 +736,7 @@ def iniciar_mundo(config):
 
     reloj = pygame.time.Clock()
     ejecutando = True
+    motivo_salida = "salir"   # "salir" = cerrar juego; "menu" = volver a seleccion
     mostrar_hitboxes = False  # Alternable con la tecla [H]
     botones_stats = {}        # Botones del panel (clave -> Rect), se actualizan cada frame
     info_abierta = None       # Tooltip de ayuda abierto: None, "stats" o "hab"
@@ -763,6 +772,11 @@ def iniciar_mundo(config):
 
             elif evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_ESCAPE:
+                    ejecutando = False
+
+                # [M] Volver a la pantalla de seleccion/creacion (sin cerrar el juego)
+                elif evento.key == pygame.K_m:
+                    motivo_salida = "menu"
                     ejecutando = False
 
                 # [H] Alternar visualización de hitboxes para depuración
@@ -839,6 +853,10 @@ def iniciar_mundo(config):
                             # Cada habilidad define cuántos puntos cuesta su mejora (1 por defecto)
                             if jugador.puntos_mejora >= hab_mejora.costo_mejora and hab_mejora.subir_nivel():
                                 jugador.puntos_mejora -= hab_mejora.costo_mejora
+                    elif click_btn == "__menu__":
+                        info_abierta = None
+                        motivo_salida = "menu"
+                        ejecutando = False
                     elif click_btn:
                         info_abierta = None
                         jugador.subir_stat(click_btn)
@@ -1096,3 +1114,4 @@ def iniciar_mundo(config):
         pygame.display.flip()
 
     pygame.quit()
+    return motivo_salida
