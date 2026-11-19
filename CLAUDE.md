@@ -18,7 +18,7 @@ Hablar siempre en **espanol** con el usuario. Ejecutar con `python main.py`.
 - Todo documento nuevo de informacion va en `Documentacion/`. Este `CLAUDE.md` se queda en la raiz para que Claude Code lo cargue. Cada 3 cambios grandes se actualiza la especificacion (regla 3).
 
 ## Estado actual (resumen)
-Mundo, movimiento/camara, progresion por niveles con puntos, **5 armas** y **12 habilidades** e interfaz con paneles a ambos lados. **Aun no hay enemigos**: hay un **maniqui de pruebas** (`mundo.Maniqui`) al que atacan las invocaciones en **modo combate** (mantener tecla + clic derecho; persiguen al enemigo marcado). Empuje y desangrado (5 golpes) activos; jugador, maniqui e invocaciones son cuerpos solidos que no se solapan (`mundo.resolver_solapamientos`, por masa). La quemadura sigue sin dispararse.
+Mundo, movimiento/camara, progresion por niveles con puntos, **5 armas** y **12 habilidades** e interfaz con paneles a ambos lados. **Aun no hay enemigos**: hay un **maniqui de pruebas** (`mundo.Maniqui`) al que atacan las invocaciones en **modo combate** (mantener tecla + clic derecho; persiguen al enemigo marcado). El **combate con armas** ya funciona: [Espacio] da un golpe (hitbox del arma); al tocar al maniqui aplica dano fisico, desgasta la herramienta y lo empuja. Cadencia por arma escalable por nivel (`cadencia`/`recarga_ataque`), empuje fijo por arma (`puntos_empuje`). Empuje y desangrado (5 golpes) activos; jugador, maniqui e invocaciones son cuerpos solidos que no se solapan (`mundo.resolver_solapamientos`, por masa). La quemadura sigue sin dispararse.
 
 ## Archivos
 - `main.py`: ventana Tkinter de creacion (nombre, color, seleccion de 1 arma y hasta 3 habilidades con tooltips [?], stats). Adaptable: `construir_interfaz(ventana, ancho, alto, al_comenzar)` escala segun pantalla (`calcular_escala`), reorganiza en 2/1 columnas, desplazamiento vertical si no cabe y boton Comenzar fijo abajo. `al_comenzar` permite probarla sin lanzar el mundo. Personaje de pruebas `shadow498` (`NOMBRE_CLAVE_PRUEBAS` / `STATS_PRUEBAS`). Habilidades vienen de `HABILIDADES_DISPONIBLES`.
@@ -38,7 +38,7 @@ pantalla = mundo - desplazamiento. Las funciones `dibujar(...)` reciben ese offs
 Orden: suelo -> agua -> rocas -> personaje -> arbustos -> capa oscura + orbes (si oculto) -> hitboxes.
 
 ## Controles
-[Clic izq] mover / botones de interfaz · [1] sacar/guardar arma · [2][3][4] habilidades (mantener para cargar la Carga de Fuego; con una invocacion activa, mantener = modo combate y [Clic der] da la orden; mantener y soltar de nuevo = pasivo) · [H] hitboxes · [L] subir nivel (+3 puntos, prueba) · [J] simular golpe (prueba) · [ESC] salir.
+[Clic izq] mover / botones de interfaz · [1] sacar/guardar arma · [Espacio] golpear con el arma (mantener = golpes seguidos) · [2][3][4] habilidades (mantener para cargar la Carga de Fuego; con una invocacion activa, mantener = modo combate y [Clic der] da la orden; mantener y soltar de nuevo = pasivo) · [H] hitboxes · [L] subir nivel (+3 puntos, prueba) · [J] simular golpe (prueba) · [ESC] salir.
 
 ## Pendiente / ideas
 - Sistema de enemigos y combate: activara el dano real, el desgaste de durabilidad, los puntos de empuje, la quemadura y una fuente de experiencia para subir sin teclas de prueba.

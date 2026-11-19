@@ -22,7 +22,8 @@ class HerramientaBase:
                  mult_dano_base, mult_dano_por_nivel,
                  debuff_base, debuff_reduccion_por_nivel,
                  durabilidad_base, durabilidad_por_nivel,
-                 inclinacion, factor_largo, factor_ancho=1.0, nivel_max=5):
+                 inclinacion, factor_largo, factor_ancho=1.0,
+                 cadencia_base=1.0, cadencia_por_nivel=0.1, puntos_empuje=2, nivel_max=5):
         self.nombre = nombre
         self.tecla = tecla
         self.tecla_str = tecla_str
@@ -46,6 +47,16 @@ class HerramientaBase:
         self.debuff_reduccion_por_nivel = debuff_reduccion_por_nivel
         self.durabilidad_base = durabilidad_base
         self.durabilidad_por_nivel = durabilidad_por_nivel
+        # Cadencia de ataque (golpes/seg): escala con el nivel del arma
+        self.cadencia_base = cadencia_base
+        self.cadencia_por_nivel = cadencia_por_nivel
+        self.puntos_empuje = puntos_empuje          # Empuje fijo que inflige al golpear
+        # Estado del golpe cuerpo a cuerpo
+        self.tiempo_desde_golpe = 999.0             # Tiempo desde el ultimo golpe (recarga)
+        self.golpeando = False                      # True durante la ventana activa del golpe
+        self.tiempo_ventana_golpe = 0.0             # Cuenta atras de la ventana activa
+        self.DURACION_VENTANA_GOLPE = 0.12          # Segundos que la hitbox hace dano por golpe
+        self.enemigos_golpeados = set()             # ids de enemigos ya tocados en este golpe
 
         # Geometría y colores de la hoja
         self.inclinacion = inclinacion          # Grados de apertura de la punta
@@ -67,6 +78,9 @@ class HerramientaBase:
         # Si el valor es negativo, deja de ser debuff y pasa a ser un buff de velocidad (ej. dagas a nivel máx)
         self.debuff_velocidad = round(self.debuff_base - self.debuff_reduccion_por_nivel * self.nivel, 3)
         self.durabilidad_max = round(self.durabilidad_base + self.durabilidad_por_nivel * self.nivel)
+        # Cadencia (golpes/seg) y recarga entre golpes (seg). Mas nivel = mas rapido.
+        self.cadencia = round(self.cadencia_base + self.cadencia_por_nivel * self.nivel, 3)
+        self.recarga_ataque = (1.0 / self.cadencia) if self.cadencia > 0 else float("inf")
         if reparar:
             self.durabilidad = self.durabilidad_max
 
@@ -128,6 +142,14 @@ class HerramientaBase:
         if self.tiempo_transcurrido_toggle < self.cooldown_toggle:
             self.tiempo_transcurrido_toggle += dt
 
+        # Recarga de ataque y ventana activa del golpe
+        self.tiempo_desde_golpe += dt
+        if self.golpeando:
+            self.tiempo_ventana_golpe -= dt
+            if self.tiempo_ventana_golpe <= 0:
+                self.golpeando = False
+                self.enemigos_golpeados.clear()
+
         if jugador and self.activa and not self.roto:
             self.actualizar_hitbox(jugador)
         else:
@@ -138,6 +160,21 @@ class HerramientaBase:
         if self.roto:
             return 0.0
         return round(jugador.fuerza * self.multiplicador_dano, 2)
+
+    def puede_atacar(self):
+        """True si el arma puede iniciar un golpe (desenfundada, no rota, no escudo, recargada)."""
+        return (self.activa and not self.roto and not self.es_escudo
+                and self.cadencia > 0 and self.tiempo_desde_golpe >= self.recarga_ataque)
+
+    def atacar(self, jugador=None):
+        """Inicia un golpe si la cadencia lo permite. Abre la ventana activa de la hitbox."""
+        if not self.puede_atacar():
+            return False
+        self.golpeando = True
+        self.tiempo_ventana_golpe = self.DURACION_VENTANA_GOLPE
+        self.tiempo_desde_golpe = 0.0
+        self.enemigos_golpeados.clear()
+        return True
 
     # -----------------------------
     # GEOMETRÍA DE LA HOJA (común a todas las espadas)
@@ -259,6 +296,16 @@ class HerramientaBase:
             w_filo
         )
 
+        # Destello breve al golpear (Fase 1; el arco llega en Fase 2)
+        if self.golpeando:
+            pygame.draw.line(
+                pantalla,
+                (255, 255, 255),
+                (round(filo_inicio_x), round(filo_inicio_y)),
+                (round(punta_x), round(punta_y)),
+                max(1, w_filo + 1)
+            )
+
         # 4. Empuñadura / Guarda
         guarda_centro_x = pomo_x + (frente_x * (largo_hoja * 0.25))
         guarda_centro_y = pomo_y + (frente_y * (largo_hoja * 0.25))
@@ -284,6 +331,7 @@ class EspadaLigera(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Espada Ligera",
+            cadencia_base=1.4, cadencia_por_nivel=0.15, puntos_empuje=2,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=2.0, mult_dano_por_nivel=0.2,      # Daño = Fuerza x (2.2 a 3.0)
@@ -302,6 +350,7 @@ class EspadaLarga(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Espada Larga",
+            cadencia_base=1.0, cadencia_por_nivel=0.12, puntos_empuje=3,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=3.0, mult_dano_por_nivel=0.4,      # Daño = Fuerza x (3.4 a 5.0)
@@ -320,6 +369,7 @@ class Mandoble(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Mandoble",
+            cadencia_base=0.6, cadencia_por_nivel=0.08, puntos_empuje=5,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=6.0, mult_dano_por_nivel=0.6,      # Daño = Fuerza x (6.6 a 9.0)
@@ -338,6 +388,7 @@ class DagasSimples(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Dagas Simples",
+            cadencia_base=2.0, cadencia_por_nivel=0.25, puntos_empuje=1,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=1.25, mult_dano_por_nivel=0.25,       # Daño = Fuerza x (1.5 a 2.5)
@@ -379,6 +430,7 @@ class Escudo(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Escudo",
+            cadencia_base=0.0, cadencia_por_nivel=0.0, puntos_empuje=0,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=0.0, mult_dano_por_nivel=0.0,         # No inflige daño

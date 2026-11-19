@@ -862,11 +862,14 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
     """
     Renderiza la interfaz lateral derecha para las habilidades equipadas (teclas 2, 3, 4)
     y sus temporizadores. El manual se consulta con el icono '?' de la cabecera.
+    Panel ancho y de alto contraste para que el detalle completo sea legible.
     """
-    fuente_titulo = fuentes["titulo"]
-    fuente_sub = fuentes["sub"]
-    fuente_contador = fuentes["contador"]
-    fuente_mini = fuentes["mini"]
+    # Fuentes dedicadas (mas grandes) con respaldo a las antiguas si no existen
+    fuente_titulo = fuentes.get("hab_nom", fuentes["titulo"])
+    fuente_sub = fuentes.get("hab_sub", fuentes["sub"])
+    fuente_det = fuentes.get("hab_det", fuentes.get("texto", fuentes["mini"]))
+    fuente_mini = fuentes.get("hab_mini", fuentes["mini"])
+    fuente_contador = fuentes.get("hab_contador", fuentes["contador"])
 
     panel = pygame.Surface((ancho, alto))
     panel.fill((20, 23, 30))
@@ -876,25 +879,26 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
 
     # Cabecera
     titulo = fuente_titulo.render("HABILIDADES", True, (255, 215, 0))
-    pantalla.blit(titulo, (x + 15, y + 12))
+    pantalla.blit(titulo, (x + 16, y + 12))
 
-    sub = fuente_sub.render(f"Equipadas ({len(habilidades)}/3)", True, (130, 140, 160))
-    pantalla.blit(sub, (x + 15, y + 33))
+    sub = fuente_sub.render(f"Equipadas ({len(habilidades)}/3)", True, (175, 185, 205))
+    pantalla.blit(sub, (x + 16, y + 34))
 
-    cur_y = y + 60
+    cur_y = y + 64
     botones = {}  # Botones (clave -> Rect): "__hab__<idx>" y "__info_hab__"
 
     # Icono de ayuda (?) en la cabecera -> abre el manual como tooltip
-    botones["__info_hab__"] = dibujar_badge_ayuda(pantalla, x + ancho - 24, y + 20, fuente_sub, info_abierta == "hab")
+    botones["__info_hab__"] = dibujar_badge_ayuda(pantalla, x + ancho - 26, y + 20, fuente_sub, info_abierta == "hab")
 
-    pygame.draw.line(pantalla, (45, 52, 68), (x + 15, y + 54), (x + ancho - 15, y + 54), 1)
+    pygame.draw.line(pantalla, (45, 52, 68), (x + 16, y + 56), (x + ancho - 16, y + 56), 1)
 
-    # Altura ajustada dinámicamente si hay 3 habilidades
-    tarjeta_h = 105 if len(habilidades) >= 3 else 125
+    # Altura de tarjeta: mas compacta con 3 habilidades, mas holgada con menos
+    tarjeta_h = 122 if len(habilidades) >= 3 else 144
 
     for idx, hab in enumerate(habilidades):
-        tarjeta_w = ancho - 26
-        tarjeta_x = x + 13
+        tarjeta_w = ancho - 28
+        tarjeta_x = x + 14
+        pad = 12  # margen interno izquierdo
 
         if hab.estado == "ACTIVA":
             color_borde = (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 100, 70)
@@ -906,129 +910,127 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             color_borde = (55, 68, 90)
             color_fondo = (26, 30, 40)
 
-        pygame.draw.rect(pantalla, color_fondo, (tarjeta_x, cur_y, tarjeta_w, tarjeta_h), border_radius=6)
-        pygame.draw.rect(pantalla, color_borde, (tarjeta_x, cur_y, tarjeta_w, tarjeta_h), width=2, border_radius=6)
+        pygame.draw.rect(pantalla, color_fondo, (tarjeta_x, cur_y, tarjeta_w, tarjeta_h), border_radius=8)
+        pygame.draw.rect(pantalla, color_borde, (tarjeta_x, cur_y, tarjeta_w, tarjeta_h), width=2, border_radius=8)
 
-        # Nombre y Tecla asignada dinámicamente
+        # Nombre y tecla asignada
         txt_nom = fuente_sub.render(hab.nombre, True, (255, 255, 255))
-        pantalla.blit(txt_nom, (tarjeta_x + 10, cur_y + 6))
+        pantalla.blit(txt_nom, (tarjeta_x + pad, cur_y + 8))
 
         txt_tecla = fuente_mini.render(f"[{hab.tecla_str}]", True, (255, 220, 80))
-        tecla_x = tarjeta_x + tarjeta_w - txt_tecla.get_width() - 10
-        pantalla.blit(txt_tecla, (tecla_x, cur_y + 7))
+        tecla_x = tarjeta_x + tarjeta_w - txt_tecla.get_width() - pad
+        pantalla.blit(txt_tecla, (tecla_x, cur_y + 9))
 
-        # Botón [+] para subir nivel (gasta un punto de mejora compartido)
+        # Boton [+] para subir nivel (gasta un punto de mejora compartido)
         if hab.escalable and hab.nivel < hab.nivel_max and jugador.puntos_mejora >= hab.costo_mejora:
-            bsize = 16
-            rect_btn = pygame.Rect(tecla_x - bsize - 8, cur_y + 6, bsize, bsize)
+            bsize = 18
+            rect_btn = pygame.Rect(tecla_x - bsize - 10, cur_y + 7, bsize, bsize)
             pygame.draw.rect(pantalla, (34, 78, 44), rect_btn, border_radius=4)
             pygame.draw.rect(pantalla, (100, 230, 130), rect_btn, width=1, border_radius=4)
             signo = fuente_sub.render("+", True, (150, 255, 180))
             pantalla.blit(signo, signo.get_rect(center=rect_btn.center))
             botones[f"__hab__{idx}"] = rect_btn
 
-        # Nivel y Costo
+        # Nivel y costo
         if hab.escalable:
-            color_nv = (255, 215, 120) if hab.nivel >= hab.nivel_max else (160, 200, 255)
+            color_nv = (255, 215, 120) if hab.nivel >= hab.nivel_max else (170, 205, 255)
             txt_nivel = fuente_mini.render(f"Nv {hab.nivel}/{hab.nivel_max}", True, color_nv)
         else:
-            txt_nivel = fuente_mini.render("Nv —", True, (120, 130, 150))
-        pantalla.blit(txt_nivel, (tarjeta_x + 10, cur_y + 26))
+            txt_nivel = fuente_mini.render("Nv —", True, (150, 160, 180))
+        pantalla.blit(txt_nivel, (tarjeta_x + pad, cur_y + 32))
 
         costo_mostrado = hab.obtener_costo_base(jugador)
-        txt_costo = fuente_mini.render(f"Costo: {costo_mostrado} En.", True, (180, 140, 255))
-        pantalla.blit(txt_costo, (tarjeta_x + 92, cur_y + 26))
+        txt_costo = fuente_mini.render(f"Costo: {costo_mostrado} En.", True, (200, 165, 255))
+        pantalla.blit(txt_costo, (tarjeta_x + pad + 110, cur_y + 32))
 
-        # Estado y Cuenta Regresiva
+        # Geometria comun de la barra de progreso
+        bw = tarjeta_w - 2 * pad
+        bar_y = cur_y + 78
+        y_estado = cur_y + 52
+        y_cont = cur_y + 44
+
+        # Estado y cuenta regresiva
         if getattr(hab, "canalizando", False):
-            # Habilidad que actúa mientras se mantiene presionada (ej. Regeneración Inversa)
-            txt_est = fuente_mini.render("REGENERANDO", True, (255, 140, 200))
-            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+            txt_est = fuente_mini.render("REGENERANDO", True, (255, 160, 210))
+            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
 
             falta = max(0.0, hab.intervalo - hab.tiempo_tick)
             txt_tiempo = fuente_contador.render(f"{falta:.1f}s", True, (255, 200, 230))
-            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
             prog = hab.tiempo_tick / max(0.1, hab.intervalo)
-            bw = tarjeta_w - 20
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
-            pygame.draw.rect(pantalla, (50, 30, 42), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            pygame.draw.rect(pantalla, (50, 30, 42), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
             if ancho_l > 0:
-                pygame.draw.rect(pantalla, (255, 120, 190), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+                pygame.draw.rect(pantalla, (255, 120, 190), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         elif getattr(hab, "cargando", False):
-            # Habilidad cargable mientras se mantiene presionada
-            txt_est = fuente_mini.render(f"🔥 CARGANDO {hab.tiempo_carga:.1f}s", True, (255, 170, 60))
-            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+            txt_est = fuente_mini.render(f"🔥 CARGANDO {hab.tiempo_carga:.1f}s", True, (255, 180, 80))
+            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
 
             txt_tiempo = fuente_contador.render(f"{hab.tiempo_carga:.1f}", True, (255, 220, 150))
-            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
             prog = hab.tiempo_carga / max(0.1, hab.TIEMPO_MAX_CARGA)
-            bw = tarjeta_w - 20
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
-            pygame.draw.rect(pantalla, (50, 40, 30), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            pygame.draw.rect(pantalla, (50, 40, 30), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
             if ancho_l > 0:
-                pygame.draw.rect(pantalla, (255, 150, 50), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+                pygame.draw.rect(pantalla, (255, 150, 50), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         elif hab.estado == "LISTA":
-            txt_est = fuente_mini.render("LISTA (Disponible)", True, (100, 255, 140))
-            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 46))
+            txt_est = fuente_mini.render("LISTA (Disponible)", True, (120, 255, 160))
+            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
 
-            bw = tarjeta_w - 20
-            pygame.draw.rect(pantalla, (40, 50, 45), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
-            pygame.draw.rect(pantalla, (100, 255, 140), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            pygame.draw.rect(pantalla, (40, 50, 45), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
+            pygame.draw.rect(pantalla, (100, 255, 140), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
 
         elif hab.estado == "ACTIVA":
-            txt_est = fuente_mini.render("⚡ ACTIVA", True, (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 120, 80))
-            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+            txt_est = fuente_mini.render("⚡ ACTIVA", True, (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 140, 100))
+            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
 
             seg = max(0.0, hab.tiempo_restante_activo)
             txt_tiempo = fuente_contador.render(f"{seg:.1f}s", True, (255, 255, 255))
-            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
             prog = seg / max(0.1, hab.duracion_activa)
-            bw = tarjeta_w - 20
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
-            pygame.draw.rect(pantalla, (35, 45, 55), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            pygame.draw.rect(pantalla, (35, 45, 55), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
             if ancho_l > 0:
-                pygame.draw.rect(pantalla, (0, 210, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 90, 60), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+                pygame.draw.rect(pantalla, (0, 210, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 90, 60), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         elif hab.estado == "COOLDOWN":
-            txt_est = fuente_mini.render("⏳ ENFRIAMIENTO", True, (255, 150, 60))
-            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+            txt_est = fuente_mini.render("⏳ ENFRIAMIENTO", True, (255, 165, 80))
+            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
 
             seg = max(0.0, hab.tiempo_restante_cooldown)
             txt_tiempo = fuente_contador.render(f"{seg:.1f}s", True, (255, 200, 140))
-            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
             prog = seg / max(0.1, hab.duracion_cooldown)
-            bw = tarjeta_w - 20
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
-            pygame.draw.rect(pantalla, (45, 35, 30), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            pygame.draw.rect(pantalla, (45, 35, 30), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
             if ancho_l > 0:
-                pygame.draw.rect(pantalla, (255, 140, 50), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+                pygame.draw.rect(pantalla, (255, 140, 50), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         elif hab.estado == "INVOCADO":
             criaturas = getattr(hab, "conejos", None)
             if criaturas is None:
                 criaturas = getattr(hab, "lobos", [])
             n_inv = len(criaturas)
-            txt_est = fuente_mini.render(f"⚡ ACTIVA ({n_inv} vivos)", True, (120, 230, 150))
-            pantalla.blit(txt_est, (tarjeta_x + 10, cur_y + 44))
+            txt_est = fuente_mini.render(f"⚡ ACTIVA ({n_inv} vivos)", True, (140, 240, 170))
+            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
 
             txt_tiempo = fuente_contador.render(f"{n_inv}", True, (255, 255, 255))
-            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - 10, cur_y + 38))
+            pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
             tope = getattr(hab, "max_conejos", None) or getattr(hab, "max_invocaciones", 50)
             prog = n_inv / float(tope)
-            bw = tarjeta_w - 20
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
-            pygame.draw.rect(pantalla, (35, 50, 40), (tarjeta_x + 10, cur_y + 64, bw, 6), border_radius=3)
+            pygame.draw.rect(pantalla, (35, 50, 40), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
             if ancho_l > 0:
-                pygame.draw.rect(pantalla, (90, 220, 120), (tarjeta_x + 10, cur_y + 64, ancho_l, 6), border_radius=3)
+                pygame.draw.rect(pantalla, (90, 220, 120), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
-        # Resumen del efecto (valores reales según el nivel)
+        # Resumen del efecto (valores reales segun el nivel)
         if hab.nombre == "Destello":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Burst de Fuerza":
@@ -1055,16 +1057,16 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
             detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
         else:
-            detalles = hab.descripcion[:40]
+            detalles = hab.descripcion[:52]
 
-        txt_det = fuente_mini.render(detalles, True, (160, 170, 190))
-        pantalla.blit(txt_det, (tarjeta_x + 10, cur_y + 75))
+        txt_det = fuente_det.render(detalles, True, (206, 214, 230))
+        pantalla.blit(txt_det, (tarjeta_x + pad, cur_y + 92))
 
         if hab.mensaje_alerta:
-            txt_ale = fuente_mini.render(hab.mensaje_alerta, True, (255, 80, 80))
-            pantalla.blit(txt_ale, (tarjeta_x + 10, cur_y + 88))
+            txt_ale = fuente_mini.render(hab.mensaje_alerta, True, (255, 90, 90))
+            pantalla.blit(txt_ale, (tarjeta_x + pad, cur_y + 108))
 
-        cur_y += tarjeta_h + 8
+        cur_y += tarjeta_h + 10
 
     # Manual de reglas: se muestra como tooltip al pulsar el icono '?' de la cabecera
     if info_abierta == "hab":

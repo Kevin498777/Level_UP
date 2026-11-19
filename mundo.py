@@ -337,7 +337,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
                 txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 200, 255))
             else:
                 dano_arma = arma.calcular_dano(jugador)
-                txt_dano = fuente_mini.render(f"Daño: {dano_arma:.1f} (Fza x{arma.multiplicador_dano:.1f})", True, (255, 215, 0))
+                txt_dano = fuente_mini.render(f"Daño {dano_arma:.1f} · Cad {arma.cadencia:.2f}/s", True, (255, 215, 0))
         else:
             txt_est_arma = fuente_mini.render("GUARDADA (Pulsa [1])", True, (140, 150, 170))
             if arma.es_escudo:
@@ -410,7 +410,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         offset_y += 26
 
     # Pie de página con indicadores
-    txt_lvl = fuente_mini.render("[L] subir nivel · [J] golpe (debug)", True, (150, 200, 255))
+    txt_lvl = fuente_mini.render("[Espacio] golpe · [L] nivel · [J] debug", True, (150, 200, 255))
     pantalla.blit(txt_lvl, (x + 14, alto - 68))
 
     color_hb = (100, 255, 140) if mostrar_hitboxes else (120, 130, 150)
@@ -443,6 +443,15 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 # EJECUCIÓN PRINCIPAL DEL MUNDO (PYGAME)
 # -----------------------------
 ITERACIONES_SEPARACION = 2   # pasadas por frame para resolver solapamientos entre cuerpos
+
+
+def rect_circulo_colisionan(rect, centro, radio):
+    """Colision entre un rectangulo (hitbox del arma) y un circulo (enemigo)."""
+    cx = max(rect.left, min(centro.x, rect.right))
+    cy = max(rect.top, min(centro.y, rect.bottom))
+    dx = centro.x - cx
+    dy = centro.y - cy
+    return (dx * dx + dy * dy) <= radio * radio
 
 
 def resolver_solapamientos(entidades):
@@ -655,7 +664,7 @@ def iniciar_mundo(config):
 
     # Proporciones optimizadas: laterales compactos para maximizar el mundo central
     ancho_panel_izq = 230
-    ancho_panel_der = 240
+    ancho_panel_der = 320
 
     mundo_x = ancho_panel_izq
     mundo_y = 0
@@ -703,7 +712,12 @@ def iniciar_mundo(config):
         "mini": pygame.font.SysFont("Segoe UI", 10),
         "valor": pygame.font.SysFont("Segoe UI", 12, bold=True),
         "contador": pygame.font.SysFont("Segoe UI", 20, bold=True),
-        "nombre": pygame.font.SysFont("Segoe UI", 11, bold=True)
+        "nombre": pygame.font.SysFont("Segoe UI", 11, bold=True),
+        "hab_nom": pygame.font.SysFont("Segoe UI", 14, bold=True),
+        "hab_sub": pygame.font.SysFont("Segoe UI", 12, bold=True),
+        "hab_det": pygame.font.SysFont("Segoe UI", 12),
+        "hab_mini": pygame.font.SysFont("Segoe UI", 11),
+        "hab_contador": pygame.font.SysFont("Segoe UI", 22, bold=True)
     }
 
     reloj = pygame.time.Clock()
@@ -758,6 +772,10 @@ def iniciar_mundo(config):
                 elif evento.key == pygame.K_l:
                     jugador.subir_nivel()
 
+                # [Espacio] Golpe cuerpo a cuerpo con el arma (manual)
+                elif evento.key == pygame.K_SPACE:
+                    if jugador.herramienta:
+                        jugador.herramienta.atacar(jugador)
                 # [J] (debug) Simular un golpe del arma (desgasta 1) para probar la rotura
                 elif evento.key == pygame.K_j:
                     if jugador.herramienta:
@@ -847,6 +865,30 @@ def iniciar_mundo(config):
         # Actualizar herramienta (temporizador y cálculo de su hitbox)
         if jugador.herramienta:
             jugador.herramienta.actualizar(dt, jugador)
+
+        # Mantener [Espacio] repite el golpe segun la cadencia del arma
+        if teclas_estado[pygame.K_SPACE] and jugador.herramienta:
+            jugador.herramienta.atacar(jugador)
+
+        # Golpe cuerpo a cuerpo: la hitbox activa del arma impacta a los enemigos
+        arma_actual = jugador.herramienta
+        if arma_actual and getattr(arma_actual, "golpeando", False):
+            for enemigo in enemigos:
+                if id(enemigo) in arma_actual.enemigos_golpeados:
+                    continue
+                tocado = any(
+                    hb and rect_circulo_colisionan(hb, enemigo.posicion, enemigo.radio)
+                    for hb in arma_actual.obtener_hitboxes()
+                )
+                if not tocado:
+                    continue
+                arma_actual.enemigos_golpeados.add(id(enemigo))
+                dano = arma_actual.calcular_dano(jugador)
+                if dano > 0 and hasattr(enemigo, "recibir_dano"):
+                    enemigo.recibir_dano(dano, arma_actual.tipo_dano)
+                    if hasattr(enemigo, "aplicar_empuje"):
+                        enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
+                    arma_actual.desgastar(1)
 
         # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
         jugador.actualizar_proyectiles(dt, limites_mundo, rocas)
