@@ -9,5 +9,6 @@ Las reglas de desarrollo se mantienen en la raíz: `../reglas.md`.
 | `Tablas_Escalado.md` | Tablas de escalado por nivel de cada herramienta y habilidad, generadas a partir de los valores del código. |
 | `Tablas_Escalado.xlsx` | Las mismas tablas de `Tablas_Escalado.md` en Excel: una hoja por herramienta y por habilidad. |
 | `Tablas_Tipos.xlsx` | Hoja de cálculo de tablas de tipos. |
+| `Medidas_PixelArt.md` | Medidas (tamaño en juego y lienzo recomendado) de cada objeto que puede llevar un dibujo en pixel art: personajes, armas, proyectiles, auras, terreno e interfaz. |
 
 Cualquier documento nuevo de información del proyecto debe guardarse aquí.

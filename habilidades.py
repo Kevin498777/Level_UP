@@ -141,6 +141,45 @@ class ProyectilFuego:
 
 
 # -----------------------------
+# CLASE PROYECTIL VENENOSO (DISPARO VENENOSO)
+# -----------------------------
+COLOR_VENENO = (90, 220, 90)          # Verde del disparo y del anillo de envenenado
+COLOR_VENENO_NUCLEO = (150, 70, 200)  # Pequeña esfera morada en el centro del disparo
+
+
+class ProyectilVeneno:
+    """Esfera verde con núcleo morado. El impacto no hace daño ni empuja: solo envenena al
+    primer enemigo que toca (veneno_total de daño mágico repartido en veneno_duracion s)."""
+    def __init__(self, x, y, dx, dy, velocidad, veneno_total, veneno_duracion, radio=6):
+        self.posicion = pygame.Vector2(x, y)
+        self.direccion = pygame.Vector2(dx, dy).normalize() if (dx != 0 or dy != 0) else pygame.Vector2(0, -1)
+        self.velocidad = velocidad
+        self.dano = 0                     # El daño llega solo por el veneno
+        self.tipo_dano = "magico"
+        self.radio = radio
+        self.veneno_total = veneno_total
+        self.veneno_duracion = veneno_duracion
+        self.activo = True
+        self.hitbox = pygame.Rect(round(x - radio), round(y - radio), radio * 2, radio * 2)
+
+    def actualizar(self, dt, limites_mundo):
+        min_x, min_y, max_x, max_y = limites_mundo
+        self.posicion += self.direccion * self.velocidad
+        self.hitbox.x = round(self.posicion.x - self.radio)
+        self.hitbox.y = round(self.posicion.y - self.radio)
+        if (self.posicion.x < min_x - self.radio or self.posicion.x > max_x + self.radio or
+                self.posicion.y < min_y - self.radio or self.posicion.y > max_y + self.radio):
+            self.activo = False
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        px = round(self.posicion.x - desplazamiento[0])
+        py = round(self.posicion.y - desplazamiento[1])
+        pygame.draw.circle(pantalla, (40, 120, 40), (px, py), self.radio + 2)       # borde
+        pygame.draw.circle(pantalla, COLOR_VENENO, (px, py), self.radio)            # cuerpo verde
+        pygame.draw.circle(pantalla, COLOR_VENENO_NUCLEO, (px, py), max(2, self.radio // 2))  # núcleo morado
+
+
+# -----------------------------
 # CLASE BASE DE HABILIDADES
 # -----------------------------
 COSTO_MEJORA_HABILIDAD = 1   # Puntos de mejora que cuesta subir un nivel de habilidad (por defecto)
@@ -446,6 +485,59 @@ class DisparoVeloz(HabilidadBase):
             jugador.proyectiles.append(proyectil)
 
         # Pasa inmediatamente a cooldown de 2 segundos
+        self.estado = "COOLDOWN"
+        self.tiempo_restante_activo = 0.0
+        self.tiempo_restante_cooldown = self.duracion_cooldown
+
+
+# -----------------------------
+# HABILIDAD: DISPARO VENENOSO
+# -----------------------------
+class DisparoVenenoso(HabilidadBase):
+    """
+    Ataque mágico: dispara una esfera verde (núcleo morado) hacia donde mira el personaje.
+    Se detiene en el primer enemigo (las rocas la bloquean) y lo envenena: daño mágico por
+    segundo que amortigua el escudo mágico. El impacto no hace daño ni empuja. El veneno no
+    se acumula: volver a envenenar reinicia el efecto con los valores del nuevo disparo.
+    """
+    VELOCIDAD_PROYECTIL = 12.0
+    COSTO_NV1, COSTO_NV_MAX = 20, 80
+    VENENO_NV1, VENENO_NV_MAX = 20.0, 40.0          # daño total del veneno
+    DURACION_NV1, DURACION_NV_MAX = 20.0, 10.0      # segundos que dura el veneno
+    RECARGA_NV1, RECARGA_NV_MAX = 30.0, 15.0
+
+    def __init__(self):
+        super().__init__(
+            nombre="Disparo Venenoso",
+            descripcion="Esfera venenosa: envenena al primer enemigo (daño mágico por segundo). El impacto no daña ni empuja.",
+            costo_energia=self.COSTO_NV1,
+            duracion_activa=0.0,
+            duracion_cooldown=self.RECARGA_NV1,
+            tecla=pygame.K_4,
+            tecla_str="4"
+        )
+
+    def _aplicar_nivel(self):
+        """
+        Escalado lineal (nivel 1 a 20):
+        - coste: 20 -> 80 En. (entero)
+        - veneno: 20 de daño en 20 s (1/s) -> 40 de daño en 10 s (4/s), a 1 decimal
+        - recarga: 30 s -> 15 s, a 1 decimal
+        """
+        t = (self.nivel - 1) / (self.nivel_max - 1)
+        self.costo_energia = round(self.COSTO_NV1 + (self.COSTO_NV_MAX - self.COSTO_NV1) * t)
+        self.veneno_total = round(self.VENENO_NV1 + (self.VENENO_NV_MAX - self.VENENO_NV1) * t, 1)
+        self.veneno_duracion = round(self.DURACION_NV1 + (self.DURACION_NV_MAX - self.DURACION_NV1) * t, 1)
+        self.duracion_cooldown = round(self.RECARGA_NV1 + (self.RECARGA_NV_MAX - self.RECARGA_NV1) * t, 1)
+
+    def ejecutar_activacion(self, jugador):
+        """Dispara la esfera venenosa y entra en recarga."""
+        rad = math.radians(jugador.angulo)
+        frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
+        origen = jugador.posicion + frente * (jugador.radio + 8)
+        jugador.proyectiles.append(ProyectilVeneno(origen.x, origen.y, frente.x, frente.y,
+                                                   self.VELOCIDAD_PROYECTIL, self.veneno_total,
+                                                   self.veneno_duracion))
         self.estado = "COOLDOWN"
         self.tiempo_restante_activo = 0.0
         self.tiempo_restante_cooldown = self.duracion_cooldown
@@ -1057,6 +1149,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         elif hab.nombre == "Reforzamiento Mágico":
             dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
             detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Disparo Venenoso":
+            detalles = f"Veneno {hab.veneno_total:g} en {hab.veneno_duracion:g}s | CD {hab.duracion_cooldown:g}s"
         elif hab.nombre == "Paso 0":
             detalles = f"Invisible {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Sombra Araña":
@@ -1352,6 +1446,50 @@ class EfectoQuemadura:
             objetivo.vida = max(0.0, round(objetivo.vida - self.dano, 2))
         if self.restante < 0:
             self.restante = 0
+
+
+class EfectoVeneno:
+    """Veneno: `total` de daño MAGICO repartido en `duracion` s, un golpe por segundo
+    (total / duracion) y el resto al terminar, para que siempre se aplique el total.
+    Pasa por recibir_dano del objetivo, así que lo amortigua su escudo mágico (sin empuje).
+    No acumulable: aplicarlo de nuevo lo reemplaza."""
+    TIPO_DANO = "magico"
+
+    def __init__(self, total, duracion):
+        self.total = total
+        self.duracion = duracion
+        self.restante = duracion
+        self.por_segundo = total / duracion if duracion > 0 else total
+        self.aplicado = 0.0
+        self._acum = 0.0
+
+    @property
+    def activo(self):
+        return self.restante > 0
+
+    def actualizar(self, dt, objetivo):
+        if self.restante <= 0:
+            return
+        self.restante -= dt
+        self._acum += dt
+        while self._acum >= 1.0 and self.aplicado < self.total:
+            self._acum -= 1.0
+            self._golpear(objetivo, min(self.por_segundo, self.total - self.aplicado))
+        if self.restante <= 0:
+            self.restante = 0
+            if self.total - self.aplicado >= 0.01:     # fracción final del último segundo
+                self._golpear(objetivo, self.total - self.aplicado)
+
+    def _golpear(self, objetivo, cantidad):
+        # A 2 decimales (como la vida), para que la suma de golpes sea exactamente el total
+        cantidad = round(cantidad, 2)
+        self.aplicado = round(self.aplicado + cantidad, 2)
+        objetivo.recibir_dano(cantidad, self.TIPO_DANO)
+
+
+def aplicar_veneno(objetivo, total, duracion):
+    """Envenena a un objetivo con atributo `veneno`. No acumulable: reinicia el efecto."""
+    objetivo.veneno = EfectoVeneno(total, duracion)
 
 
 def aplicar_quemadura(objetivo, dano_por_segundo=1, duracion=5.0):
@@ -2132,9 +2270,10 @@ class GolpeDeSuerte(HabilidadBase):
     Al lanzarla otorga un resultado aleatorio (sin coste extra de energía):
     Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica,
     Paso 0 (al nivel que marca el tramo de Golpe de Suerte, sin pasar del máximo de cada una),
-    energía al máximo, escudos al máximo o nada (30%). Los 8 resultados que no son "nada" se
-    reparten el resto a partes iguales (8.75% cada uno). En nivel 20 "nada" baja a 5% y el
-    resto se reparte igual (11.875% cada uno).
+    energía al máximo, escudos al máximo, Disparo Venenoso (resultado NEGATIVO: no dispara,
+    envenena al portador con la mitad del daño del veneno de ese nivel y la misma duración)
+    o nada (30%). Los 9 resultados que no son "nada" se reparten el resto a partes iguales
+    (7.78% cada uno). En nivel 20 "nada" baja a 5% y el resto se reparte igual (10.56% cada uno).
 
     Bloqueo: Golpe de Suerte queda ACTIVA (no se puede volver a lanzar) mientras dure
     lo otorgado y solo al terminar empieza su recarga normal:
@@ -2146,6 +2285,8 @@ class GolpeDeSuerte(HabilidadBase):
     ENERGIA = "Energía al máximo"
     ESCUDOS = "Escudos al máximo"
     REGENERACION = "Regeneración Inversa"
+    VENENO = "Disparo Venenoso"
+    FACTOR_AUTOVENENO = 0.5              # El portador recibe la mitad del daño del veneno
     # Habilidades que puede otorgar (se activan como efecto temporal, sin recarga propia)
     EFECTOS = {
         "Burst de Fuerza": BurstDeFuerza,
@@ -2155,7 +2296,7 @@ class GolpeDeSuerte(HabilidadBase):
         "Paso 0": Paso0,
     }
     RESULTADOS = ("Burst de Fuerza", "Destello", "Reforzamiento Mágico", REGENERACION,
-                  ENERGIA, "Aura Electrica", ESCUDOS, "Paso 0")
+                  ENERGIA, "Aura Electrica", ESCUDOS, "Paso 0", VENENO)
     PROB_NADA = 0.30
     PROB_NADA_NIVEL_MAX = 0.05
     # Tramos por nivel: (nivel desde el que aplica, valor)
@@ -2222,6 +2363,13 @@ class GolpeDeSuerte(HabilidadBase):
             jugador.escudo = jugador.escudo_max
             jugador.escudo_magico = jugador.escudo_magico_max
             return resultado
+        if resultado == self.VENENO:
+            # Resultado negativo instantáneo: el veneno de ese nivel, a la mitad, sobre el portador
+            disparo = DisparoVenenoso()
+            while disparo.nivel < self.nivel_efecto and disparo.subir_nivel():
+                pass
+            aplicar_veneno(jugador, round(disparo.veneno_total * self.FACTOR_AUTOVENENO, 2), disparo.veneno_duracion)
+            return f"{resultado} nv{disparo.nivel}: ¡te envenena!"
         if resultado == self.REGENERACION:
             efecto = RegeneracionSuerte(*self.regeneracion)   # Conserva sus propios tiempos
         elif resultado in self.EFECTOS:
@@ -2477,7 +2625,8 @@ HABILIDADES_DISPONIBLES = {
     "Regeneración Inversa": RegeneracionInversa,
     "Golpe de Suerte": GolpeDeSuerte,
     "Sombra Araña": InvocacionArana,
-    "Paso 0": Paso0
+    "Paso 0": Paso0,
+    "Disparo Venenoso": DisparoVenenoso
 }
 
 def crear_habilidad(nombre):

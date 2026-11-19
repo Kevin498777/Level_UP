@@ -2,7 +2,7 @@ import pygame
 import math
 from herramientas import EspadaLigera
 from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
-                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion)
+                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO)
 
 # Masa del personaje frente a otros cuerpos (conejo 1, lobo 3): apenas lo desplazan sus
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
@@ -39,11 +39,18 @@ ESCUDOM_BLOQUEO = 0.10
 ESCUDOM_REPARTO_ESCUDO = 0.90
 ESCUDOM_REPARTO_VIDA = 0.10
 
+# El bloqueo porcentual solo existe si el escudo de ese tipo tiene al menos este valor.
+# Sin escudo (o anulado por Cortar) el daño llega entero a la vida.
+ESCUDO_MINIMO_PARA_BLOQUEO = 1.0
+
 
 def repartir_dano(cantidad, tipo_dano, escudo_disp):
     """Reparto comun del dano entre escudo y vida (personaje, maniqui...).
     Devuelve (absorbido por el escudo, dano a la vida). Si la parte del escudo supera el
-    escudo disponible, el sobrante pasa tambien a la vida."""
+    escudo disponible, el sobrante pasa tambien a la vida. Con menos de
+    ESCUDO_MINIMO_PARA_BLOQUEO de escudo no hay bloqueo y todo va a la vida."""
+    if escudo_disp < ESCUDO_MINIMO_PARA_BLOQUEO:
+        return 0.0, cantidad
     if tipo_dano == "magico":
         bloqueo, reparto_escudo, reparto_vida = ESCUDOM_BLOQUEO, ESCUDOM_REPARTO_ESCUDO, ESCUDOM_REPARTO_VIDA
     else:
@@ -116,6 +123,7 @@ class Personaje:
         self.oculto = False          # True = no puede ser visto desde afuera (pensado para futuros personajes)
         self.tiempo_veneno = 0.0     # Acumulador del daño de hierba venenosa
         self.desangrado = None       # Efecto de desangrado activo (None si no tiene)
+        self.veneno = None           # Veneno activo (ej. el que da Golpe de Suerte), None si no tiene
         self.ralentizacion = 0.0     # Debuff de velocidad recibido (ej. Onda Sonora), 0.20 = -20%
         self.tiempo_ralentizacion = 0.0
         self.masa = MASA_PERSONAJE   # Al separar cuerpos solapados, las invocaciones le ceden el paso
@@ -183,6 +191,15 @@ class Personaje:
         self.desangrado.actualizar(dt, self)
         if not self.desangrado.activo:
             self.desangrado = None
+
+    def actualizar_veneno(self, dt):
+        """Tiquea el veneno activo (daño mágico por segundo, lo amortigua el escudo mágico)
+        y lo retira cuando termina."""
+        if self.veneno is None:
+            return
+        self.veneno.actualizar(dt, self)
+        if not self.veneno.activo:
+            self.veneno = None
 
     def actualizar_ralentizacion(self, dt):
         """Descuenta la ralentizacion recibida (ej. Onda Sonora) y la retira al terminar."""
@@ -567,6 +584,10 @@ class Personaje:
 
         # Borde exterior blanco exacto (delimitador físico del radio / hitbox)
         pygame.draw.circle(pantalla, (255, 255, 255), (pos_x, pos_y), self.radio, 2)
+
+        # Envenenado: anillo verde exterior (como en los enemigos)
+        if self.veneno is not None:
+            pygame.draw.circle(pantalla, COLOR_VENENO, (pos_x, pos_y), self.radio + 4, 2)
 
         # Ojos: dos puntos negros que siempre miran hacia donde se dirige el personaje
         self._dibujar_ojos(pantalla, pos_x, pos_y, (10, 10, 14))

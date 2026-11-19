@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y catorce habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). **Todavía no hay enemigos reales**, pero sí un **maniquí de pruebas** en el centro del mapa que hace de primer enemigo (versión beta): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y quince habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). **Todavía no hay enemigos reales**, pero sí un **maniquí de pruebas** en el centro del mapa que hace de primer enemigo (versión beta): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
 
 ---
 
@@ -100,7 +100,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 El daño se divide en dos tipos:
 
 - **Físico:** el de las herramientas (espadas, dagas, mandoble, las flechas del Arco y también la espada del maniquí) y las invocaciones (conejos y lobos).
-- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica, Cortar, Onda Sonora). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
+- **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica, Cortar, Onda Sonora, el veneno de Disparo Venenoso). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
 
 Cada tipo lo amortigua su propio escudo del personaje:
 
@@ -109,7 +109,7 @@ Cada tipo lo amortigua su propio escudo del personaje:
 | Físico | 20 % | 70 % / 30 % |
 | Mágico | 10 % | 90 % / 10 % |
 
-El escudo absorbe su parte hasta agotarse; si esa parte supera el escudo disponible, el sobrante pasa también a la vida. Ambos escudos empiezan en **0**, se mejoran **+5 por punto hasta un máximo de 15** y luego **+2 por punto**, y **se regeneran +1 por segundo tras 10 s sin recibir ese tipo de daño** (cada uno con su propio contador). El daño de terreno (lago profundo, hierba venenosa) ignora los escudos y se aplica directo a la vida.
+El escudo absorbe su parte hasta agotarse; si esa parte supera el escudo disponible, el sobrante pasa también a la vida. El **bloqueo y el reparto solo existen si ese escudo tiene al menos 1 punto**: sin escudo (o con el mágico anulado por Cortar) el daño llega **entero** a la vida. Ambos escudos empiezan en **0**, se mejoran **+5 por punto hasta un máximo de 15** y luego **+2 por punto**, y **se regeneran +1 por segundo tras 10 s sin recibir ese tipo de daño** (cada uno con su propio contador). El daño de terreno (lago profundo, hierba venenosa) ignora los escudos y se aplica directo a la vida.
 
 **Anulación del escudo mágico (pasiva de Cortar):** el escudo absorbe el golpe con las reglas normales y, si el golpe llegó a hacer daño, el escudo restante queda **anulado 8 s**: se muestra en 0, no absorbe nada (el daño mágico va directo a la vida) y no se regenera. Al terminar **vuelve al valor que le quedó tras el golpe** (ej. 100 → el corte lo deja en 25 → 0 durante 8 s → vuelve a 25). Otro corte durante la anulación reinicia los 8 s. En el panel se ve como **ANULADO**.
 
@@ -255,7 +255,9 @@ Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientr
 
 ### 9.9 Golpe de Suerte
 
-Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico) o **nada**. "Nada" tiene un **30 %** y los otros **8** resultados se reparten el resto a partes iguales (**8.75 %** cada uno); en **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**11.875 %** cada uno). Paso 0 otorgado no pasa de su nivel máximo (10).
+Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico), **Disparo Venenoso** o **nada**. "Nada" tiene un **30 %** y los otros **9** resultados se reparten el resto a partes iguales (**≈7.78 %** cada uno); en **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**≈10.56 %** cada uno).
+
+**Disparo Venenoso es un resultado negativo:** no dispara nada; **envenena al portador** con el veneno del nivel que marca el tramo, pero a la **mitad del daño** y con la **misma duración** (ej. tramo nv1: 10 de daño en 20 s; nv20: 20 de daño en 10 s). Es daño mágico, así que lo amortigua su escudo mágico. Cuenta como resultado instantáneo (espera básica). Paso 0 otorgado no pasa de su nivel máximo (10).
 
 | Nivel | Coste En. | Nivel de la habilidad otorgada | Duración otorgada | Espera (instantáneos) | Recarga |
 |---|---|---|---|---|---|
@@ -397,6 +399,25 @@ Habilidad **mágica** de la categoría **Potenciadores**. Vuelve **invisible** a
 
 Valores **por tramos** (cada nivel conserva el del tramo anterior). Nivel máximo **10**; cada mejora cuesta **2 puntos** (como Regeneración Inversa). Tabla completa en `Tablas_Escalado.md` (2.14).
 
+### 9.18 Disparo Venenoso
+
+Habilidad de **daño mágico** (categoría Ataque Mágico). Dispara hacia donde mira el personaje una **esfera verde con una pequeña esfera morada** en el centro (velocidad **12**, sin alcance máximo, como Disparo Veloz). Se detiene en el **primer enemigo** y las **rocas la bloquean**.
+
+- **Impacto:** no hace daño ni empuja; **envenena** al enemigo.
+- **Veneno:** daño **mágico** repartido en el tiempo, un golpe por segundo (y la fracción que falte al terminar, para que siempre llegue el total). Lo **amortigua el escudo mágico** del enemigo y no empuja. El enemigo envenenado muestra un **anillo verde**.
+- **No acumulable:** volver a envenenar al mismo enemigo **reinicia** el veneno con los valores del nuevo disparo. Puede estar activo a la vez que la quemadura, el desangrado o la inmovilización.
+- **Golpe de Suerte:** puede salir como resultado **negativo** que envenena al portador (ver 9.9).
+
+| Nivel | Coste En. | Veneno total | Duración | Daño por segundo | Recarga |
+|---|---|---|---|---|---|
+| 1 | 20 | 20 | 20 s | 1 | 30 s |
+| 5 | 33 | 24.2 | 17.9 s | 1.35 | 26.8 s |
+| 10 | 48 | 29.5 | 15.3 s | 1.93 | 22.9 s |
+| 15 | 64 | 34.7 | 12.6 s | 2.75 | 18.9 s |
+| 20 | 80 | 40 | 10 s | 4 | 15 s |
+
+Todo **lineal**: coste **20 → 80 En.**, veneno **20 → 40** de daño, duración **20 → 10 s** y recarga **30 → 15 s** (a 1 decimal). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.15).
+
 ## 10. Puntos de empuje (retroceso)
 
 Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. Los **golpes con arma** no usan esta regla: empujan con los puntos fijos de cada arma (ver 8.5), y en el **choque de armas** ambos retroceden con la misma fuerza.
@@ -406,7 +427,7 @@ Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo reci
 En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar).
 
 - **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. **No detecta** al personaje **oculto en un arbusto** ni **invisible** (Paso 0): deja de girarse hacia él y no inicia golpes, aunque un golpe que ya estaba en marcha termina y puede dañarlo. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
-- **Daño recibido:** le afectan el arma del personaje y **todas las habilidades con daño**: Disparo Veloz, Carga de Fuego (con quemadura), Cortar, Onda Sonora, Aura Eléctrica, las invocaciones (con el desangrado de los lobos) y la telaraña de la Sombra Araña (inmovilización). Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); mientras está **inmovilizado** no retrocede ni vuelve. Si lo destruyen, **reaparece a los 5 s** con la vida y los escudos llenos y una espada nueva.
+- **Daño recibido:** le afectan el arma del personaje y **todas las habilidades con daño**: Disparo Veloz, Carga de Fuego (con quemadura), Disparo Venenoso (veneno, anillo verde), Cortar, Onda Sonora, Aura Eléctrica, las invocaciones (con el desangrado de los lobos) y la telaraña de la Sombra Araña (inmovilización). Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); mientras está **inmovilizado** no retrocede ni vuelve. Si lo destruyen, **reaparece a los 5 s** con la vida y los escudos llenos y una espada nueva.
 
 ---
 

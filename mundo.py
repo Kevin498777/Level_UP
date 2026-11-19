@@ -3,7 +3,8 @@ import random
 import pygame
 from personaje import Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
-                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura)
+                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
+                         aplicar_veneno, COLOR_VENENO)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 
@@ -588,6 +589,7 @@ class Maniqui:
         self.escudo_magico_guardado = 0.0
         self.vivo = True
         self.desangrado = None
+        self.veneno = None
         self.ralentizacion = 0.0          # no se mueve, pero la muestra (Onda Sonora)
         self.tiempo_ralentizacion = 0.0
         self.en_agua = False
@@ -683,6 +685,10 @@ class Maniqui:
             if self.vida <= 0:
                 self.vivo = False
                 self._t_respawn = self.RESPAWN
+        if self.veneno is not None:
+            self.veneno.actualizar(dt, self)     # recibir_dano ya gestiona la muerte
+            if not self.veneno.activo:
+                self.veneno = None
         if self.inmovilizado is not None:
             self.inmovilizado.actualizar(dt, self)
             if not self.inmovilizado.activo:
@@ -714,6 +720,9 @@ class Maniqui:
         pygame.draw.circle(pantalla, (120, 100, 70), (px, py), r, 2)
         pygame.draw.circle(pantalla, (200, 70, 60), (px, py), r // 2, 2)
         pygame.draw.circle(pantalla, (200, 70, 60), (px, py), 2)
+        # Indicador de veneno (anillo verde)
+        if self.veneno is not None and self.veneno.activo:
+            pygame.draw.circle(pantalla, COLOR_VENENO, (px, py), r + 8, 2)
         # Indicador de quemadura (anillo naranja)
         if getattr(self, "quemadura", None) is not None and self.quemadura.activo:
             pygame.draw.circle(pantalla, (255, 140, 40), (px, py), r + 4, 2)
@@ -1064,7 +1073,7 @@ def iniciar_mundo(config):
             if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
         ]
 
-        # Proyectiles (Disparo Veloz, Carga de Fuego, flechas del Arco) golpean a los enemigos
+        # Proyectiles (Disparo Veloz, Carga de Fuego, Disparo Venenoso, flechas del Arco) golpean a los enemigos
         for p in jugador.proyectiles:
             if not p.activo or getattr(p, "clavada", False):
                 continue
@@ -1083,6 +1092,8 @@ def iniciar_mundo(config):
                                              enemigo.posicion - p.posicion)
                     if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
                         aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
+                    if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
+                        aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
                     p.activo = False
                     break
         jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
@@ -1121,6 +1132,8 @@ def iniciar_mundo(config):
         jugador.actualizar_efectos(dt)
         # Desangrado activo (resta vida por intervalo; preparado para el combate)
         jugador.actualizar_desangrado(dt)
+        # Veneno activo (ej. el que da Golpe de Suerte al portador)
+        jugador.actualizar_veneno(dt)
         # Ralentizacion recibida (ej. Onda Sonora de un enemigo)
         jugador.actualizar_ralentizacion(dt)
 

@@ -323,30 +323,30 @@ Habilidad mágica que se **mantiene pulsada**, sin recarga. Cada intervalo compl
 
 ### 2.9 Golpe de Suerte
 
-Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o Paso 0) como efecto temporal sin coste extra, energía al máximo, escudos al máximo o nada. La habilidad otorgada sale al nivel del tramo de Golpe de Suerte, con las estadísticas de ese nivel (el Destello otorgado no deja fatiga). "Nada" tiene un 30 % y los otros 8 resultados se reparten el resto a partes iguales; en nivel 20 "nada" baja al 5 %. Paso 0 otorgado no pasa de su nivel máximo (10). **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; después empieza la recarga. La habilidad otorgada dura según el tramo (la Regeneración usa sus propios tiempos) y un resultado instantáneo (energía, escudos o nada) bloquea durante una espera básica antes de la recarga.
+Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o Paso 0) como efecto temporal sin coste extra, energía al máximo, escudos al máximo, Disparo Venenoso (negativo: envenena al portador con la mitad del daño del veneno de ese nivel y la misma duración) o nada. La habilidad otorgada sale al nivel del tramo de Golpe de Suerte, con las estadísticas de ese nivel (el Destello otorgado no deja fatiga). "Nada" tiene un 30 % y los otros 9 resultados se reparten el resto a partes iguales; en nivel 20 "nada" baja al 5 %. Paso 0 otorgado no pasa de su nivel máximo (10). **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; después empieza la recarga. La habilidad otorgada dura según el tramo (la Regeneración usa sus propios tiempos) y un resultado instantáneo (energía, escudos o nada) bloquea durante una espera básica antes de la recarga.
 
 | Nivel | Coste En. | Nivel de la habilidad otorgada | Duración de la habilidad otorgada | Espera (instantáneos) | Recarga | Prob. nada | Prob. de cada resultado |
 |---|---|---|---|---|---|---|---|
-| 1 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
-| 2 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
-| 3 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
-| 4 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
-| 5 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
-| 6 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
-| 7 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
-| 8 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
-| 9 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
-| 10 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
-| 11 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
-| 12 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
-| 13 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
-| 14 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
-| 15 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
-| 16 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
-| 17 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
-| 18 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
-| 19 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
-| 20 | 50 | 20 | 30 s | 2 s | 20 s | 5 % | 11.875 % |
+| 1 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 7.78 % |
+| 2 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 7.78 % |
+| 3 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 7.78 % |
+| 4 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 7.78 % |
+| 5 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 7.78 % |
+| 6 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 7.78 % |
+| 7 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 7.78 % |
+| 8 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 7.78 % |
+| 9 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 7.78 % |
+| 10 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 7.78 % |
+| 11 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 7.78 % |
+| 12 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 7.78 % |
+| 13 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 7.78 % |
+| 14 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 7.78 % |
+| 15 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 7.78 % |
+| 16 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 7.78 % |
+| 17 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 7.78 % |
+| 18 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 7.78 % |
+| 19 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 7.78 % |
+| 20 | 50 | 20 | 30 s | 2 s | 20 s | 5 % | 10.56 % |
 
 **Regeneración Inversa otorgada** (cura sola, sin pulsar ni gastar energía):
 
@@ -482,3 +482,32 @@ Potenciador **mágico**: vuelve invisible al personaje (no a sus invocaciones). 
 | 8 | 6 s | 50 | 12 s |
 | 9 | 6 s | 50 | 12 s |
 | 10 | 8 s | 60 | 16 s |
+
+### 2.15 Disparo Venenoso
+
+Habilidad de **daño mágico**: esfera verde (núcleo morado, velocidad 12) que se detiene en el primer enemigo y lo **envenena**; el impacto no daña ni empuja. El veneno hace su daño total repartido en su duración (un golpe por segundo), lo amortigua el escudo mágico y no se acumula (reinicia). Escalado **lineal**.
+
+| Nivel | Coste En. | Veneno total | Duración | Daño por segundo | Recarga |
+|---|---|---|---|---|---|
+| 1 | 20 | 20 | 20 s | 1 | 30 s |
+| 2 | 23 | 21.1 | 19.5 s | 1.08 | 29.2 s |
+| 3 | 26 | 22.1 | 18.9 s | 1.17 | 28.4 s |
+| 4 | 29 | 23.2 | 18.4 s | 1.26 | 27.6 s |
+| 5 | 33 | 24.2 | 17.9 s | 1.35 | 26.8 s |
+| 6 | 36 | 25.3 | 17.4 s | 1.45 | 26.1 s |
+| 7 | 39 | 26.3 | 16.8 s | 1.57 | 25.3 s |
+| 8 | 42 | 27.4 | 16.3 s | 1.68 | 24.5 s |
+| 9 | 45 | 28.4 | 15.8 s | 1.8 | 23.7 s |
+| 10 | 48 | 29.5 | 15.3 s | 1.93 | 22.9 s |
+| 11 | 52 | 30.5 | 14.7 s | 2.07 | 22.1 s |
+| 12 | 55 | 31.6 | 14.2 s | 2.23 | 21.3 s |
+| 13 | 58 | 32.6 | 13.7 s | 2.38 | 20.5 s |
+| 14 | 61 | 33.7 | 13.2 s | 2.55 | 19.7 s |
+| 15 | 64 | 34.7 | 12.6 s | 2.75 | 18.9 s |
+| 16 | 67 | 35.8 | 12.1 s | 2.96 | 18.2 s |
+| 17 | 71 | 36.8 | 11.6 s | 3.17 | 17.4 s |
+| 18 | 74 | 37.9 | 11.1 s | 3.41 | 16.6 s |
+| 19 | 77 | 38.9 | 10.5 s | 3.7 | 15.8 s |
+| 20 | 80 | 40 | 10 s | 4 | 15 s |
+
+**Autoveneno de Golpe de Suerte** (resultado negativo): mitad del daño total, misma duración, al nivel del tramo (nv1 → 10 en 20 s · nv5 → 12.1 en 17.9 s · nv10 → 14.75 en 15.3 s · nv15 → 17.35 en 12.6 s · nv20 → 20 en 10 s).
