@@ -1013,9 +1013,9 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
                 pygame.draw.rect(pantalla, (255, 140, 50), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         elif hab.estado == "INVOCADO":
-            criaturas = getattr(hab, "conejos", None)
+            criaturas = getattr(hab, "criaturas", None)
             if criaturas is None:
-                criaturas = getattr(hab, "lobos", [])
+                criaturas = getattr(hab, "conejos", None) or getattr(hab, "lobos", [])
             n_inv = len(criaturas)
             txt_est = fuente_mini.render(f"⚡ ACTIVA ({n_inv} vivos)", True, (140, 240, 170))
             pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
@@ -1023,7 +1023,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             txt_tiempo = fuente_contador.render(f"{n_inv}", True, (255, 255, 255))
             pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
-            tope = getattr(hab, "max_conejos", None) or getattr(hab, "max_invocaciones", 50)
+            tope = getattr(hab, "tope_criaturas", None) or getattr(hab, "max_conejos", None) or getattr(hab, "max_invocaciones", 50)
             prog = n_inv / float(tope)
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
             pygame.draw.rect(pantalla, (35, 50, 40), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
@@ -1056,6 +1056,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         elif hab.nombre == "Reforzamiento Mágico":
             dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
             detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Sombra Araña":
+            detalles = f"Inmoviliza {hab.inmovilizacion:.0f}s · Telarañas {len(hab.telaranas)}/{hab.MAX_TELARANAS}"
         else:
             detalles = hab.descripcion[:52]
 
@@ -2215,6 +2217,196 @@ class GolpeDeSuerte(HabilidadBase):
         super().actualizar(dt, jugador)
 
 
+# -----------------------------
+# EFECTO: INMOVILIZADO (telarana de la Sombra Arana)
+# -----------------------------
+class EfectoInmovilizado:
+    """Inmoviliza a un enemigo (no se mueve) durante una duracion. Puede hacer dano por
+    segundo (telarana de nivel 20). Ignora escudos. No acumulable: se sobreescribe."""
+    def __init__(self, duracion, dano_por_segundo=0):
+        self.duracion = duracion
+        self.restante = duracion
+        self.dano = dano_por_segundo
+        self._acum = 0.0
+
+    @property
+    def activo(self):
+        return self.restante > 0
+
+    def actualizar(self, dt, objetivo):
+        if self.restante <= 0:
+            return
+        self.restante -= dt
+        if self.dano > 0:
+            self._acum += dt
+            while self._acum >= 1.0:
+                self._acum -= 1.0
+                objetivo.vida = max(0.0, round(objetivo.vida - self.dano, 2))
+        if self.restante < 0:
+            self.restante = 0
+
+
+def aplicar_inmovilizacion(objetivo, duracion, dano_por_segundo=0):
+    """Inmoviliza a un objetivo con atributo `inmovilizado`. No acumulable."""
+    objetivo.inmovilizado = EfectoInmovilizado(duracion, dano_por_segundo)
+
+
+class Telarana:
+    """Telarana en el suelo (trampa de un solo uso): inmoviliza al primer enemigo que la pisa.
+    Invisible para los enemigos (no la evitan); visible para el jugador."""
+    def __init__(self, x, y, radio, duracion_inmoviliza, dano_por_segundo=0):
+        self.posicion = pygame.Vector2(x, y)
+        self.radio = radio
+        self.duracion = duracion_inmoviliza
+        self.dano = dano_por_segundo
+        self.activa = True
+
+    def intentar_atrapar(self, enemigos):
+        if not self.activa:
+            return
+        for enemigo in enemigos:
+            if not getattr(enemigo, "vivo", True) or not hasattr(enemigo, "inmovilizado"):
+                continue
+            r_e = getattr(enemigo, "radio", 0)
+            if (enemigo.posicion - self.posicion).length() <= self.radio + r_e:
+                aplicar_inmovilizacion(enemigo, self.duracion, self.dano)
+                self.activa = False   # un solo uso
+                return
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        cx = round(self.posicion.x - desplazamiento[0])
+        cy = round(self.posicion.y - desplazamiento[1])
+        r = int(self.radio)
+        col = (170, 185, 210)
+        for frac in (1.0, 0.66, 0.33):
+            pygame.draw.circle(pantalla, col, (cx, cy), max(1, int(r * frac)), 1)
+        for i in range(8):
+            ang = math.tau * i / 8
+            ex = cx + int(math.cos(ang) * r)
+            ey = cy + int(math.sin(ang) * r)
+            pygame.draw.line(pantalla, col, (cx, cy), (ex, ey), 1)
+
+
+class Arana(EntidadInvocada):
+    """Sombra arana: esfera pequena con cara de arana y 8 patas. 1 HP, sin ataque.
+    Al llegar al punto ordenado teje una telarana y desaparece (lo gestiona la habilidad)."""
+    radio = 5
+    masa = 0.6
+    COLOR = (30, 26, 40)
+    COLOR_BORDE = (72, 62, 92)
+    COLOR_OJOS = (200, 60, 60)
+    COLOR_OJOS_COMBATE = (255, 60, 60)
+    COLOR_PATAS = (18, 16, 26)
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        px = round(self.posicion.x - desplazamiento[0])
+        py = round(self.posicion.y - desplazamiento[1])
+        r = self.radio
+        for i in range(8):
+            ang = math.tau * i / 8 + math.pi / 8
+            mx = px + int(math.cos(ang) * (r + 2))
+            my = py + int(math.sin(ang) * (r + 1))
+            lx = px + int(math.cos(ang) * (r + 6))
+            ly = py + int(math.sin(ang) * (r + 6))
+            pygame.draw.line(pantalla, self.COLOR_PATAS, (px, py), (mx, my), 1)
+            pygame.draw.line(pantalla, self.COLOR_PATAS, (mx, my), (lx, ly), 1)
+        pygame.draw.circle(pantalla, self.COLOR, (px, py), r)
+        pygame.draw.circle(pantalla, self.COLOR_BORDE, (px, py), r, 1)
+        col = self.COLOR_OJOS_COMBATE if self.modo_combate else self.COLOR_OJOS
+        pygame.draw.circle(pantalla, col, (px - 2, py - 1), 1)
+        pygame.draw.circle(pantalla, col, (px + 2, py - 1), 1)
+
+
+class InvocacionArana(OrdenesSombrias, HabilidadBase):
+    """Sombra Arana (Arte de Sombra 3): invoca una arana (1 HP). Manten la tecla (ojos rojos)
+    y marca un punto con clic derecho; al llegar teje una telarana (un solo uso) que inmoviliza
+    al primer enemigo que la pise. Max 3 telaranas (la nueva quita la mas vieja). 5s de recarga."""
+    MAX_TELARANAS = 3
+    COOLDOWN = 5.0
+    VELOCIDAD = 6.0
+
+    def __init__(self):
+        super().__init__(
+            nombre="Sombra Araña",
+            descripcion="Invoca una araña (1 HP). Mantén la tecla (ojos rojos) y marca un punto con clic derecho; al llegar teje una telaraña (un solo uso) que inmoviliza al primer enemigo que la pise. Máx 3 telarañas; 5s de recarga.",
+            costo_energia=50,
+            duracion_activa=0.0,
+            duracion_cooldown=self.COOLDOWN,
+            tecla=pygame.K_3,
+            tecla_str="3"
+        )
+        self.aranas = []
+        self.telaranas = []
+        self.tope_criaturas = 1
+        self._iniciar_ordenes()
+
+    @property
+    def criaturas(self):
+        return self.aranas
+
+    def _aplicar_nivel(self):
+        """Escalado (nivel 1 a 20):
+        - coste: 50 En. (nv1) -> 100 En. (nv20), progresivo
+        - inmovilizacion: 5s (nv1) -> 20s (nv20), progresivo
+        - dano de la telarana: 0, salvo nivel 20 (1 por segundo mientras dura la inmovilizacion)
+        """
+        n = self.nivel
+        self.costo_energia = round(50 + (100 - 50) * (n - 1) / 19)
+        self.inmovilizacion = round(5.0 + (20.0 - 5.0) * (n - 1) / 19, 1)
+        self.dano_telarana = 1 if n >= self.nivel_max else 0
+
+    def ejecutar_activacion(self, jugador):
+        self.estado = "INVOCADO"
+        self.objetivo = None
+        rad = math.radians(jugador.angulo)
+        atras = pygame.Vector2(-math.sin(rad), math.cos(rad))   # opuesto al frente
+        base = jugador.posicion + atras * (jugador.radio + 16)
+        self.aranas = [Arana(base.x, base.y, 1, self.VELOCIDAD, 0)]
+
+    def ordenar(self, punto, jugador, enemigos):
+        """La arana siempre va a un PUNTO (no persigue enemigos)."""
+        self._pasivo_al_soltar = False
+        self.objetivo = pygame.Vector2(punto)
+
+    def _tejer(self, jugador, punto):
+        radio = round(jugador.radio * 1.6)   # un poco mas grande que el jugador
+        self.telaranas.append(Telarana(punto.x, punto.y, radio, self.inmovilizacion, self.dano_telarana))
+        if len(self.telaranas) > self.MAX_TELARANAS:
+            self.telaranas.pop(0)            # quita la mas vieja
+        self.aranas = []
+        self.objetivo = None
+        self.estado = "COOLDOWN"
+        self.tiempo_restante_cooldown = self.duracion_cooldown
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)
+        if self.estado == "INVOCADO" and self.aranas:
+            arana = self.aranas[0]
+            arana.actualizar(dt, jugador, self.objetivo, self.modo_combate)
+            if not arana.vivo:
+                # Murio antes de tejer: recarga sin telarana
+                self.aranas = []
+                self.objetivo = None
+                self.estado = "COOLDOWN"
+                self.tiempo_restante_cooldown = self.duracion_cooldown
+            elif isinstance(self.objetivo, pygame.Vector2):
+                if (self.objetivo - arana.posicion).length() <= arana.radio + 6:
+                    self._tejer(jugador, self.objetivo)
+
+    def actualizar_telaranas(self, dt, enemigos):
+        for t in self.telaranas:
+            t.intentar_atrapar(enemigos)
+        self.telaranas = [t for t in self.telaranas if t.activa]
+
+    def dibujar_telaranas(self, pantalla, desplazamiento=(0, 0)):
+        for t in self.telaranas:
+            t.dibujar(pantalla, desplazamiento)
+
+    def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
+        for a in self.aranas:
+            a.dibujar(pantalla, desplazamiento)
+
+
 HABILIDADES_DISPONIBLES = {
     "Destello": Destello,
     "Burst de Fuerza": BurstDeFuerza,
@@ -2227,7 +2419,8 @@ HABILIDADES_DISPONIBLES = {
     "Aura Electrica": AuraElectrica,
     "Reforzamiento Mágico": ReforzamientoMagico,
     "Regeneración Inversa": RegeneracionInversa,
-    "Golpe de Suerte": GolpeDeSuerte
+    "Golpe de Suerte": GolpeDeSuerte,
+    "Sombra Araña": InvocacionArana
 }
 
 def crear_habilidad(nombre):

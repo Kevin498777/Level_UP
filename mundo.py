@@ -563,6 +563,7 @@ class Maniqui:
         self.herramienta = EspadaLarga()
         self.herramienta.activa = True
         self.quemadura = None
+        self.inmovilizado = None
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         """Reparte el dano entre su escudo y la vida (mismas reglas que el personaje).
@@ -647,14 +648,22 @@ class Maniqui:
             if self.vida <= 0:
                 self.vivo = False
                 self._t_respawn = self.RESPAWN
-        # Retroceso y regreso suave a su ancla (sigue siendo un blanco centrado)
-        if self.empuje.length_squared() >= 0.25:
-            paso = self.empuje * min(1.0, dt * 14.0)
-            self.posicion += paso
-            self.empuje -= paso
-        hacia_ancla = self.ancla - self.posicion
-        if hacia_ancla.length() > 0.5:
-            self.posicion += hacia_ancla * min(1.0, dt * 3.0)
+        if self.inmovilizado is not None:
+            self.inmovilizado.actualizar(dt, self)
+            if not self.inmovilizado.activo:
+                self.inmovilizado = None
+            if self.vida <= 0:
+                self.vivo = False
+                self._t_respawn = self.RESPAWN
+        # Movimiento (retroceso + regreso a ancla): bloqueado mientras esta inmovilizado
+        if self.inmovilizado is None:
+            if self.empuje.length_squared() >= 0.25:
+                paso = self.empuje * min(1.0, dt * 14.0)
+                self.posicion += paso
+                self.empuje -= paso
+            hacia_ancla = self.ancla - self.posicion
+            if hacia_ancla.length() > 0.5:
+                self.posicion += hacia_ancla * min(1.0, dt * 3.0)
 
     def dibujar(self, pantalla, desplazamiento=(0, 0), fuente=None):
         if not self.vivo:
@@ -673,6 +682,8 @@ class Maniqui:
         # Indicador de quemadura (anillo naranja)
         if getattr(self, "quemadura", None) is not None and self.quemadura.activo:
             pygame.draw.circle(pantalla, (255, 140, 40), (px, py), r + 4, 2)
+        if getattr(self, "inmovilizado", None) is not None and self.inmovilizado.activo:
+            pygame.draw.circle(pantalla, (170, 185, 210), (px, py), r + 6, 1)
         # Espada del maniqui (coordenadas de mundo)
         if getattr(self, "herramienta", None):
             self.herramienta.dibujar(pantalla, self, desplazamiento)
@@ -1046,6 +1057,10 @@ def iniciar_mundo(config):
         for hab in jugador.habilidades:
             if hasattr(hab, "actualizar_dano_enemigos"):
                 hab.actualizar_dano_enemigos(dt, enemigos, jugador)
+        # Sombra Araña: las telaranas atrapan a los enemigos que las pisan
+        for hab in jugador.habilidades:
+            if hasattr(hab, "actualizar_telaranas"):
+                hab.actualizar_telaranas(dt, enemigos)
         # Efectos temporales otorgados (ej. por Golpe de Suerte)
         jugador.actualizar_efectos(dt)
         # Desangrado activo (resta vida por intervalo; preparado para el combate)
@@ -1114,6 +1129,10 @@ def iniciar_mundo(config):
                 roca.dibujar(pantalla, desplazamiento)
 
         # Maniqui de pruebas en el centro
+        # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
+        for hab in jugador.habilidades:
+            if hasattr(hab, "dibujar_telaranas"):
+                hab.dibujar_telaranas(pantalla, desplazamiento)
         maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
 
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
