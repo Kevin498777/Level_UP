@@ -323,30 +323,30 @@ Habilidad mágica que se **mantiene pulsada**, sin recarga. Cada intervalo compl
 
 ### 2.9 Golpe de Suerte
 
-Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa o Aura Eléctrica) como efecto temporal sin coste extra, energía al máximo, escudos al máximo o nada. La habilidad otorgada sale al nivel del tramo de Golpe de Suerte, con las estadísticas de ese nivel (el Destello otorgado no deja fatiga). En nivel 20 la probabilidad de "nada" baja al 5 % y el resto se reparte a partes iguales. **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; después empieza la recarga. La habilidad otorgada dura según el tramo (la Regeneración usa sus propios tiempos) y un resultado instantáneo (energía, escudos o nada) bloquea durante una espera básica antes de la recarga.
+Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o Paso 0) como efecto temporal sin coste extra, energía al máximo, escudos al máximo o nada. La habilidad otorgada sale al nivel del tramo de Golpe de Suerte, con las estadísticas de ese nivel (el Destello otorgado no deja fatiga). "Nada" tiene un 30 % y los otros 8 resultados se reparten el resto a partes iguales; en nivel 20 "nada" baja al 5 %. Paso 0 otorgado no pasa de su nivel máximo (10). **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; después empieza la recarga. La habilidad otorgada dura según el tramo (la Regeneración usa sus propios tiempos) y un resultado instantáneo (energía, escudos o nada) bloquea durante una espera básica antes de la recarga.
 
 | Nivel | Coste En. | Nivel de la habilidad otorgada | Duración de la habilidad otorgada | Espera (instantáneos) | Recarga | Prob. nada | Prob. de cada resultado |
 |---|---|---|---|---|---|---|---|
-| 1 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
-| 2 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
-| 3 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
-| 4 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 10 % |
-| 5 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
-| 6 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
-| 7 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
-| 8 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
-| 9 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 10 % |
-| 10 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
-| 11 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
-| 12 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
-| 13 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
-| 14 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 10 % |
-| 15 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
-| 16 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
-| 17 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
-| 18 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
-| 19 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 10 % |
-| 20 | 50 | 20 | 30 s | 2 s | 20 s | 5 % | 13.6 % |
+| 1 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
+| 2 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
+| 3 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
+| 4 | 15 | 1 | 5 s | 5 s | 5 s | 30 % | 8.75 % |
+| 5 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
+| 6 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
+| 7 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
+| 8 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
+| 9 | 20 | 5 | 10 s | 5 s | 8 s | 30 % | 8.75 % |
+| 10 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
+| 11 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
+| 12 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
+| 13 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
+| 14 | 25 | 10 | 15 s | 5 s | 12 s | 30 % | 8.75 % |
+| 15 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
+| 16 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
+| 17 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
+| 18 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
+| 19 | 30 | 15 | 20 s | 5 s | 15 s | 30 % | 8.75 % |
+| 20 | 50 | 20 | 30 s | 2 s | 20 s | 5 % | 11.875 % |
 
 **Regeneración Inversa otorgada** (cura sola, sin pulsar ni gastar energía):
 
@@ -465,3 +465,20 @@ Tercera de las Artes de las Sombras. Invoca **una araña** (1 HP, sin ataque, ve
 | 18 | 95 | 18.4 s | 0 | 5 s |
 | 19 | 97 | 19.2 s | 0 | 5 s |
 | 20 | 100 | 20 s | 1 | 5 s |
+
+### 2.14 Paso 0
+
+Potenciador **mágico**: vuelve invisible al personaje (no a sus invocaciones). Los enemigos no lo detectan (no lo miran ni inician ataques contra él), pero sí puede recibir daño. Dura todo su tiempo aunque ataque o reciba daño; la recarga empieza al terminar. El mapa se oscurece como dentro de un arbusto (sin oscurecerse el doble). Nivel máximo **10**; cada mejora cuesta **2 puntos**. Valores por tramos.
+
+| Nivel | Invisibilidad | Coste En. | Recarga |
+|---|---|---|---|
+| 1 | 3 s | 30 | 6 s |
+| 2 | 3 s | 30 | 6 s |
+| 3 | 4 s | 35 | 8 s |
+| 4 | 4 s | 35 | 8 s |
+| 5 | 5 s | 40 | 10 s |
+| 6 | 5 s | 40 | 10 s |
+| 7 | 5 s | 40 | 10 s |
+| 8 | 6 s | 50 | 12 s |
+| 9 | 6 s | 50 | 12 s |
+| 10 | 8 s | 60 | 16 s |

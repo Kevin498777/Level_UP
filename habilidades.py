@@ -857,7 +857,7 @@ def dibujar_tooltip(pantalla, x, y, titulo, lineas, fuente_titulo, fuente_texto,
 # DIBUJAR PANEL LATERAL DE HABILIDADES
 # -----------------------------
 # Habilidades cuya tarjeta activa se pinta en tono frío (cian) en lugar de rojizo
-HABILIDADES_TONO_FRIO = ("Destello", "Aura Electrica", "Reforzamiento Mágico")
+HABILIDADES_TONO_FRIO = ("Destello", "Aura Electrica", "Reforzamiento Mágico", "Paso 0")
 
 def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador, fuentes, info_abierta=None):
     """
@@ -1057,6 +1057,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         elif hab.nombre == "Reforzamiento Mágico":
             dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
             detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
+        elif hab.nombre == "Paso 0":
+            detalles = f"Invisible {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Sombra Araña":
             detalles = f"Inmoviliza {hab.inmovilizacion:.0f}s · Telarañas {len(hab.telaranas)}/{hab.MAX_TELARANAS}"
         else:
@@ -2075,15 +2077,64 @@ def factor_regeneracion(regen, jugador):
 
 
 # -----------------------------
+# HABILIDAD: PASO 0 (potenciador de invisibilidad)
+# -----------------------------
+class Paso0(HabilidadBase):
+    """
+    Potenciador mágico: vuelve invisible al personaje (no a sus invocaciones) durante un
+    tiempo. Invisible, los enemigos no lo detectan (no lo miran ni inician ataques contra él),
+    pero lo que lo toque sí le hace daño. Su arma se oculta salvo durante el golpe y sus
+    ataques (proyectiles, cuchillas, ondas...) sí se ven. Dura todo su tiempo aunque ataque
+    o reciba daño; la recarga empieza al terminar. El mundo se ve oscurecido como dentro de
+    un arbusto (sin oscurecerse el doble). Nivel máximo 10; cada mejora cuesta 2 puntos.
+    """
+    NIVEL_MAX = 10
+    COSTO_MEJORA = 2                    # Como Regeneración Inversa
+    da_invisibilidad = True             # Personaje.invisible lo consulta
+    # Tramos por nivel: (nivel desde el que aplica, valor)
+    TRAMOS_DURACION = ((1, 3.0), (3, 4.0), (5, 5.0), (8, 6.0), (10, 8.0))
+    TRAMOS_COSTE = ((1, 30), (3, 35), (5, 40), (8, 50), (10, 60))
+    TRAMOS_RECARGA = ((1, 6.0), (3, 8.0), (5, 10.0), (8, 12.0), (10, 16.0))
+
+    def __init__(self):
+        super().__init__(
+            nombre="Paso 0",
+            descripcion="Te vuelve invisible: los enemigos no te detectan, pero puedes recibir daño. Tus invocaciones y ataques sí se ven.",
+            costo_energia=30,
+            duracion_activa=3.0,
+            duracion_cooldown=6.0,
+            tecla=pygame.K_2,
+            tecla_str="2"
+        )
+        self.nivel_max = self.NIVEL_MAX
+        self.costo_mejora = self.COSTO_MEJORA
+
+    def _aplicar_nivel(self):
+        """
+        Escalado por tramos (nivel 1 a 10):
+        - nv1-2: 3s invisible, 30 En., recarga 6s
+        - nv3-4: 4s, 35 En., recarga 8s
+        - nv5-7: 5s, 40 En., recarga 10s
+        - nv8-9: 6s, 50 En., recarga 12s
+        - nv10:  8s, 60 En., recarga 16s
+        """
+        n = self.nivel
+        self.duracion_activa = _valor_por_tramo(n, self.TRAMOS_DURACION)
+        self.costo_energia = _valor_por_tramo(n, self.TRAMOS_COSTE)
+        self.duracion_cooldown = _valor_por_tramo(n, self.TRAMOS_RECARGA)
+
+
+# -----------------------------
 # HABILIDAD 9: GOLPE DE SUERTE
 # -----------------------------
 class GolpeDeSuerte(HabilidadBase):
     """
     Al lanzarla otorga un resultado aleatorio (sin coste extra de energía):
-    Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica
-    (10% cada una, al nivel que marca el tramo de Golpe de Suerte), energía al máximo (10%),
-    escudos al máximo (10%) o nada (30%). En nivel 20 "nada" baja a 5% y el resto se
-    reparte a partes iguales entre los demás resultados.
+    Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica,
+    Paso 0 (al nivel que marca el tramo de Golpe de Suerte, sin pasar del máximo de cada una),
+    energía al máximo, escudos al máximo o nada (30%). Los 8 resultados que no son "nada" se
+    reparten el resto a partes iguales (8.75% cada uno). En nivel 20 "nada" baja a 5% y el
+    resto se reparte igual (11.875% cada uno).
 
     Bloqueo: Golpe de Suerte queda ACTIVA (no se puede volver a lanzar) mientras dure
     lo otorgado y solo al terminar empieza su recarga normal:
@@ -2101,9 +2152,10 @@ class GolpeDeSuerte(HabilidadBase):
         "Destello": Destello,
         "Reforzamiento Mágico": ReforzamientoMagico,
         "Aura Electrica": AuraElectrica,
+        "Paso 0": Paso0,
     }
     RESULTADOS = ("Burst de Fuerza", "Destello", "Reforzamiento Mágico", REGENERACION,
-                  ENERGIA, "Aura Electrica", ESCUDOS)
+                  ENERGIA, "Aura Electrica", ESCUDOS, "Paso 0")
     PROB_NADA = 0.30
     PROB_NADA_NIVEL_MAX = 0.05
     # Tramos por nivel: (nivel desde el que aplica, valor)
@@ -2424,7 +2476,8 @@ HABILIDADES_DISPONIBLES = {
     "Reforzamiento Mágico": ReforzamientoMagico,
     "Regeneración Inversa": RegeneracionInversa,
     "Golpe de Suerte": GolpeDeSuerte,
-    "Sombra Araña": InvocacionArana
+    "Sombra Araña": InvocacionArana,
+    "Paso 0": Paso0
 }
 
 def crear_habilidad(nombre):

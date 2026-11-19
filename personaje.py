@@ -8,6 +8,11 @@ from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMP
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
 MASA_PERSONAJE = 100.0
 
+# Silueta del personaje invisible (Paso 0): transparencias 0-255 de relleno, contorno y ojos
+ALFA_INVISIBLE_RELLENO = 25
+ALFA_INVISIBLE_CONTORNO = 90
+ALFA_INVISIBLE_OJOS = 140
+
 # --- Escudo del personaje (reserva que absorbe daño físico) ---
 # Progresión del escudo: inicial 0, +5 por mejora hasta un máximo de 15 y, a partir
 # de ahí, +2 por mejora. El escudo mágico (Fase 2) compartirá este mismo esquema.
@@ -132,6 +137,18 @@ class Personaje:
     def habilidades_en_efecto(self):
         """Habilidades equipadas más los efectos temporales activos (ej. de Golpe de Suerte)."""
         return self.habilidades + self.efectos_extra
+
+    @property
+    def invisible(self):
+        """True mientras haya una habilidad de invisibilidad activa (Paso 0, equipada u otorgada)."""
+        return any(getattr(h, "da_invisibilidad", False) and h.estado == "ACTIVA"
+                   for h in self.habilidades_en_efecto())
+
+    @property
+    def detectable(self):
+        """Los enemigos no detectan al personaje oculto en un arbusto ni invisible (no lo miran
+        ni inician ataques contra él), aunque lo que lo toque sí le hace daño."""
+        return not (self.oculto or self.invisible)
 
     def agregar_efecto(self, efecto):
         """Añade un efecto temporal ya activado; si hay otro con el mismo nombre, lo reemplaza."""
@@ -506,6 +523,16 @@ class Personaje:
         pos_x = round(self.posicion.x - ox)
         pos_y = round(self.posicion.y - oy)
 
+        # Invisible (Paso 0): solo un contorno tenue con los ojos para saber dónde está.
+        # Se ocultan nombre, arma (salvo durante el golpe), auras y destino; los ataques sí se ven.
+        if self.invisible:
+            self._dibujar_invisible(pantalla, pos_x, pos_y)
+            if self.herramienta and getattr(self.herramienta, "golpeando", False):
+                self.herramienta.dibujar(pantalla, self, desplazamiento)
+            for p in self.proyectiles:
+                p.dibujar(pantalla, desplazamiento)
+            return
+
         # Destino visual suave cuando se mueve
         if self.esta_en_movimiento():
             pygame.draw.circle(pantalla, (70, 85, 110), (round(self.destino.x - ox), round(self.destino.y - oy)), 5, 1)
@@ -542,6 +569,30 @@ class Personaje:
         pygame.draw.circle(pantalla, (255, 255, 255), (pos_x, pos_y), self.radio, 2)
 
         # Ojos: dos puntos negros que siempre miran hacia donde se dirige el personaje
+        self._dibujar_ojos(pantalla, pos_x, pos_y, (10, 10, 14))
+
+        # Dibujar herramienta rotada sincronizada con el personaje
+        if self.herramienta:
+            self.herramienta.dibujar(pantalla, self, desplazamiento)
+
+        # Dibujar proyectiles activos
+        for p in self.proyectiles:
+            p.dibujar(pantalla, desplazamiento)
+
+        # Etiqueta con el nombre flotando sobre el personaje (oculta si está dentro de un arbusto;
+        # invisible ya salió antes)
+        if self.oculto:
+            return
+        texto_nombre = fuente_nombre.render(self.nombre, True, (255, 255, 255))
+        rect_texto = texto_nombre.get_rect(center=(pos_x, pos_y - self.radio - 14))
+
+        fondo_tag = pygame.Surface((rect_texto.width + 10, rect_texto.height + 4), pygame.SRCALPHA)
+        pygame.draw.rect(fondo_tag, (18, 22, 28, 210), fondo_tag.get_rect(), border_radius=4)
+        pantalla.blit(fondo_tag, (rect_texto.x - 5, rect_texto.y - 2))
+        pantalla.blit(texto_nombre, rect_texto)
+
+    def _dibujar_ojos(self, pantalla, pos_x, pos_y, color):
+        """Dos puntos que siempre miran hacia donde se dirige el personaje."""
         rad = math.radians(self.angulo)
         frente_x = math.sin(rad)
         frente_y = -math.cos(rad)
@@ -555,23 +606,14 @@ class Personaje:
         for lado in (-1, 1):
             ojo_x = pos_x + frente_x * adelante + derecha_x * separacion * lado
             ojo_y = pos_y + frente_y * adelante + derecha_y * separacion * lado
-            pygame.draw.circle(pantalla, (10, 10, 14), (round(ojo_x), round(ojo_y)), radio_ojo)
+            pygame.draw.circle(pantalla, color, (round(ojo_x), round(ojo_y)), radio_ojo)
 
-        # Dibujar herramienta rotada sincronizada con el personaje
-        if self.herramienta:
-            self.herramienta.dibujar(pantalla, self, desplazamiento)
-
-        # Dibujar proyectiles activos
-        for p in self.proyectiles:
-            p.dibujar(pantalla, desplazamiento)
-
-        # Etiqueta con el nombre flotando sobre el personaje (oculta si está dentro de un arbusto)
-        if self.oculto:
-            return
-        texto_nombre = fuente_nombre.render(self.nombre, True, (255, 255, 255))
-        rect_texto = texto_nombre.get_rect(center=(pos_x, pos_y - self.radio - 14))
-
-        fondo_tag = pygame.Surface((rect_texto.width + 10, rect_texto.height + 4), pygame.SRCALPHA)
-        pygame.draw.rect(fondo_tag, (18, 22, 28, 210), fondo_tag.get_rect(), border_radius=4)
-        pantalla.blit(fondo_tag, (rect_texto.x - 5, rect_texto.y - 2))
-        pantalla.blit(texto_nombre, rect_texto)
+    def _dibujar_invisible(self, pantalla, pos_x, pos_y):
+        """Silueta casi transparente: relleno muy tenue, contorno suave y ojos."""
+        r = self.radio
+        capa = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+        centro = (r + 2, r + 2)
+        pygame.draw.circle(capa, (*self.color, ALFA_INVISIBLE_RELLENO), centro, r)
+        pygame.draw.circle(capa, (255, 255, 255, ALFA_INVISIBLE_CONTORNO), centro, r, 1)
+        self._dibujar_ojos(capa, centro[0], centro[1], (10, 10, 14, ALFA_INVISIBLE_OJOS))
+        pantalla.blit(capa, (pos_x - r - 2, pos_y - r - 2))

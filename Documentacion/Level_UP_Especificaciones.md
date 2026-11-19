@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y trece habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). **Todavía no hay enemigos reales**, pero sí un **maniquí de pruebas** en el centro del mapa que hace de primer enemigo (versión beta): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y catorce habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). **Todavía no hay enemigos reales**, pero sí un **maniquí de pruebas** en el centro del mapa que hace de primer enemigo (versión beta): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
 
 ---
 
@@ -48,7 +48,7 @@ La habilidad **Cortar** puede destruir rocas pequeñas y grandes; las gigantes s
 
 ## 5. Vegetación
 
-Los arbustos tienen forma de nube y los **tres tipos se ven idénticos** a simple vista. Diámetro **50 a 150 px** (frutales mín. 50). Un personaje solo entra y se esconde si cabe; si no cabe, el arbusto es un **obstáculo sólido**. Dentro, el personaje queda **oculto** y el mapa se oscurece.
+Los arbustos tienen forma de nube y los **tres tipos se ven idénticos** a simple vista. Diámetro **50 a 150 px** (frutales mín. 50). Un personaje solo entra y se esconde si cabe; si no cabe, el arbusto es un **obstáculo sólido**. Dentro, el personaje queda **oculto** y el mapa se oscurece. **Oculto, los enemigos no lo detectan**: no lo miran ni inician ataques contra él (lo que lo toque sí le hace daño), igual que con Paso 0 (ver 9.17).
 
 ### 5.1 Tipos de arbusto
 
@@ -99,7 +99,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 
 El daño se divide en dos tipos:
 
-- **Físico:** el de las herramientas (espadas, dagas, mandoble, también la espada del maniquí) y las invocaciones (conejos y lobos).
+- **Físico:** el de las herramientas (espadas, dagas, mandoble, las flechas del Arco y también la espada del maniquí) y las invocaciones (conejos y lobos).
 - **Mágico:** el de las habilidades que consumen energía (Disparo Veloz, Carga de Fuego, Aura Eléctrica, Cortar, Onda Sonora). Burst de Fuerza no cuenta como daño mágico: solo sube la fuerza, el golpe lo sigue dando el arma (físico).
 
 Cada tipo lo amortigua su propio escudo del personaje:
@@ -199,7 +199,7 @@ El coste del lote **sube** con el nivel a propósito. **Aspecto:** arco de mader
 
 ## 9. Habilidades
 
-Se equipan en las teclas **[2]**, **[3]** y **[4]** (hasta 3 elegidas en la creación). Consumen energía y tienen recarga. Nivel máximo **20** (Regeneración Inversa: **10**).
+Se equipan en las teclas **[2]**, **[3]** y **[4]** (hasta 3 elegidas en la creación). Consumen energía y tienen recarga. Nivel máximo **20** (Regeneración Inversa y Paso 0: **10**).
 
 ### 9.1 Destello
 
@@ -255,7 +255,7 @@ Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientr
 
 ### 9.9 Golpe de Suerte
 
-Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa o Aura Eléctrica (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico) o **nada**. Cada resultado tiene un **10 %** y "nada" un **30 %**; en **nivel 20** "nada" baja al **5 %** y el resto se reparte a partes iguales (≈13.6 % cada uno).
+Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico) o **nada**. "Nada" tiene un **30 %** y los otros **8** resultados se reparten el resto a partes iguales (**8.75 %** cada uno); en **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**11.875 %** cada uno). Paso 0 otorgado no pasa de su nivel máximo (10).
 
 | Nivel | Coste En. | Nivel de la habilidad otorgada | Duración otorgada | Espera (instantáneos) | Recarga |
 |---|---|---|---|---|---|
@@ -279,7 +279,7 @@ Lanzar una habilidad mientras otra sigue activa cuesta un **+5 % de la energía 
 
 ### 9.11 Invocar Lobos
 
-Invocación **mágica** (segunda de las 10 Artes de las Sombras). Invoca **3 lobos** detrás del personaje (cuerpo gris con orejas y ojos rojos). No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Cada golpe tiene un **33 %** de aplicar **desangrado** al objetivo: recibe **5 golpes de 1 de vida, uno cada 2 s** (ignora escudos). Se cuenta **por golpes, no por tiempo**, así el daño total es siempre 5 sin importar los FPS. El efecto sigue **activo hasta que cae el último golpe** y mientras dura reduce **toda curación un 50 %**. **No es acumulable**: reaplicarlo solo reinicia los 5 golpes.
+Invocación **mágica** (segunda de las 10 Artes de las Sombras): la habilidad gasta energía, pero las **mordidas de los lobos hacen daño físico** (las amortigua el escudo físico del objetivo). Invoca **3 lobos** detrás del personaje (cuerpo gris con orejas y ojos rojos). No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Cada golpe tiene un **33 %** de aplicar **desangrado** al objetivo: recibe **5 golpes de 1 de vida, uno cada 2 s** (ignora escudos). Se cuenta **por golpes, no por tiempo**, así el daño total es siempre 5 sin importar los FPS. El efecto sigue **activo hasta que cae el último golpe** y mientras dura reduce **toda curación un 50 %**. **No es acumulable**: reaplicarlo solo reinicia los 5 golpes.
 
 | Nivel | Vida | Velocidad | Daño | Coste En. |
 |---|---|---|---|---|
@@ -377,6 +377,26 @@ Invocación **mágica** (tercera de las 10 Artes de las Sombras). Invoca **una a
 
 Coste **50 → 100 En.** e inmovilización **5 → 20 s**, ambos lineales. Nivel máximo **20**. En el panel derecho muestra la inmovilización actual y las telarañas colocadas (x/3). Tabla completa en `Tablas_Escalado.md` (2.13).
 
+### 9.17 Paso 0
+
+Habilidad **mágica** de la categoría **Potenciadores**. Vuelve **invisible** al personaje durante un tiempo (sus **invocaciones no**).
+
+- **Enemigos:** mientras eres invisible **no te detectan**: no te miran ni inician ataques contra ti. Pero **sí puedes recibir daño** de lo que te toque igualmente: un golpe que ya estaba en marcha, el agua profunda, los arbustos venenosos, etc.
+- **Duración:** sigues invisible **hasta que se acaba el tiempo**, aunque ataques o recibas daño. La **recarga** empieza al terminar.
+- **Cómo se ve:** tú te ves como una **silueta casi transparente** (contorno tenue y ojos) para saber dónde estás. Se ocultan el **nombre**, el **arma** (cualquiera, también el arco o el escudo), las **auras** de habilidades (Destello, Burst, Aura Eléctrica, Reforzamiento, Regeneración) y el **círculo de destino**. Siguen viéndose las **invocaciones**, los **ataques** (Carga de Fuego, Disparo Veloz, Cortar, flechas, Onda Sonora, telarañas) y la **animación del golpe** del arma.
+- **Pantalla:** el mapa se **oscurece** igual que dentro de un arbusto; si estás invisible y en un arbusto a la vez **no se oscurece el doble**.
+- **Combo:** lanzarla con otra habilidad activa cuesta el **+5 %** de la energía actual (ver 9.10). También puede salir en **Golpe de Suerte** (ver 9.9).
+
+| Nivel | Invisibilidad | Coste En. | Recarga |
+|---|---|---|---|
+| 1 – 2 | 3 s | 30 | 6 s |
+| 3 – 4 | 4 s | 35 | 8 s |
+| 5 – 7 | 5 s | 40 | 10 s |
+| 8 – 9 | 6 s | 50 | 12 s |
+| 10 | 8 s | 60 | 16 s |
+
+Valores **por tramos** (cada nivel conserva el del tramo anterior). Nivel máximo **10**; cada mejora cuesta **2 puntos** (como Regeneración Inversa). Tabla completa en `Tablas_Escalado.md` (2.14).
+
 ## 10. Puntos de empuje (retroceso)
 
 Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. Los **golpes con arma** no usan esta regla: empujan con los puntos fijos de cada arma (ver 8.5), y en el **choque de armas** ambos retroceden con la misma fuerza.
@@ -385,7 +405,7 @@ Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo reci
 
 En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar).
 
-- **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
+- **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. **No detecta** al personaje **oculto en un arbusto** ni **invisible** (Paso 0): deja de girarse hacia él y no inicia golpes, aunque un golpe que ya estaba en marcha termina y puede dañarlo. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
 - **Daño recibido:** le afectan el arma del personaje y **todas las habilidades con daño**: Disparo Veloz, Carga de Fuego (con quemadura), Cortar, Onda Sonora, Aura Eléctrica, las invocaciones (con el desangrado de los lobos) y la telaraña de la Sombra Araña (inmovilización). Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); mientras está **inmovilizado** no retrocede ni vuelve. Si lo destruyen, **reaparece a los 5 s** con la vida y los escudos llenos y una espada nueva.
 
 ---
@@ -397,7 +417,7 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 - **Panel derecho (en juego):** más ancho y con letra más grande y de alto contraste. Una tarjeta por habilidad con tecla, nivel, coste, estado, recarga, resumen del efecto según el nivel y botón **[+]**.
 - **Volver a selección:** el botón del panel izquierdo o **[M]** cierran el mundo y reabren la pantalla de creación para probar otro personaje sin salir del juego.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
-- **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo u oculto en un arbusto.
+- **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto o **invisible** (Paso 0).
 
 ---
 

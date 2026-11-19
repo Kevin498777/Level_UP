@@ -657,8 +657,9 @@ class Maniqui:
             return
         self._regenerar_escudos(dt)
         actualizar_ralentizacion(self, dt)
-        # IA simple: mirar al jugador y lanzar golpes en intervalos
-        if jugador is not None:
+        # IA simple: mirar al jugador y lanzar golpes en intervalos. No detecta al jugador
+        # oculto en un arbusto ni invisible (Paso 0); un golpe ya en marcha sigue su curso.
+        if jugador is not None and getattr(jugador, "detectable", True):
             hacia = jugador.posicion - self.posicion
             if hacia.length_squared() > 0:
                 self.angulo = math.degrees(math.atan2(hacia.x, -hacia.y)) % 360.0
@@ -1205,8 +1206,9 @@ def iniciar_mundo(config):
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
 
-        # Dentro de un arbusto: el mapa se oscurece y solo tú ves los orbes de tu arbusto
-        if jugador.oculto:
+        # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
+        # se den ambos) y en el arbusto solo tú ves sus orbes
+        if jugador.oculto or jugador.invisible:
             pantalla.blit(capa_oscura, (mundo_x, mundo_y))
             vegetacion.dibujar_interior(pantalla, desplazamiento, jugador)
 
@@ -1263,8 +1265,8 @@ def iniciar_mundo(config):
             txt_agua = "  |  EN AGUA: -50% Vel"
         else:
             txt_agua = ""
-        txt_oculto = "  |  OCULTO EN ARBUSTO" if jugador.oculto else ""
-        if jugador.oculto:
+        txt_oculto = ("  |  OCULTO EN ARBUSTO" if jugador.oculto else "") + ("  |  INVISIBLE" if jugador.invisible else "")
+        if jugador.oculto or jugador.invisible:
             color_info = (140, 230, 140)
         elif jugador.en_agua_profunda:
             color_info = (90, 150, 230)

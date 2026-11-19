@@ -51,9 +51,10 @@ DESC_HABILIDADES = {
     "Aura Electrica": "Aura que te sigue: +5% a +15% velocidad y 1 a 5 daño/s a enemigos cercanos. Autodaño 0.5/s (mágico, lo frena tu escudo mágico). Costo 20-58 En., CD 40-60s.",
     "Reforzamiento Mágico": "Campo de fuerza que bloquea daño físico y mágico. Dureza 200-500, duración 1-6s. Si se agota la dureza se rompe. Costo 25-50 En., CD 10-35s.",
     "Regeneración Inversa": "Mágica. Mantén pulsado para curar: +1 vida/-10 En. cada 2s hasta +6 vida/-40 En. cada 3s. Sin recarga. Máx nivel 10 (mejora: 2 puntos).",
+    "Paso 0": "Potenciador mágico. Te vuelve invisible 3-8s: los enemigos no te detectan (no te miran ni te atacan), pero puedes recibir daño. Tus invocaciones y ataques sí se ven; tu arma se oculta salvo al golpear. Costo 30-60 En., CD 6-16s. Máx nivel 10 (mejora: 2 puntos).",
     "Sombra Araña": "Arte de las sombras. Invoca una araña (1 HP). Mantén la tecla (ojos rojos) y marca un punto con clic derecho; al llegar teje una telaraña de un solo uso que inmoviliza al primer enemigo que la pise (5s nv1 -> 20s nv20). Máx 3 telarañas; 5s de recarga. Costo 50->100 En. A nivel 20 la telaraña hace 1 daño mágico/s mientras inmoviliza (lo amortigua el escudo mágico).",
     "Invocar Lobos": "Mágica (invocación sombría). Invoca 3 lobos; máx nivel 20, cuesta 90 En. Vida 10-67, velocidad 10-18, daño 8-30. Golpes con 33% de desangrado (5 golpes de 1 vida cada 2s y -50% curación mientras dure). Mantén la tecla para modo combate (clic derecho: persiguen al enemigo marcado; mantén y suelta de nuevo para volver a pasivo). 30s de recarga al morir todos.",
-    "Golpe de Suerte": "Efecto aleatorio: Burst, Destello, Reforzamiento, Regeneración, Aura, energía o escudos al máximo (10% c/u) o nada (30%; 5% a nv20). La habilidad otorgada dura 5-30s; no se relanza hasta que termine. Costo 15-50 En., CD 5-20s."
+    "Golpe de Suerte": "Efecto aleatorio: Burst, Destello, Reforzamiento, Regeneración, Aura, Paso 0, energía o escudos al máximo (8.75% c/u) o nada (30%; 5% a nv20). La habilidad otorgada dura 5-30s; no se relanza hasta que termine. Costo 15-50 En., CD 5-20s."
 }
 
 COLOR_HABILIDADES = {
@@ -68,6 +69,7 @@ COLOR_HABILIDADES = {
     "Reforzamiento Mágico": "#87CEFA",
     "Regeneración Inversa": "#FF69B4",
     "Golpe de Suerte": "#F2C94C",
+    "Paso 0": "#6E7BA8",
     "Invocar Lobos": "#8A8F98",
     "Sombra Araña": "#7A6CCF"
 }
@@ -80,7 +82,7 @@ COLOR_HABILIDADES = {
 # -----------------------------
 CATEGORIAS_HABILIDADES = [
     ("Artes de las Sombras", "#9B8CFF", ["Invocar Conejos", "Invocar Lobos", "Sombra Araña"]),
-    ("Potenciadores",        "#E5C07B", ["Destello", "Burst de Fuerza", "Aura Electrica"]),
+    ("Potenciadores",        "#E5C07B", ["Destello", "Burst de Fuerza", "Aura Electrica", "Paso 0"]),
     ("Ataque Mágico",        "#E06C4A", ["Disparo Veloz", "Carga de Fuego", "Cortar", "Onda Sonora"]),
     ("Defensa y Soporte",    "#87CEFA", ["Reforzamiento Mágico", "Regeneración Inversa"]),
     ("Especiales",           "#F2C94C", ["Golpe de Suerte"]),
