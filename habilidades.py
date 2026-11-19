@@ -1319,6 +1319,45 @@ def aplicar_desangrado(objetivo):
         objetivo.desangrado = EfectoDesangrado()
 
 
+class EfectoQuemadura:
+    """Quemadura: dano por segundo durante una duracion (ignora escudos, como el desangrado).
+    No acumulable: volver a aplicarla reinicia la duracion y toma el mayor dano/seg."""
+    def __init__(self, dano_por_segundo=1, duracion=5.0):
+        self.dano = dano_por_segundo
+        self.duracion = duracion
+        self.restante = duracion
+        self._acum = 0.0
+
+    @property
+    def activo(self):
+        return self.restante > 0
+
+    def refrescar(self, dano_por_segundo=None, duracion=None):
+        if dano_por_segundo is not None:
+            self.dano = max(self.dano, dano_por_segundo)
+        self.restante = duracion if duracion is not None else self.duracion
+
+    def actualizar(self, dt, objetivo):
+        if self.restante <= 0:
+            return
+        self.restante -= dt
+        self._acum += dt
+        while self._acum >= 1.0:
+            self._acum -= 1.0
+            objetivo.vida = max(0.0, round(objetivo.vida - self.dano, 2))
+        if self.restante < 0:
+            self.restante = 0
+
+
+def aplicar_quemadura(objetivo, dano_por_segundo=1, duracion=5.0):
+    """Aplica o refresca la quemadura en un objetivo con atributo `quemadura`. No acumulable."""
+    actual = getattr(objetivo, "quemadura", None)
+    if actual is not None and actual.activo:
+        actual.refrescar(dano_por_segundo, duracion)
+    else:
+        objetivo.quemadura = EfectoQuemadura(dano_por_segundo, duracion)
+
+
 # -----------------------------
 # INVOCACIONES: CONEJO (primera invocacion sombria)
 # -----------------------------
@@ -1717,6 +1756,7 @@ class AuraElectrica(HabilidadBase):
             tecla_str="2"
         )
         self._t_autodano = 0.0  # Acumulador del autodano por segundo
+        self._t_dano_enemigos = 0.0  # Acumulador del dano por segundo a enemigos
 
     def _aplicar_nivel(self):
         """
@@ -1752,7 +1792,24 @@ class AuraElectrica(HabilidadBase):
             while self._t_autodano >= 1.0:
                 self._t_autodano -= 1.0
                 jugador.recibir_dano(self.autodano_por_segundo, "magico")
-            # El dano a los enemigos dentro de zona_dano() se aplicara cuando existan enemigos.
+            # El dano a los enemigos se aplica en actualizar_dano_enemigos() (llamado desde el mundo).
+
+    def actualizar_dano_enemigos(self, dt, enemigos, jugador):
+        """Dano por segundo (magico) a los enemigos dentro del aura, mientras esta ACTIVA."""
+        if self.estado != "ACTIVA" or not enemigos:
+            return
+        self._t_dano_enemigos += dt
+        while self._t_dano_enemigos >= 1.0:
+            self._t_dano_enemigos -= 1.0
+            centro, radio = self.zona_dano(jugador)
+            for enemigo in enemigos:
+                if not getattr(enemigo, "vivo", True):
+                    continue
+                r_e = getattr(enemigo, "radio", 0)
+                if (enemigo.posicion - centro).length() <= radio + r_e:
+                    if hasattr(enemigo, "recibir_dano"):
+                        enemigo.recibir_dano(self.dano_por_segundo, "magico",
+                                             enemigo.posicion - jugador.posicion)
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
         """Dibuja el aura electrica translucida con chispas en el borde."""

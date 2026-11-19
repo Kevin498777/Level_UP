@@ -3,7 +3,7 @@ import random
 import pygame
 from personaje import Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
-                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion)
+                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 
@@ -562,6 +562,7 @@ class Maniqui:
         self.tiempo_desde_ataque = 0.0
         self.herramienta = EspadaLarga()
         self.herramienta.activa = True
+        self.quemadura = None
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         """Reparte el dano entre su escudo y la vida (mismas reglas que el personaje).
@@ -639,6 +640,13 @@ class Maniqui:
             if self.vida <= 0:
                 self.vivo = False
                 self._t_respawn = self.RESPAWN
+        if self.quemadura is not None:
+            self.quemadura.actualizar(dt, self)
+            if not self.quemadura.activo:
+                self.quemadura = None
+            if self.vida <= 0:
+                self.vivo = False
+                self._t_respawn = self.RESPAWN
         # Retroceso y regreso suave a su ancla (sigue siendo un blanco centrado)
         if self.empuje.length_squared() >= 0.25:
             paso = self.empuje * min(1.0, dt * 14.0)
@@ -662,6 +670,9 @@ class Maniqui:
         pygame.draw.circle(pantalla, (120, 100, 70), (px, py), r, 2)
         pygame.draw.circle(pantalla, (200, 70, 60), (px, py), r // 2, 2)
         pygame.draw.circle(pantalla, (200, 70, 60), (px, py), 2)
+        # Indicador de quemadura (anillo naranja)
+        if getattr(self, "quemadura", None) is not None and self.quemadura.activo:
+            pygame.draw.circle(pantalla, (255, 140, 40), (px, py), r + 4, 2)
         # Espada del maniqui (coordenadas de mundo)
         if getattr(self, "herramienta", None):
             self.herramienta.dibujar(pantalla, self, desplazamiento)
@@ -961,24 +972,28 @@ def iniciar_mundo(config):
                         enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
                     arma_actual.desgastar(1)
 
-        # Golpe del arma del enemigo (maniqui) al jugador, durante el golpe del enemigo
+        # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
         for enemigo in enemigos:
             arma_enemiga = getattr(enemigo, "herramienta", None)
             if not (arma_enemiga and getattr(arma_enemiga, "golpeando", False)):
                 continue
-            if id(jugador) in arma_enemiga.enemigos_golpeados:
-                continue
-            toca = any(
-                hb and rect_circulo_colisionan(hb, jugador.posicion, jugador.radio)
-                for hb in arma_enemiga.obtener_hitboxes()
-            )
-            if not toca:
-                continue
-            arma_enemiga.enemigos_golpeados.add(id(jugador))
-            dano = arma_enemiga.calcular_dano(enemigo)
-            if dano > 0:
-                jugador.recibir_dano(dano, arma_enemiga.tipo_dano, jugador.posicion - enemigo.posicion)
-                arma_enemiga.desgastar(1)
+            objetivos = [jugador]
+            for hab in jugador.habilidades:
+                objetivos.extend(getattr(hab, "criaturas", ()))
+            for obj in objetivos:
+                if id(obj) in arma_enemiga.enemigos_golpeados:
+                    continue
+                toca = any(
+                    hb and rect_circulo_colisionan(hb, obj.posicion, obj.radio)
+                    for hb in arma_enemiga.obtener_hitboxes()
+                )
+                if not toca:
+                    continue
+                arma_enemiga.enemigos_golpeados.add(id(obj))
+                dano = arma_enemiga.calcular_dano(enemigo)
+                if dano > 0 and hasattr(obj, "recibir_dano"):
+                    obj.recibir_dano(dano, arma_enemiga.tipo_dano, obj.posicion - enemigo.posicion)
+                    arma_enemiga.desgastar(1)
 
         # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
         jugador.actualizar_proyectiles(dt, limites_mundo, rocas)
@@ -987,6 +1002,23 @@ def iniciar_mundo(config):
             p for p in jugador.proyectiles
             if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
         ]
+
+        # Proyectiles magicos (Disparo Veloz, Carga de Fuego) golpean a los enemigos
+        for p in jugador.proyectiles:
+            if not p.activo:
+                continue
+            for enemigo in enemigos:
+                if not getattr(enemigo, "vivo", True):
+                    continue
+                if rect_circulo_colisionan(p.hitbox, enemigo.posicion, enemigo.radio):
+                    if hasattr(enemigo, "recibir_dano"):
+                        enemigo.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"),
+                                             enemigo.posicion - p.posicion)
+                    if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
+                        aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
+                    p.activo = False
+                    break
+        jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
 
         # Actualizar regeneración global de energía
         jugador.actualizar_regeneracion(dt)
@@ -1010,6 +1042,10 @@ def iniciar_mundo(config):
         for hab in jugador.habilidades:
             if hasattr(hab, "actualizar_ondas"):
                 hab.actualizar_ondas(dt, enemigos)
+        # Aura Electrica: dano por segundo a los enemigos dentro del aura
+        for hab in jugador.habilidades:
+            if hasattr(hab, "actualizar_dano_enemigos"):
+                hab.actualizar_dano_enemigos(dt, enemigos, jugador)
         # Efectos temporales otorgados (ej. por Golpe de Suerte)
         jugador.actualizar_efectos(dt)
         # Desangrado activo (resta vida por intervalo; preparado para el combate)
