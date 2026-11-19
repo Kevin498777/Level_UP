@@ -4,7 +4,7 @@ import pygame
 from personaje import Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion)
-from herramientas import EspadaLigera
+from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 
 # -----------------------------
@@ -468,6 +468,17 @@ def rect_circulo_colisionan(rect, centro, radio):
     return (dx * dx + dy * dy) <= radio * radio
 
 
+def hitboxes_de_armas_chocan(arma_a, arma_b):
+    """True si alguna hitbox del arma A toca alguna del arma B (choque de filos)."""
+    rects_b = [h for h in arma_b.obtener_hitboxes() if h]
+    if not rects_b:
+        return False
+    for ha in arma_a.obtener_hitboxes():
+        if ha and ha.collidelist(rects_b) != -1:
+            return True
+    return False
+
+
 def resolver_solapamientos(entidades):
     """Separa los cuerpos circulares que se solapan (jugador, invocaciones, maniqui) para que
     no queden uno encima de otro. Cada uno necesita `posicion`, `radio` y `masa`: el de menos
@@ -507,7 +518,7 @@ def resolver_solapamientos(entidades):
 
 class Maniqui:
     """Maniqui de pruebas en el centro del mapa: 100 de vida y escudos fisico y magico de 50,
-    no ataca, pero recibe dano y desangrado. Los escudos siguen las mismas reglas que los del
+    lleva una Espada Larga y ataca en intervalos (IA simple); recibe dano y desangrado. Los escudos siguen las mismas reglas que los del
     personaje (reparto, regeneracion tras 10 s sin dano y anulacion del escudo magico por
     Cortar). Al destruirse reaparece a los 5 s con vida y escudos llenos. Es un cuerpo fijo:
     nada lo atraviesa ni lo desplaza (solo su propio retroceso al recibir dano)."""
@@ -525,6 +536,11 @@ class Maniqui:
         self.escudo_magico_max = float(self.ESCUDO_MAGICO_MAX)
         self.radio = 18
         self.empuje = pygame.Vector2(0, 0)
+        # Combate del maniqui (IA simple con espada)
+        self.angulo = 0.0
+        self.fuerza = 2.0
+        self.RANGO_ATAQUE = 150
+        self.INTERVALO_ATAQUE = 2.0
         self._reiniciar()
 
     def _reiniciar(self):
@@ -543,6 +559,9 @@ class Maniqui:
         self.en_agua = False
         self.empuje.update(0, 0)
         self._t_respawn = 0.0
+        self.tiempo_desde_ataque = 0.0
+        self.herramienta = EspadaLarga()
+        self.herramienta.activa = True
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         """Reparte el dano entre su escudo y la vida (mismas reglas que el personaje).
@@ -593,7 +612,7 @@ class Maniqui:
     def curar(self, cantidad):
         return 0.0  # el maniqui no se cura
 
-    def actualizar(self, dt):
+    def actualizar(self, dt, jugador=None):
         if not self.vivo:
             self._t_respawn -= dt
             if self._t_respawn <= 0:
@@ -602,6 +621,17 @@ class Maniqui:
             return
         self._regenerar_escudos(dt)
         actualizar_ralentizacion(self, dt)
+        # IA simple: mirar al jugador y lanzar golpes en intervalos
+        if jugador is not None:
+            hacia = jugador.posicion - self.posicion
+            if hacia.length_squared() > 0:
+                self.angulo = math.degrees(math.atan2(hacia.x, -hacia.y)) % 360.0
+            self.tiempo_desde_ataque += dt
+            if (hacia.length() <= self.RANGO_ATAQUE + jugador.radio
+                    and self.tiempo_desde_ataque >= self.INTERVALO_ATAQUE):
+                if self.herramienta.atacar(self):
+                    self.tiempo_desde_ataque = 0.0
+        self.herramienta.actualizar(dt, self)
         if self.desangrado is not None:
             self.desangrado.actualizar(dt, self)
             if not self.desangrado.activo:
@@ -632,6 +662,9 @@ class Maniqui:
         pygame.draw.circle(pantalla, (120, 100, 70), (px, py), r, 2)
         pygame.draw.circle(pantalla, (200, 70, 60), (px, py), r // 2, 2)
         pygame.draw.circle(pantalla, (200, 70, 60), (px, py), 2)
+        # Espada del maniqui (coordenadas de mundo)
+        if getattr(self, "herramienta", None):
+            self.herramienta.dibujar(pantalla, self, desplazamiento)
         # Barra de vida
         bw = 46
         bx = px - bw // 2
@@ -894,12 +927,26 @@ def iniciar_mundo(config):
         if teclas_estado[pygame.K_SPACE] and jugador.herramienta:
             jugador.herramienta.atacar(jugador)
 
-        # Golpe cuerpo a cuerpo: la hitbox activa del arma impacta a los enemigos
+        # Golpe del jugador: choque de armas (prioridad) o golpe al cuerpo del enemigo
         arma_actual = jugador.herramienta
         if arma_actual and getattr(arma_actual, "golpeando", False):
             for enemigo in enemigos:
                 if id(enemigo) in arma_actual.enemigos_golpeados:
                     continue
+                arma_enemiga = getattr(enemigo, "herramienta", None)
+                # 1) Choque de armas: mi filo toca su espada -> repelido mutuo igual + ambas se desgastan
+                if (arma_enemiga and not arma_enemiga.roto
+                        and hitboxes_de_armas_chocan(arma_actual, arma_enemiga)):
+                    arma_actual.enemigos_golpeados.add(id(enemigo))
+                    fuerza_choque = max(arma_actual.puntos_empuje, arma_enemiga.puntos_empuje)
+                    dir_al_enemigo = enemigo.posicion - jugador.posicion
+                    jugador.aplicar_empuje(-dir_al_enemigo, fuerza_choque)      # yo retrocedo
+                    if hasattr(enemigo, "aplicar_empuje"):
+                        enemigo.aplicar_empuje(dir_al_enemigo, fuerza_choque)   # el enemigo retrocede igual
+                    arma_actual.desgastar(1)
+                    arma_enemiga.desgastar(1)
+                    continue
+                # 2) Golpe al cuerpo del enemigo
                 tocado = any(
                     hb and rect_circulo_colisionan(hb, enemigo.posicion, enemigo.radio)
                     for hb in arma_actual.obtener_hitboxes()
@@ -913,6 +960,25 @@ def iniciar_mundo(config):
                     if hasattr(enemigo, "aplicar_empuje"):
                         enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
                     arma_actual.desgastar(1)
+
+        # Golpe del arma del enemigo (maniqui) al jugador, durante el golpe del enemigo
+        for enemigo in enemigos:
+            arma_enemiga = getattr(enemigo, "herramienta", None)
+            if not (arma_enemiga and getattr(arma_enemiga, "golpeando", False)):
+                continue
+            if id(jugador) in arma_enemiga.enemigos_golpeados:
+                continue
+            toca = any(
+                hb and rect_circulo_colisionan(hb, jugador.posicion, jugador.radio)
+                for hb in arma_enemiga.obtener_hitboxes()
+            )
+            if not toca:
+                continue
+            arma_enemiga.enemigos_golpeados.add(id(jugador))
+            dano = arma_enemiga.calcular_dano(enemigo)
+            if dano > 0:
+                jugador.recibir_dano(dano, arma_enemiga.tipo_dano, jugador.posicion - enemigo.posicion)
+                arma_enemiga.desgastar(1)
 
         # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
         jugador.actualizar_proyectiles(dt, limites_mundo, rocas)
@@ -977,7 +1043,7 @@ def iniciar_mundo(config):
         vegetacion.actualizar(dt, jugador)
 
         # Maniqui de pruebas (tiquea su desangrado y su reaparicion)
-        maniqui.actualizar(dt)
+        maniqui.actualizar(dt, jugador)
 
         # Cuerpos solidos: jugador, maniqui e invocaciones no se solapan entre si
         cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
