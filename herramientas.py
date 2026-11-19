@@ -55,7 +55,10 @@ class HerramientaBase:
         self.tiempo_desde_golpe = 999.0             # Tiempo desde el ultimo golpe (recarga)
         self.golpeando = False                      # True durante la ventana activa del golpe
         self.tiempo_ventana_golpe = 0.0             # Cuenta atras de la ventana activa
-        self.DURACION_VENTANA_GOLPE = 0.12          # Segundos que la hitbox hace dano por golpe
+        self.DURACION_VENTANA_GOLPE = 0.18          # Dura el golpe/animacion; la hitbox esta activa todo ese tiempo
+        self.angulo_swing = 0.0                     # Grados de barrido del arco durante el golpe (0 = reposo)
+        self.SWING_INICIO = 70.0                    # Angulo inicial del arco (grados)
+        self.SWING_FIN = -40.0                      # Angulo final del arco (grados)
         self.enemigos_golpeados = set()             # ids de enemigos ya tocados en este golpe
 
         # Geometría y colores de la hoja
@@ -148,7 +151,13 @@ class HerramientaBase:
             self.tiempo_ventana_golpe -= dt
             if self.tiempo_ventana_golpe <= 0:
                 self.golpeando = False
+                self.angulo_swing = 0.0
                 self.enemigos_golpeados.clear()
+            else:
+                # Progreso del arco (0 -> 1): la hoja barre de SWING_INICIO a SWING_FIN
+                p = 1.0 - (self.tiempo_ventana_golpe / self.DURACION_VENTANA_GOLPE)
+                p = max(0.0, min(1.0, p))
+                self.angulo_swing = self.SWING_INICIO + (self.SWING_FIN - self.SWING_INICIO) * p
 
         if jugador and self.activa and not self.roto:
             self.actualizar_hitbox(jugador)
@@ -161,18 +170,30 @@ class HerramientaBase:
             return 0.0
         return round(jugador.fuerza * self.multiplicador_dano, 2)
 
-    def puede_atacar(self):
+    def cadencia_efectiva(self, jugador=None):
+        """Cadencia real (golpes/seg): la del arma por nivel mas el bonus del personaje."""
+        bonus = getattr(jugador, "cadencia", 0.0) if jugador else 0.0
+        return self.cadencia + bonus
+
+    def recarga_efectiva(self, jugador=None):
+        """Segundos entre golpes segun la cadencia efectiva."""
+        ce = self.cadencia_efectiva(jugador)
+        return (1.0 / ce) if ce > 0 else float("inf")
+
+    def puede_atacar(self, jugador=None):
         """True si el arma puede iniciar un golpe (desenfundada, no rota, no escudo, recargada)."""
         return (self.activa and not self.roto and not self.es_escudo
-                and self.cadencia > 0 and self.tiempo_desde_golpe >= self.recarga_ataque)
+                and self.cadencia_efectiva(jugador) > 0
+                and self.tiempo_desde_golpe >= self.recarga_efectiva(jugador))
 
     def atacar(self, jugador=None):
         """Inicia un golpe si la cadencia lo permite. Abre la ventana activa de la hitbox."""
-        if not self.puede_atacar():
+        if not self.puede_atacar(jugador):
             return False
         self.golpeando = True
         self.tiempo_ventana_golpe = self.DURACION_VENTANA_GOLPE
         self.tiempo_desde_golpe = 0.0
+        self.angulo_swing = self.SWING_INICIO
         self.enemigos_golpeados.clear()
         return True
 
@@ -190,6 +211,17 @@ class HerramientaBase:
         frente_y = -math.cos(rad)
         derecha_x = math.cos(rad)
         derecha_y = math.sin(rad)
+
+        # Barrido del arco (Fase 2): rota posicion y orientacion de la hoja durante el golpe
+        if self.angulo_swing:
+            sw = math.radians(self.angulo_swing * lado)
+            cos_s, sin_s = math.cos(sw), math.sin(sw)
+            frente_x, frente_y, derecha_x, derecha_y = (
+                frente_x * cos_s + derecha_x * sin_s,
+                frente_y * cos_s + derecha_y * sin_s,
+                derecha_x * cos_s - frente_x * sin_s,
+                derecha_y * cos_s - frente_y * sin_s,
+            )
 
         distancia_flanco = radio + 6.0
         centro_esp_x = pos_x + (derecha_x * distancia_flanco * lado)
@@ -331,7 +363,7 @@ class EspadaLigera(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Espada Ligera",
-            cadencia_base=1.4, cadencia_por_nivel=0.15, puntos_empuje=2,
+            cadencia_base=1.4, cadencia_por_nivel=0.15, puntos_empuje=8,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=2.0, mult_dano_por_nivel=0.2,      # Daño = Fuerza x (2.2 a 3.0)
@@ -350,7 +382,7 @@ class EspadaLarga(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Espada Larga",
-            cadencia_base=1.0, cadencia_por_nivel=0.12, puntos_empuje=3,
+            cadencia_base=1.0, cadencia_por_nivel=0.12, puntos_empuje=12,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=3.0, mult_dano_por_nivel=0.4,      # Daño = Fuerza x (3.4 a 5.0)
@@ -369,7 +401,7 @@ class Mandoble(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Mandoble",
-            cadencia_base=0.6, cadencia_por_nivel=0.08, puntos_empuje=5,
+            cadencia_base=0.6, cadencia_por_nivel=0.08, puntos_empuje=20,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=6.0, mult_dano_por_nivel=0.6,      # Daño = Fuerza x (6.6 a 9.0)
@@ -388,7 +420,7 @@ class DagasSimples(HerramientaBase):
     def __init__(self):
         super().__init__(
             nombre="Dagas Simples",
-            cadencia_base=2.0, cadencia_por_nivel=0.25, puntos_empuje=1,
+            cadencia_base=2.0, cadencia_por_nivel=0.25, puntos_empuje=4,
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=1.25, mult_dano_por_nivel=0.25,       # Daño = Fuerza x (1.5 a 2.5)

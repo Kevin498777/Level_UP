@@ -337,7 +337,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
                 txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 200, 255))
             else:
                 dano_arma = arma.calcular_dano(jugador)
-                txt_dano = fuente_mini.render(f"Daño {dano_arma:.1f} · Cad {arma.cadencia:.2f}/s", True, (255, 215, 0))
+                txt_dano = fuente_mini.render(f"Daño {dano_arma:.1f} · Cad {arma.cadencia_efectiva(jugador):.2f}/s", True, (255, 215, 0))
         else:
             txt_est_arma = fuente_mini.render("GUARDADA (Pulsa [1])", True, (140, 150, 170))
             if arma.es_escudo:
@@ -364,11 +364,17 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     str_pct = f" ({pct_vel:+d}%)" if pct_vel != 0 else ""
 
     # Cada stat: (etiqueta, valor, color, clave_mejora). clave None = no se puede subir.
+    arma_cad = jugador.herramienta
+    if arma_cad and not arma_cad.es_escudo and not arma_cad.roto:
+        cad_txt = f"{arma_cad.cadencia_efectiva(jugador):.2f}/s"
+    else:
+        cad_txt = f"+{jugador.cadencia:.2f}/s"
     stats = [
         ("Tamaño (Nivel)", f"{jugador.tamano}", (200, 220, 255), None),
         ("Vida", f"{jugador.vida} / {jugador.vida_max}", (255, 95, 95), "vida"),
         ("Daño", f"{jugador.fuerza:.2f}", (255, 120, 60) if jugador.fuerza > jugador.fuerza_base else (220, 220, 220), "fuerza"),
         ("Velocidad", f"{jugador.velocidad:.2f}{str_pct}", (90, 220, 255) if pct_vel > 0 else ((255, 100, 70) if pct_vel < 0 else (220, 220, 220)), "velocidad"),
+        ("Cadencia", cad_txt, (255, 200, 120) if jugador.cadencia > 0 else (220, 220, 220), "cadencia"),
         ("Energía", f"{jugador.energia} / {jugador.energia_max}", (180, 130, 255), "energia"),
         ("Escudo", f"{jugador.escudo:.1f} / {jugador.escudo_max:.0f}", (120, 255, 150), "escudo"),
         ("Escudo M.", f"ANULADO {jugador.anulacion_escudo_magico:.0f}s" if jugador.anulacion_escudo_magico > 0

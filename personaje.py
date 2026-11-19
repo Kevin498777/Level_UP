@@ -69,6 +69,7 @@ class Personaje:
         self.vida_max = vida                       # Tope de curación (orbes frutales)
         self.fuerza_base = float(fuerza)           # Fuerza base fija (1 a 5)
         self.fuerza = float(fuerza)                # Fuerza actual
+        self.cadencia = 0.0                        # Bonus de cadencia de ataque (golpes/seg); se mejora con puntos
         self.energia_max = energia                 # Energía máxima inicial (1 a 100)
         self.energia = energia                     # Energía actual
         # Escudo físico: reserva que se gasta al recibir daño físico (reemplaza a la antigua Defensa).
@@ -194,6 +195,8 @@ class Personaje:
                 self.fuerza = self.fuerza_base
         elif nombre == "velocidad":
             self.velocidad_base = round(self.velocidad_base + 0.1, 2)
+        elif nombre == "cadencia":
+            self.cadencia = round(self.cadencia + 0.1, 2)
         elif nombre == "energia":
             self.energia_max += 5
             self.energia = min(self.energia_max, self.energia + 5)
