@@ -85,11 +85,12 @@ class Personaje:
         self.energia_max = energia                 # Energía máxima inicial (1 a 100)
         self.energia = energia                     # Energía actual
         # Escudo físico: reserva que se gasta al recibir daño físico (reemplaza a la antigua Defensa).
-        self.escudo_max = float(escudo)            # Máximo actual del escudo físico
+        # El máximo efectivo (escudo_max) suma el bonus de la herramienta Escudo a esta base.
+        self.escudo_max_base = float(escudo)       # Máximo del escudo físico sin bonus (sube con puntos)
         self.escudo = float(escudo)                # Escudo físico disponible
         self.tiempo_sin_dano_escudo = 0.0          # Segundos sin recibir daño en el escudo (para la regen)
         # Escudo mágico: reserva que absorbe daño mágico (habilidades que consumen energía).
-        self.escudo_magico_max = float(escudo_magico)
+        self.escudo_magico_max_base = float(escudo_magico)
         self.escudo_magico = float(escudo_magico)
         self.tiempo_sin_dano_escudo_magico = 0.0
         self.anulacion_escudo_magico = 0.0   # Segundos restantes de escudo magico anulado (Cortar)
@@ -103,6 +104,9 @@ class Personaje:
         # Efectos temporales de habilidades no equipadas (ej. los que otorga Golpe de Suerte)
         self.efectos_extra = []
         self.herramienta = herramienta if herramienta is not None else EspadaLigera()
+        # Empieza con los escudos llenos incluyendo el bonus de la herramienta Escudo
+        self.escudo = self.escudo_max
+        self.escudo_magico = self.escudo_magico_max
 
         # Proyectiles activos disparados por el personaje (Disparo Veloz)
         self.proyectiles = []
@@ -141,6 +145,38 @@ class Personaje:
             self.radio * 2,
             self.radio * 2
         )
+
+    @property
+    def bonus_escudos(self):
+        """Bonus a los máximos de escudo de la herramienta Escudo (0 si no la lleva o está rota)."""
+        h = getattr(self, "herramienta", None)
+        if h is not None and h.es_escudo and not h.roto:
+            return h.bonus_escudos
+        return 0.0
+
+    @property
+    def escudo_max(self):
+        """Máximo efectivo del escudo físico: la base de los puntos más el bonus del Escudo."""
+        return round(self.escudo_max_base * (1.0 + self.bonus_escudos), 2)
+
+    @property
+    def escudo_magico_max(self):
+        """Máximo efectivo del escudo mágico: la base de los puntos más el bonus del Escudo."""
+        return round(self.escudo_magico_max_base * (1.0 + self.bonus_escudos), 2)
+
+    def bloquear_con_escudo(self, cantidad, origen):
+        """
+        Si la herramienta Escudo está desenfundada y su arco frontal cubre el punto de origen
+        del ataque, lo bloquea entero: no hay daño ni efectos, el escudo se desgasta y empuja
+        al portador. Devuelve True si bloqueó. Solo lo consultan los ataques bloqueables
+        (golpes de arma, proyectiles, mordidas); el terreno, el autodaño, los efectos ya
+        aplicados, la Onda Sonora y el Aura Eléctrica no pasan por aquí.
+        """
+        escudo = self.herramienta
+        if not (escudo and escudo.es_escudo and escudo.cubre(self, origen)):
+            return False
+        escudo.bloquear(self, cantidad, self.posicion - pygame.Vector2(origen))
+        return True
 
     def habilidades_en_efecto(self):
         """Habilidades equipadas más los efectos temporales activos (ej. de Golpe de Suerte)."""
@@ -209,12 +245,6 @@ class Personaje:
         """Devuelve True si el personaje se está desplazando hacia su destino."""
         return (self.destino - self.posicion).length() > 2.0
 
-    def calcular_dano_total(self):
-        """Calcula el daño total actual considerando fuerza y herramienta equipada."""
-        if self.herramienta and self.herramienta.activa:
-            return self.herramienta.calcular_dano(self)
-        return round(self.fuerza, 2)
-
     def subir_stat(self, nombre):
         """Gasta 1 punto de mejora en la estadística indicada (incrementos fijos)."""
         if self.puntos_mejora <= 0:
@@ -235,12 +265,12 @@ class Personaje:
             self.energia_max += 5
             self.energia = min(self.energia_max, self.energia + 5)
         elif nombre == "escudo":
-            incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_max < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
-            self.escudo_max += incremento
+            incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_max_base < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
+            self.escudo_max_base += incremento
             self.escudo = self.escudo_max          # Al mejorarlo, se rellena al nuevo máximo
         elif nombre == "escudo_magico":
-            incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_magico_max < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
-            self.escudo_magico_max += incremento
+            incremento = ESCUDO_INCREMENTO_GRANDE if self.escudo_magico_max_base < ESCUDO_TOPE_TRAMO else ESCUDO_INCREMENTO_NORMAL
+            self.escudo_magico_max_base += incremento
             if self.anulacion_escudo_magico > 0:
                 self.escudo_magico_guardado = self.escudo_magico_max   # se rellena al terminar la anulacion
             else:
@@ -523,12 +553,14 @@ class Personaje:
     def actualizar_proyectiles(self, dt, limites_mundo, rocas=None):
         """Actualiza la posición y ciclo de vida de los proyectiles. Las balas chocan con las rocas."""
         for p in self.proyectiles:
+            previa = pygame.Vector2(p.posicion)
             p.actualizar(dt, limites_mundo)
             # Las balas no atraviesan las rocas: se destruyen al impactar
-            # (una flecha ya clavada en el suelo es solo decorado)
+            # (una flecha ya clavada en el suelo es solo decorado). Se revisa también el
+            # trayecto del frame para que los proyectiles rápidos no salten rocas pequeñas.
             if rocas and p.activo and not getattr(p, "clavada", False):
                 for roca in rocas:
-                    if p.hitbox.colliderect(roca.rect):
+                    if p.hitbox.colliderect(roca.rect) or roca.rect.clipline(previa, p.posicion):
                         p.activo = False
                         break
         # Filtrar proyectiles inactivos (que salieron del mundo o chocaron)

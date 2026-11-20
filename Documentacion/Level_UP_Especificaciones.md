@@ -167,7 +167,7 @@ Se saca o guarda con la tecla **[1]** y se golpea con **[Espacio]** (ver 8.5; el
 | Espada Larga | 1 → 5 | ×3.4 → ×5.0 | −34 % → −10 % | 190 → 230 | 1.06 → 1.30 | 12 |
 | Mandoble | 1 → 5 | ×6.6 → ×9.0 | −70 % → −30 % | 148 → 180 | 0.64 → 0.80 | 20 |
 | Dagas Simples | 1 → 5 | ×1.5 → ×2.5 | −20 % → **+10 % (buff)** | 150 → 400 (compartida) | 2.125 → 2.625 | 4 |
-| Escudo | 1 → 5 | — (no golpea) | −34 % → −10 % | 100 → 300 | — | — |
+| Escudo | 1 → 5 | — (bloquea, ver 8.2) | −34 % → −10 % | 100 → 300 | — | 40 (al bloquear) |
 | Arco | 1 → 5 | ×5.0 → ×10.0 (según la carga) | −15 % → −3 % | 100 → 150 | — (carga, ver 8.6) | 25 |
 
 > El daño se calcula sobre la **fuerza actual**, así que también se beneficia de Burst de Fuerza.
@@ -175,7 +175,12 @@ Se saca o guarda con la tecla **[1]** y se golpea con **[Espacio]** (ver 8.5; el
 ### 8.2 Particularidades
 
 - **Dagas Simples:** son **dos** hojas (una por flanco), más pequeñas; a **nivel máximo** su debuff se convierte en un **buff de +10 %** de velocidad. Las dos comparten la misma durabilidad.
-- **Escudo:** no inflige daño, **protege**. Cada vez que es golpeado se desgasta y **empuja al portador** 2 puntos de empuje hacia atrás.
+- **Escudo:** no inflige daño, **protege**.
+  - **Bloqueo (desenfundado):** su hitbox es un **arco frontal de 120°** (60° a cada lado de hacia donde mira el portador) y el escudo **se dibuja como una banda curva que ocupa exactamente ese arco**, así se ve dónde bloquea. Lo que llega por ese arco se **bloquea entero**: golpes de arma, proyectiles y mordidas, físicos o mágicos. El portador no recibe daño ni efectos (un ataque bloqueado no aplica efectos). Solo bloquea desenfundado, que es cuando aplica su debuff de velocidad. Con [H] se marca el arco sobre el dibujo.
+  - **Desgaste:** pierde de durabilidad el daño bloqueado **menos su reducción**: **20 %** a nivel 1 → **70 %** a nivel 5 (lineal). Ej.: a nivel 5, un golpe de 100 le quita 30 de durabilidad. Cada bloqueo **empuja al portador** 2 puntos.
+  - **Empuje al bloquear:** cada vez que recibe un golpe, el escudo **repele al atacante con 40 puntos de empuje**, más que cualquier arma (el mayor es el Arco con 25). Contra una espada funciona como un choque: el golpe no hace daño y el arma atacante pierde 1 de durabilidad.
+  - **No bloquea:** la Onda Sonora, el Aura Eléctrica, el daño de terreno, el autodaño (Aura Eléctrica, autoveneno de Golpe de Suerte) ni los efectos ya aplicados (quemadura, veneno, desangrado), que siguen haciendo daño.
+  - **Pasiva:** mientras sea la herramienta del personaje y **no esté roto** (enfundado o no), sube los **máximos** de escudo físico y mágico un **15 %** (nivel 1) → **30 %** (nivel 5) de su base. Es un porcentaje: con 0 de escudo sigue en 0. Si el escudo se rompe, el bonus desaparece hasta repararlo.
 
 ### 8.3 Durabilidad y rotura
 
@@ -240,15 +245,26 @@ Buff de fuerza **+21 % → +40 %**, duración **6 → 10 s**, recarga **12 → 8
 
 ### 9.3 Disparo Veloz
 
-Esfera recta. Velocidad del proyectil **11 → 30**, daño **20.5 % → 30 %** del daño total, coste fijo **15 → 35 En.** (15 +5 cada 5 niveles), recarga **2 → 0.5 s**. Se detiene en el **primer enemigo** que toca (daño mágico) o en las rocas.
+Esfera recta **muy rápida**: su punto fuerte es la velocidad del proyectil, **14 → 40** (lineal, la más alta del juego). Daño mágico **fijo 8 → 30** (lineal; ya no depende del arma), coste fijo **15 → 35 En.** (15 +5 cada 5 niveles), recarga **2 → 0.5 s**. Se detiene en el **primer enemigo** que toca (daño mágico) o en las rocas (se comprueba su trayecto en cada frame para que no salte rocas pequeñas).
 
 ### 9.4 Invocar Conejos
 
-Invoca **5 conejos** detrás del personaje (esferas verdes con cara `:3`). No se puede reinvocar hasta que todos mueran; con 2 o más vivos nacen **floor(vivos/2) cada 10 s**, hasta un máximo de **50**. Por conejo: Vida **5 → 20** (+3 cada 4 niveles), Velocidad **3 → 12.5**, Daño **0.1 → 7.7**. Coste fijo **80 En.** Al morir todos, **30 s de recarga** antes de reinvocar. Se les puede poner en **modo combate** (ver 9.11).
+Invoca **5 conejos** detrás del personaje (esferas verdes con cara `:3`). No se puede reinvocar hasta que todos mueran; con 2 o más vivos nacen **floor(vivos/2)** cada **10 s × (1 + vivos / 10)** (más lento cuantos más hay: 15 s con 5 vivos, 30 s con 20), hasta un máximo de **50** (de 5 a 20 conejos en ~77 s; a 50 en ~3.5 min). Por conejo: Vida **5 → 20** (+3 cada 4 niveles), Velocidad **3 → 12.5**, Daño **0.1 → 7.7**. Coste fijo **80 En.** Al morir todos, **30 s de recarga** antes de reinvocar. Se les puede poner en **modo combate** (ver 9.11).
 
 ### 9.5 Carga de Fuego
 
-Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **20 → 39** (+1 por nivel). La carga añade daño (hasta **+25 %**) y tamaño. Se detiene en el **primer enemigo** que toca y le aplica **quemadura**: 1 de daño por segundo durante 5 segundos (**ignora escudos**, como el desangrado). **No es acumulable**: reaplicarla reinicia la duración y se queda con el mayor daño por segundo. El enemigo quemado muestra un **anillo naranja**.
+Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **20 → 39** (+1 por nivel). Se detiene en el **primer enemigo** que toca y le aplica **quemadura**: 1 de daño por segundo (**ignora escudos**, como el desangrado). Cada segundo completo de carga cambia el daño, el tamaño, la quemadura y la recarga:
+
+| Carga | Daño (× base) | Nv 1 | Nv 20 | Quemadura | Recarga |
+|---|---|---|---|---|---|
+| Toque | ×0.6 | 12 | 23.4 | 2 s | 8 s |
+| 1 s | ×0.8 | 16 | 31.2 | 3 s | 9.4 s |
+| 2 s | ×1.0 | 20 | 39 | 4 s | 10.8 s |
+| 3 s | ×1.3 | 26 | 50.7 | 5 s | 12.2 s |
+| 4 s | ×1.6 | 32 | 62.4 | 6 s | 13.6 s |
+| 5 s | ×2.0 | 40 | 78 | 7 s | 15 s |
+
+**No es acumulable**: reaplicarla reinicia la duración y se queda con el mayor daño por segundo. El enemigo quemado muestra un **anillo naranja**.
 
 La energía se gasta **en tiempo real**: al pulsar se cobran 15 y cada segundo completo de carga cobra su parte (+5, +5, +5, +5 y +10; 45 en total a 5 s). Si no queda energía para el siguiente segundo, la carga se detiene en el nivel ya pagado y dispara con él al soltar.
 
@@ -442,12 +458,12 @@ Habilidad de **daño mágico** (categoría Ataque Mágico). Dispara hacia donde 
 | Nivel | Coste En. | Veneno total | Duración | Daño por segundo | Recarga |
 |---|---|---|---|---|---|
 | 1 | 20 | 20 | 20 s | 1 | 30 s |
-| 5 | 33 | 24.2 | 17.9 s | 1.35 | 26.8 s |
-| 10 | 48 | 29.5 | 15.3 s | 1.93 | 22.9 s |
-| 15 | 64 | 34.7 | 12.6 s | 2.75 | 18.9 s |
-| 20 | 80 | 40 | 10 s | 4 | 15 s |
+| 5 | 25 | 24.2 | 17.9 s | 1.35 | 26.8 s |
+| 10 | 32 | 29.5 | 15.3 s | 1.93 | 22.9 s |
+| 15 | 38 | 34.7 | 12.6 s | 2.75 | 18.9 s |
+| 20 | 45 | 40 | 10 s | 4 | 15 s |
 
-Todo **lineal**: coste **20 → 80 En.**, veneno **20 → 40** de daño, duración **20 → 10 s** y recarga **30 → 15 s** (a 1 decimal). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.15).
+Todo **lineal**: coste **20 → 45 En.**, veneno **20 → 40** de daño, duración **20 → 10 s** y recarga **30 → 15 s** (a 1 decimal). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.15).
 
 ## 10. Puntos de empuje (retroceso)
 
@@ -457,7 +473,7 @@ Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo reci
 
 En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar).
 
-- **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. **No detecta** al personaje **oculto en un arbusto** ni **invisible** (Paso 0): deja de girarse hacia él y no inicia golpes, aunque un golpe que ya estaba en marcha termina y puede dañarlo. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
+- **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. **No detecta** al personaje **oculto en un arbusto** ni **invisible** (Paso 0): deja de girarse hacia él y no inicia golpes, aunque un golpe que ya estaba en marcha termina y puede dañarlo. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Si el personaje lleva el **Escudo** desenfundado y el golpe le llega por el frente, lo **bloquea** (ver 8.2). Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
 - **Daño recibido:** le afectan el arma del personaje y **todas las habilidades con daño**: Disparo Veloz, Carga de Fuego (con quemadura), Disparo Venenoso (veneno, anillo verde), Cortar, Onda Sonora, Aura Eléctrica, las invocaciones (con el desangrado de los lobos) y la telaraña de la Sombra Araña (inmovilización). Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); mientras está **inmovilizado** no retrocede ni vuelve. Si lo destruyen, **reaparece a los 5 s** con la vida y los escudos llenos y una espada nueva.
 
 ---

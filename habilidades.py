@@ -428,10 +428,14 @@ class BurstDeFuerza(HabilidadBase):
 # HABILIDAD 3: DISPARO VELOZ (NUEVA)
 # -----------------------------
 class DisparoVeloz(HabilidadBase):
+    # Daño mágico fijo y velocidad del proyectil (su punto fuerte), lineales de nivel 1 a 20
+    DANO_NV1, DANO_NV_MAX = 8.0, 30.0
+    VELOCIDAD_NV1, VELOCIDAD_NV_MAX = 14.0, 40.0
+
     def __init__(self):
         super().__init__(
             nombre="Disparo Veloz",
-            descripcion="Ataque a distancia: esfera de energía recta. Escala velocidad, daño y coste con el nivel (máx 20).",
+            descripcion="Ataque a distancia: esfera de energía recta muy rápida. Daño mágico fijo; escala velocidad, daño y coste con el nivel (máx 20).",
             costo_energia=15,
             duracion_activa=0.0,
             duracion_cooldown=2.0,
@@ -442,14 +446,15 @@ class DisparoVeloz(HabilidadBase):
     def _aplicar_nivel(self):
         """
         Escalado de Disparo Veloz (nivel 1 a 20):
-        - velocidad del proyectil: 10 + 1 por nivel (máx 30)
-        - daño: 20% + 0.5% por nivel del daño total del personaje (máx 30%)
+        - velocidad del proyectil: 14 -> 40 lineal (a 1 decimal)
+        - daño mágico fijo: 8 -> 30 lineal (a 1 decimal); ya no depende del arma
         - coste: 15 energía, +5 cada 5 niveles (rediseño: coste fijo, ya no porcentaje)
         - recarga: 2s a nivel 1, baja de forma lineal hasta 0.5s a nivel máximo
         """
         n = self.nivel
-        self.velocidad_proyectil = min(30.0, 10.0 + 1.0 * n)
-        self.porcentaje_dano = min(0.30, round(0.20 + 0.005 * n, 4))
+        t = (n - 1) / (self.nivel_max - 1)
+        self.velocidad_proyectil = round(self.VELOCIDAD_NV1 + (self.VELOCIDAD_NV_MAX - self.VELOCIDAD_NV1) * t, 1)
+        self.dano = round(self.DANO_NV1 + (self.DANO_NV_MAX - self.DANO_NV1) * t, 1)
         self.costo_energia = 15 + 5 * (n // 5)
         self.duracion_cooldown = round(max(0.5, 2.0 - 1.5 * (n - 1) / (self.nivel_max - 1)), 2)
 
@@ -467,24 +472,20 @@ class DisparoVeloz(HabilidadBase):
         origen_x = jugador.posicion.x + (frente_x * (jugador.radio + 8))
         origen_y = jugador.posicion.y + (frente_y * (jugador.radio + 8))
 
-        # Daño: 20% del daño total actual del personaje
-        dano_total = jugador.calcular_dano_total() if hasattr(jugador, "calcular_dano_total") else (jugador.fuerza * 2.0)
-        dano_proyectil = max(0.5, round(dano_total * self.porcentaje_dano, 2))
-
         proyectil = ProyectilEnergia(
             x=origen_x,
             y=origen_y,
             dx=frente_x,
             dy=frente_y,
             velocidad=self.velocidad_proyectil,
-            dano=dano_proyectil,
+            dano=self.dano,
             radio=6
         )
 
         if hasattr(jugador, "proyectiles"):
             jugador.proyectiles.append(proyectil)
 
-        # Pasa inmediatamente a cooldown de 2 segundos
+        # Pasa inmediatamente a su recarga
         self.estado = "COOLDOWN"
         self.tiempo_restante_activo = 0.0
         self.tiempo_restante_cooldown = self.duracion_cooldown
@@ -501,7 +502,7 @@ class DisparoVenenoso(HabilidadBase):
     se acumula: volver a envenenar reinicia el efecto con los valores del nuevo disparo.
     """
     VELOCIDAD_PROYECTIL = 12.0
-    COSTO_NV1, COSTO_NV_MAX = 20, 80
+    COSTO_NV1, COSTO_NV_MAX = 20, 45
     VENENO_NV1, VENENO_NV_MAX = 20.0, 40.0          # daño total del veneno
     DURACION_NV1, DURACION_NV_MAX = 20.0, 10.0      # segundos que dura el veneno
     RECARGA_NV1, RECARGA_NV_MAX = 30.0, 15.0
@@ -520,7 +521,7 @@ class DisparoVenenoso(HabilidadBase):
     def _aplicar_nivel(self):
         """
         Escalado lineal (nivel 1 a 20):
-        - coste: 20 -> 80 En. (entero)
+        - coste: 20 -> 45 En. (entero)
         - veneno: 20 de daño en 20 s (1/s) -> 40 de daño en 10 s (4/s), a 1 decimal
         - recarga: 30 s -> 15 s, a 1 decimal
         """
@@ -1140,13 +1141,14 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         elif hab.nombre == "Burst de Fuerza":
             detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Disparo Veloz":
-            detalles = f"Vel {hab.velocidad_proyectil:.0f}, {hab.porcentaje_dano * 100:.0f}% daño | CD {hab.duracion_cooldown:.1f}s"
+            detalles = f"Daño {hab.dano:g} mág. · Vel {hab.velocidad_proyectil:g} | CD {hab.duracion_cooldown:.1f}s"
         elif hasattr(hab, "conejos"):
             detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
         elif hasattr(hab, "lobos"):
             detalles = f"Lobo: Vida {hab.vida_lobo} · Vel {hab.velocidad_lobo} · Daño {hab.dano_lobo:.1f} (33% desangrado)"
         elif hab.nombre == "Carga de Fuego":
-            detalles = f"Daño {hab.dano_base} · mantén para cargar (hasta +25%)"
+            detalles = (f"Daño {round(hab.dano_base * hab.MULT_CARGA[0], 1):g}-{round(hab.dano_base * hab.MULT_CARGA[5], 1):g}"
+                        f" · CD {hab.RECARGA_BASE:g}-{hab.RECARGA_BASE + hab.RECARGA_POR_SEGUNDO * 5:g}s")
         elif hab.nombre == "Cortar":
             detalles = f"Daño {hab.dano} mág. · Vel {hab.velocidad_cuchilla} | CD {hab.duracion_cooldown:.0f}s"
         elif hab.nombre == "Onda Sonora":
@@ -1551,18 +1553,21 @@ class Conejo(EntidadInvocada):
 class InvocacionConejos(OrdenesSombrias, HabilidadBase):
     """
     Invoca 5 conejos detras del personaje. No puede volver a invocarse hasta que todos
-    mueran, y al morir todos entra en 30s de recarga. Si hay 2 o mas vivos, cada 10s nacen
-    floor(vivos/2) conejos nuevos (max 50). Manten la tecla para el modo combate.
+    mueran, y al morir todos entra en 30s de recarga. Si hay 2 o mas vivos, nacen
+    floor(vivos/2) conejos nuevos (max 50) cada intervalo, que se alarga cuantos mas haya:
+    INTERVALO_REPRO * (1 + vivos / CONEJOS_POR_INTERVALO) (5 vivos 15 s, 20 vivos 30 s).
+    Manten la tecla para el modo combate.
     """
     CANTIDAD_INICIAL = 5
     MAX_CONEJOS = 50
     INTERVALO_REPRO = 10.0
+    CONEJOS_POR_INTERVALO = 10    # cada 10 conejos vivos suman otro INTERVALO_REPRO de espera
     COOLDOWN_MUERTE = 30.0
 
     def __init__(self):
         super().__init__(
             nombre="Invocar Conejos",
-            descripcion="Invoca 5 conejos detras de ti. Se reproducen si hay 2 o mas vivos (max 50). Manten la tecla para modo combate; 30s de recarga al morir todos.",
+            descripcion="Invoca 5 conejos detras de ti. Se reproducen si hay 2 o mas vivos, mas lento cuantos mas hay (max 50). Manten la tecla para modo combate; 30s de recarga al morir todos.",
             costo_energia=80,
             duracion_activa=0.0,
             duracion_cooldown=self.COOLDOWN_MUERTE,
@@ -1571,7 +1576,6 @@ class InvocacionConejos(OrdenesSombrias, HabilidadBase):
         )
         self.conejos = []
         self.timer_reproduccion = 0.0
-        self.intervalo_repro = self.INTERVALO_REPRO
         self.max_conejos = self.MAX_CONEJOS
         self._iniciar_ordenes()
 
@@ -1592,6 +1596,10 @@ class InvocacionConejos(OrdenesSombrias, HabilidadBase):
         self.velocidad_conejo = round(3.0 + 0.5 * (n - 1), 2)
         self.dano_conejo = round(0.1 + 0.4 * (n - 1), 2)
         self.costo_energia = 80
+
+    def intervalo_reproduccion(self):
+        """Segundos entre camadas: crece con los conejos vivos (reproduccion mas lenta)."""
+        return self.INTERVALO_REPRO * (1 + len(self.conejos) / self.CONEJOS_POR_INTERVALO)
 
     def _invocar(self, jugador, cantidad):
         disponibles = self.max_conejos - len(self.conejos)
@@ -1621,10 +1629,11 @@ class InvocacionConejos(OrdenesSombrias, HabilidadBase):
             c.actualizar(dt, jugador, self.objetivo, self.modo_combate)
         self.conejos = [c for c in self.conejos if c.vivo]
 
-        # Reproduccion: con 2+ vivos, cada 10s nacen floor(vivos/2) conejos (max 50)
+        # Reproduccion: con 2+ vivos nacen floor(vivos/2) conejos (max 50) cada intervalo,
+        # que se alarga cuantos mas conejos vivos hay
         if len(self.conejos) >= 2:
             self.timer_reproduccion += dt
-            if self.timer_reproduccion >= self.intervalo_repro:
+            if self.timer_reproduccion >= self.intervalo_reproduccion():
                 self.timer_reproduccion = 0.0
                 self._invocar(jugador, len(self.conejos) // 2)
         else:
@@ -1770,15 +1779,21 @@ class InvocacionLobos(OrdenesSombrias, HabilidadBase):
 class CargaDeFuego(HabilidadBase):
     """
     Esfera de fuego con dos modos: pulsar = disparo rápido; mantener = cargar (máx 5s)
-    para más daño y mayor tamaño, soltando al liberar la tecla. Al golpear, aplica
-    quemadura (1 de daño por segundo durante 5 segundos).
+    para más daño y mayor tamaño, soltando al liberar la tecla. Cada segundo completo de
+    carga sube el multiplicador del daño base (x0.6 sin carga -> x2.0 a 5 s), alarga la
+    quemadura (1 de daño por segundo, de 2 s a 7 s) y la recarga (8 s -> 15 s).
 
     La energía se cobra en tiempo real: al pulsar se paga el coste base y, cada segundo
     completo de carga, la diferencia hasta el coste de ese nivel de carga. Si no hay
     energía para el siguiente segundo, la carga se detiene en el nivel ya pagado.
     """
-    # Bono de daño, coste de energía acumulado y radio visual por segundo completo de carga (0 = sin carga)
-    BONO_CARGA = {0: 0.0, 1: 0.05, 2: 0.07, 3: 0.10, 4: 0.15, 5: 0.25}
+    # Por segundo completo de carga (0 = sin carga): multiplicador del daño base, segundos de
+    # quemadura, coste de energía acumulado y radio visual
+    MULT_CARGA = {0: 0.6, 1: 0.8, 2: 1.0, 3: 1.3, 4: 1.6, 5: 2.0}
+    QUEMADURA_CARGA = {0: 2.0, 1: 3.0, 2: 4.0, 3: 5.0, 4: 6.0, 5: 7.0}
+    QUEMADURA_DANO = 1                 # daño por segundo de la quemadura
+    RECARGA_BASE = 8.0                 # recarga tras un disparo sin carga
+    RECARGA_POR_SEGUNDO = 1.4          # cada segundo de carga suma recarga (5 s -> 15 s)
     COSTO_CARGA = {0: 15, 1: 20, 2: 25, 3: 30, 4: 35, 5: 45}
     RADIO_CARGA = {0: 6, 1: 8, 2: 11, 3: 14, 4: 17, 5: 22}
     TIEMPO_MAX_CARGA = 5.0
@@ -1787,10 +1802,10 @@ class CargaDeFuego(HabilidadBase):
     def __init__(self):
         super().__init__(
             nombre="Carga de Fuego",
-            descripcion="Esfera de fuego: pulsa para disparo rápido o mantén para cargar (máx 5s). Al golpear, quema 1/s por 5s.",
+            descripcion="Esfera de fuego: pulsa para disparo rápido o mantén para cargar (máx 5s). Más carga = más daño, quemadura y recarga.",
             costo_energia=15,
             duracion_activa=0.0,
-            duracion_cooldown=2.0,
+            duracion_cooldown=self.RECARGA_BASE,
             tecla=pygame.K_2,
             tecla_str="2"
         )
@@ -1848,13 +1863,16 @@ class CargaDeFuego(HabilidadBase):
         self.carga_detenida = False
         tier = self.tier_pagado
 
-        dano = round(self.dano_base * (1.0 + self.BONO_CARGA[tier]), 1)
+        dano = round(self.dano_base * self.MULT_CARGA[tier], 1)
         radio = self.RADIO_CARGA[tier]
         rad = math.radians(jugador.angulo)
         dx, dy = math.sin(rad), -math.cos(rad)
         origen = jugador.posicion + pygame.Vector2(dx, dy) * (jugador.radio + radio + 2)
-        jugador.proyectiles.append(ProyectilFuego(origen.x, origen.y, dx, dy, self.VELOCIDAD, dano, radio))
+        jugador.proyectiles.append(ProyectilFuego(origen.x, origen.y, dx, dy, self.VELOCIDAD, dano, radio,
+                                                  self.QUEMADURA_DANO, self.QUEMADURA_CARGA[tier]))
 
+        # La recarga depende de la carga disparada (8 s sin carga -> 15 s a 5 s)
+        self.duracion_cooldown = round(self.RECARGA_BASE + self.RECARGA_POR_SEGUNDO * tier, 1)
         self.estado = "COOLDOWN"
         self.tiempo_restante_cooldown = self.duracion_cooldown
 

@@ -110,7 +110,7 @@ class HerramientaBase:
         """Gasta durabilidad (llamar una vez por cada golpe que hace daño). Rompe al llegar a 0."""
         if self.roto:
             return
-        self.durabilidad -= cantidad
+        self.durabilidad = round(self.durabilidad - cantidad, 2)
         if self.durabilidad <= 0:
             self.durabilidad = 0
             self._romper()
@@ -458,11 +458,36 @@ class DagasSimples(HerramientaBase):
 # -----------------------------
 # HERRAMIENTA: ESCUDO (protege, no golpea)
 # -----------------------------
+# Arco frontal que cubre el escudo desenfundado (grados totales, mitad a cada lado del frente)
+ESCUDO_ARCO_BLOQUEO = 120.0
+# Reducción del desgaste: del daño bloqueado, solo (1 - reducción) se resta a la durabilidad
+ESCUDO_REDUCCION_NV1, ESCUDO_REDUCCION_NV_MAX = 0.20, 0.70
+# Bonus pasivo a los máximos de escudo físico y mágico del portador (mientras no esté roto)
+ESCUDO_BONUS_NV1, ESCUDO_BONUS_NV_MAX = 0.15, 0.30
+# Empuje que el escudo aplica al atacante en cada bloqueo (mayor que el de cualquier arma: máx. 25)
+ESCUDO_EMPUJE_BLOQUEO = 40
+# Dibujo del escudo: banda curva delante del personaje que ocupa exactamente el arco de bloqueo
+ESCUDO_SEPARACION = 7      # px entre el borde del cuerpo y el centro de la banda
+ESCUDO_GROSOR = 6          # grosor de la banda en px
+
+
 class Escudo(HerramientaBase):
+    """
+    Desenfundado, bloquea por completo los ataques que llegan por su arco frontal
+    (ESCUDO_ARCO_BLOQUEO): golpes de arma, proyectiles y mordidas, físicos o mágicos. El
+    portador no recibe daño ni efectos; el escudo pierde de durabilidad el daño bloqueado
+    menos su reducción (20 % a nivel 1 -> 70 % a nivel 5), empuja al portador y repele al
+    atacante con ESCUDO_EMPUJE_BLOQUEO. Se dibuja como una banda curva que ocupa justo su
+    arco de bloqueo, para ver dónde cubre.
+    No bloquea la Onda Sonora, el Aura Eléctrica, el terreno, el autodaño ni los efectos
+    ya aplicados (esos ataques no consultan al escudo).
+    Pasiva: mientras sea la herramienta del personaje y no esté roto (enfundado o no),
+    sube sus escudos físico y mágico un 15 % (nivel 1) -> 30 % (nivel 5).
+    """
     def __init__(self):
         super().__init__(
             nombre="Escudo",
-            cadencia_base=0.0, cadencia_por_nivel=0.0, puntos_empuje=0,
+            cadencia_base=0.0, cadencia_por_nivel=0.0, puntos_empuje=ESCUDO_EMPUJE_BLOQUEO,  # empuje al atacante al bloquear
             tecla=pygame.K_1,
             tecla_str="1",
             mult_dano_base=0.0, mult_dano_por_nivel=0.0,         # No inflige daño
@@ -478,34 +503,67 @@ class Escudo(HerramientaBase):
         self.color_empunadura = (90, 97, 110)
         self.color_filo = (205, 212, 225)
 
+    def _aplicar_nivel(self, reparar=False):
+        super()._aplicar_nivel(reparar)
+        t = (self.nivel - 1) / (self.nivel_max - 1)
+        self.reduccion_desgaste = round(ESCUDO_REDUCCION_NV1 + (ESCUDO_REDUCCION_NV_MAX - ESCUDO_REDUCCION_NV1) * t, 4)
+        self.bonus_escudos = round(ESCUDO_BONUS_NV1 + (ESCUDO_BONUS_NV_MAX - ESCUDO_BONUS_NV1) * t, 4)
+
     def calcular_dano(self, jugador):
         return 0.0  # El escudo protege, no golpea
 
-    def recibir_golpe(self, jugador, direccion_desde_atacante):
-        """Al ser golpeado en el escudo: se desgasta y empuja al portador hacia atrás."""
+    def actualizar_hitbox(self, jugador):
+        self.hitbox = None   # su hitbox es el arco frontal (ver cubre), no un rectángulo de hoja
+
+    def radio_arco(self, jugador):
+        """Distancia del centro del personaje al centro de la banda del escudo."""
+        return jugador.radio + ESCUDO_SEPARACION
+
+    def cubre(self, jugador, punto):
+        """True si el escudo, desenfundado y sin romper, cubre el punto (arco frontal)."""
+        if not self.activa or self.roto:
+            return False
+        hacia = pygame.Vector2(punto) - jugador.posicion
+        if hacia.length_squared() == 0:
+            return True
+        rad = math.radians(jugador.angulo)
+        frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
+        return frente.dot(hacia.normalize()) >= math.cos(math.radians(ESCUDO_ARCO_BLOQUEO / 2))
+
+    def bloquear(self, jugador, cantidad, direccion_desde_atacante):
+        """Bloquea un ataque entero: se desgasta el daño menos su reducción y empuja al portador."""
         if self.roto:
             return
-        self.desgastar(1)
+        self.desgastar(round(cantidad * (1.0 - self.reduccion_desgaste), 2))
         jugador.aplicar_empuje(direccion_desde_atacante, self.empuje_al_bloquear)
 
+    def puntos_arco(self, jugador, radio, pasos=12):
+        """Puntos (mundo) del arco frontal que cubre el escudo a la distancia 'radio'."""
+        mitad = ESCUDO_ARCO_BLOQUEO / 2
+        puntos = []
+        for i in range(pasos + 1):
+            ang = math.radians(jugador.angulo - mitad + ESCUDO_ARCO_BLOQUEO * i / pasos)
+            puntos.append((jugador.posicion.x + math.sin(ang) * radio, jugador.posicion.y - math.cos(ang) * radio))
+        return puntos
+
     def dibujar(self, pantalla, jugador, desplazamiento=(0, 0)):
+        """Banda curva delante del personaje que ocupa exactamente el arco de bloqueo."""
         if not self.activa or self.roto:
             return
-        color_cara, color_borde_emp, color_brillo = self._colores_actuales()
-        (pomo_x, pomo_y), (punta_x, punta_y), (frente_x, frente_y), (derecha_x, derecha_y), largo = self.obtener_segmento(jugador, 1)
-        cx = (pomo_x + punta_x) / 2 - desplazamiento[0]
-        cy = (pomo_y + punta_y) / 2 - desplazamiento[1]
-        h = largo / 2.0
-        w = 10.0 * self.factor_ancho
-
-        def pt(f, d):
-            return (round(cx + frente_x * f + derecha_x * d), round(cy + frente_y * f + derecha_y * d))
-
-        puntos = [pt(h, 0), pt(h * 0.45, w), pt(-h * 0.2, w), pt(-h, 0), pt(-h * 0.2, -w), pt(h * 0.45, -w)]
-        pygame.draw.polygon(pantalla, color_cara, puntos)
-        pygame.draw.polygon(pantalla, (18, 22, 28), puntos, max(1, round(2 * self.factor_ancho)))
-        # Umbo central (jefe del escudo)
-        pygame.draw.circle(pantalla, color_brillo, (round(cx), round(cy)), max(2, round(w * 0.35)))
+        color_cara, _, color_brillo = self._colores_actuales()
+        ox, oy = desplazamiento
+        r = self.radio_arco(jugador)
+        exterior = [(x - ox, y - oy) for x, y in self.puntos_arco(jugador, r + ESCUDO_GROSOR / 2)]
+        interior = [(x - ox, y - oy) for x, y in self.puntos_arco(jugador, r - ESCUDO_GROSOR / 2)]
+        banda = exterior + interior[::-1]
+        pygame.draw.polygon(pantalla, color_cara, banda)
+        pygame.draw.polygon(pantalla, (18, 22, 28), banda, 2)
+        pygame.draw.lines(pantalla, color_brillo, False, exterior, 1)   # brillo del borde exterior
+        # Umbo (jefe del escudo) en el centro del frente
+        rad = math.radians(jugador.angulo)
+        umbo = (jugador.posicion.x + math.sin(rad) * r - ox, jugador.posicion.y - math.cos(rad) * r - oy)
+        pygame.draw.circle(pantalla, color_brillo, (round(umbo[0]), round(umbo[1])), 3)
+        pygame.draw.circle(pantalla, (18, 22, 28), (round(umbo[0]), round(umbo[1])), 3, 1)
 
 
 # -----------------------------

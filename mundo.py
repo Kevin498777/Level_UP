@@ -378,7 +378,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
                 color_est = (255, 130, 80)
             txt_est_arma = fuente_mini.render(f"DESENFUNDADA ({txt_vel})", True, color_est)
             if arma.es_escudo:
-                txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 200, 255))
+                txt_dano = fuente_mini.render(f"Bloquea · desgaste -{arma.reduccion_desgaste * 100:g}% · Esc +{arma.bonus_escudos * 100:g}%", True, (120, 200, 255))
             elif es_arco:
                 dano_arma = arma.calcular_dano(jugador)
                 txt_dano = fuente_mini.render(f"Daño {dano_arma:.1f} · Flechas {arma.flechas}/{arma.capacidad_carcaj}", True, (255, 215, 0))
@@ -388,7 +388,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         else:
             txt_est_arma = fuente_mini.render("GUARDADA (Pulsa [1])", True, (140, 150, 170))
             if arma.es_escudo:
-                txt_dano = fuente_mini.render("Protege (no inflige daño)", True, (120, 150, 180))
+                txt_dano = fuente_mini.render(f"Escudos +{arma.bonus_escudos * 100:g}% · [1] para bloquear", True, (120, 150, 180))
             elif es_arco:
                 txt_dano = fuente_mini.render(f"Daño: Fuerza x{arma.multiplicador_dano:.2f} · Flechas {arma.flechas}/{arma.capacidad_carcaj}", True, (180, 160, 90))
             else:
@@ -398,7 +398,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         pantalla.blit(txt_dano, (x + 20, arma_y + 40))
 
         # Barra de durabilidad
-        txt_dur = fuente_mini.render(f"Durabilidad: {arma.durabilidad}/{arma.durabilidad_max}", True, (150, 160, 180))
+        txt_dur = fuente_mini.render(f"Durabilidad: {arma.durabilidad:g}/{arma.durabilidad_max}", True, (150, 160, 180))
         pantalla.blit(txt_dur, (x + 20, arma_y + 55))
         bw = ancho - 40
         prog_dur = max(0.0, min(1.0, arma.durabilidad / max(1, arma.durabilidad_max)))
@@ -1103,6 +1103,13 @@ def iniciar_mundo(config):
                     continue
                 arma_enemiga.enemigos_golpeados.add(id(obj))
                 dano = arma_enemiga.calcular_dano(enemigo)
+                # Escudo desenfundado cubriendo el golpe: como un choque, no hace daño, el
+                # atacante sale repelido con el empuje del escudo y su arma se desgasta 1
+                if obj is jugador and dano > 0 and jugador.bloquear_con_escudo(dano, enemigo.posicion):
+                    if hasattr(enemigo, "aplicar_empuje"):
+                        enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, jugador.herramienta.puntos_empuje)
+                    arma_enemiga.desgastar(1)
+                    continue
                 if dano > 0 and hasattr(obj, "recibir_dano"):
                     obj.recibir_dano(dano, arma_enemiga.tipo_dano, obj.posicion - enemigo.posicion)
                     arma_enemiga.desgastar(1)
@@ -1294,8 +1301,13 @@ def iniciar_mundo(config):
 
             # Hitbox de la espada si está desenfundada (rectángulo amarillo)
             if jugador.herramienta and jugador.herramienta.activa:
-                for hb in jugador.herramienta.obtener_hitboxes():
-                    pygame.draw.rect(pantalla, (255, 235, 50), hb.move(-ox, -oy), 1)
+                if jugador.herramienta.es_escudo:
+                    # Escudo: su hitbox es el arco frontal que bloquea
+                    arco = jugador.herramienta.puntos_arco(jugador, jugador.herramienta.radio_arco(jugador))
+                    pygame.draw.lines(pantalla, (255, 235, 50), False, [(px - ox, py - oy) for px, py in arco], 1)
+                else:
+                    for hb in jugador.herramienta.obtener_hitboxes():
+                        pygame.draw.rect(pantalla, (255, 235, 50), hb.move(-ox, -oy), 1)
 
             # Hitbox de cada proyectil activo (rectángulo rojo)
             for p in jugador.proyectiles:

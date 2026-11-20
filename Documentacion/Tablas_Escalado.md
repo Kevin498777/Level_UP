@@ -61,15 +61,17 @@ Dos dagas pequeñas, una por flanco, que comparten durabilidad. A nivel máximo 
 
 ### 1.5 Escudo
 
-No inflige daño, protege. Cada golpe recibido lo desgasta y empuja al portador 2 puntos de empuje.
+No inflige daño, protege. **Desenfundado** ([1]) bloquea **por completo** los ataques que llegan por su **arco frontal de 120°** (60° a cada lado de hacia donde mira el portador): golpes de arma, proyectiles y mordidas, físicos o mágicos. Se dibuja como una banda curva que ocupa exactamente ese arco. El portador no recibe daño ni efectos; el escudo pierde de durabilidad el **daño bloqueado menos su reducción** y empuja al portador 2 puntos. No bloquea la Onda Sonora, el Aura Eléctrica, el terreno, el autodaño ni los efectos ya aplicados. Cada bloqueo **repele al atacante con 40 puntos de empuje** (más que cualquier arma; el mayor es el Arco con 25). Contra una espada funciona como un choque: el golpe no hace daño y el arma atacante pierde 1 de durabilidad.
 
-| Nivel | Daño (× Fuerza) | Daño con Fuerza 2 | Velocidad | Durabilidad máx. | Cadencia (golpes/s) | Tiempo entre golpes | Empuje |
-|---|---|---|---|---|---|---|---|
-| 1 | — | — | -34 % | 100 | — | — | 0 |
-| 2 | — | — | -28 % | 150 | — | — | 0 |
-| 3 | — | — | -22 % | 200 | — | — | 0 |
-| 4 | — | — | -16 % | 250 | — | — | 0 |
-| 5 | — | — | -10 % | 300 | — | — | 0 |
+**Pasiva:** mientras sea la herramienta del personaje y **no esté roto** (enfundado o no), sube los **máximos** de escudo físico y mágico un porcentaje de su base (con 0 de escudo sigue en 0).
+
+| Nivel | Velocidad (desenfundado) | Durabilidad máx. | Reducción del desgaste | Durabilidad gastada por 100 de daño | Bonus a los escudos |
+|---|---|---|---|---|---|
+| 1 | -34 % | 100 | 20 % | 80 | +15 % |
+| 2 | -28 % | 150 | 32.5 % | 67.5 | +18.75 % |
+| 3 | -22 % | 200 | 45 % | 55 | +22.5 % |
+| 4 | -16 % | 250 | 57.5 % | 42.5 | +26.25 % |
+| 5 | -10 % | 300 | 70 % | 30 | +30 % |
 
 ### 1.6 Arco
 
@@ -156,34 +158,34 @@ Buff de fuerza temporal; potencia el golpe del arma (el daño sigue siendo físi
 
 ### 2.3 Disparo Veloz
 
-Esfera de energía recta (daño mágico). Su daño es un porcentaje del daño total del personaje. Se destruye al chocar con rocas.
+Esfera de energía recta (daño mágico) **muy rápida**: la velocidad del proyectil es su punto fuerte. Daño **fijo** (ya no depende del arma). Se destruye al chocar con rocas (también comprueba el trayecto de cada frame para no saltarse rocas pequeñas).
 
-| Nivel | Velocidad proyectil | Daño (% del total) | Recarga | Coste En. |
+| Nivel | Velocidad proyectil | Daño | Recarga | Coste En. |
 |---|---|---|---|---|
-| 1 | 11 | 20.5 % | 2 s | 15 |
-| 2 | 12 | 21 % | 1.92 s | 15 |
-| 3 | 13 | 21.5 % | 1.84 s | 15 |
-| 4 | 14 | 22 % | 1.76 s | 15 |
-| 5 | 15 | 22.5 % | 1.68 s | 20 |
-| 6 | 16 | 23 % | 1.61 s | 20 |
-| 7 | 17 | 23.5 % | 1.53 s | 20 |
-| 8 | 18 | 24 % | 1.45 s | 20 |
-| 9 | 19 | 24.5 % | 1.37 s | 20 |
-| 10 | 20 | 25 % | 1.29 s | 25 |
-| 11 | 21 | 25.5 % | 1.21 s | 25 |
-| 12 | 22 | 26 % | 1.13 s | 25 |
-| 13 | 23 | 26.5 % | 1.05 s | 25 |
-| 14 | 24 | 27 % | 0.97 s | 25 |
-| 15 | 25 | 27.5 % | 0.89 s | 30 |
-| 16 | 26 | 28 % | 0.82 s | 30 |
-| 17 | 27 | 28.5 % | 0.74 s | 30 |
-| 18 | 28 | 29 % | 0.66 s | 30 |
-| 19 | 29 | 29.5 % | 0.58 s | 30 |
-| 20 | 30 | 30 % | 0.5 s | 35 |
+| 1 | 14 | 8 | 2 s | 15 |
+| 2 | 15.4 | 9.2 | 1.92 s | 15 |
+| 3 | 16.7 | 10.3 | 1.84 s | 15 |
+| 4 | 18.1 | 11.5 | 1.76 s | 15 |
+| 5 | 19.5 | 12.6 | 1.68 s | 20 |
+| 6 | 20.8 | 13.8 | 1.61 s | 20 |
+| 7 | 22.2 | 14.9 | 1.53 s | 20 |
+| 8 | 23.6 | 16.1 | 1.45 s | 20 |
+| 9 | 24.9 | 17.3 | 1.37 s | 20 |
+| 10 | 26.3 | 18.4 | 1.29 s | 25 |
+| 11 | 27.7 | 19.6 | 1.21 s | 25 |
+| 12 | 29.1 | 20.7 | 1.13 s | 25 |
+| 13 | 30.4 | 21.9 | 1.05 s | 25 |
+| 14 | 31.8 | 23.1 | 0.97 s | 25 |
+| 15 | 33.2 | 24.2 | 0.89 s | 30 |
+| 16 | 34.5 | 25.4 | 0.82 s | 30 |
+| 17 | 35.9 | 26.5 | 0.74 s | 30 |
+| 18 | 37.3 | 27.7 | 0.66 s | 30 |
+| 19 | 38.6 | 28.8 | 0.58 s | 30 |
+| 20 | 40 | 30 | 0.5 s | 35 |
 
 ### 2.4 Invocar Conejos
 
-Invoca **5 conejos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos. Con 2 o más vivos nacen floor(vivos/2) cada 10 s, hasta **50**. Al morir todos hay **30 s de recarga**. Las estadísticas son por conejo.
+Invoca **5 conejos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos. Con 2 o más vivos nacen floor(vivos/2) cada **10 s × (1 + vivos / 10)** (5 vivos: 15 s; 20 vivos: 30 s; 40 vivos: 50 s), hasta **50**: de 5 a 20 conejos en ~77 s y a 50 en ~3.5 min. Al morir todos hay **30 s de recarga**. Las estadísticas son por conejo.
 
 | Nivel | Vida | Velocidad | Daño | Coste En. |
 |---|---|---|---|---|
@@ -210,45 +212,45 @@ Invoca **5 conejos** (daño físico) detrás del personaje. No se puede reinvoca
 
 ### 2.5 Carga de Fuego
 
-Esfera de fuego (daño mágico). Pulsar = disparo rápido; mantener hasta 5 s = más daño y tamaño. Recarga 2 s. Al golpear aplica **quemadura**: 1 de daño por segundo durante 5 s.
+Esfera de fuego (daño mágico). Pulsar = disparo rápido; mantener hasta 5 s = más daño, tamaño y quemadura. Al golpear aplica **quemadura** (1 de daño por segundo, ignora escudos) con una duración que depende de la carga. La **recarga** también depende de la carga: **8 s** sin carga hasta **15 s** a carga máxima.
 
 **Energía en tiempo real:** al pulsar se cobra el coste base y cada segundo completo de carga cobra su parte. Si no hay energía para el siguiente segundo, la carga se detiene en el nivel ya pagado.
 
 **Escalado por nivel de la habilidad:**
 
-| Nivel | Daño base (sin carga) | Daño a carga máx. (5 s) | Recarga |
+| Nivel | Daño base | Daño sin carga (x0.6) | Daño a carga máx. (x2.0) |
 |---|---|---|---|
-| 1 | 20 | 25 | 2 s |
-| 2 | 21 | 26.2 | 2 s |
-| 3 | 22 | 27.5 | 2 s |
-| 4 | 23 | 28.8 | 2 s |
-| 5 | 24 | 30 | 2 s |
-| 6 | 25 | 31.2 | 2 s |
-| 7 | 26 | 32.5 | 2 s |
-| 8 | 27 | 33.8 | 2 s |
-| 9 | 28 | 35 | 2 s |
-| 10 | 29 | 36.2 | 2 s |
-| 11 | 30 | 37.5 | 2 s |
-| 12 | 31 | 38.8 | 2 s |
-| 13 | 32 | 40 | 2 s |
-| 14 | 33 | 41.2 | 2 s |
-| 15 | 34 | 42.5 | 2 s |
-| 16 | 35 | 43.8 | 2 s |
-| 17 | 36 | 45 | 2 s |
-| 18 | 37 | 46.2 | 2 s |
-| 19 | 38 | 47.5 | 2 s |
-| 20 | 39 | 48.8 | 2 s |
+| 1 | 20 | 12 | 40 |
+| 2 | 21 | 12.6 | 42 |
+| 3 | 22 | 13.2 | 44 |
+| 4 | 23 | 13.8 | 46 |
+| 5 | 24 | 14.4 | 48 |
+| 6 | 25 | 15 | 50 |
+| 7 | 26 | 15.6 | 52 |
+| 8 | 27 | 16.2 | 54 |
+| 9 | 28 | 16.8 | 56 |
+| 10 | 29 | 17.4 | 58 |
+| 11 | 30 | 18 | 60 |
+| 12 | 31 | 18.6 | 62 |
+| 13 | 32 | 19.2 | 64 |
+| 14 | 33 | 19.8 | 66 |
+| 15 | 34 | 20.4 | 68 |
+| 16 | 35 | 21 | 70 |
+| 17 | 36 | 21.6 | 72 |
+| 18 | 37 | 22.2 | 74 |
+| 19 | 38 | 22.8 | 76 |
+| 20 | 39 | 23.4 | 78 |
 
 **Escalado por segundo de carga** (igual en todos los niveles):
 
-| Carga | Bono de daño | Energía cobrada en ese segundo | Coste total acumulado | Radio de la esfera |
-|---|---|---|---|---|
-| Sin carga | 0 % | 15 | 15 | 6 px |
-| 1 s | +5 % | 5 | 20 | 8 px |
-| 2 s | +7 % | 5 | 25 | 11 px |
-| 3 s | +10 % | 5 | 30 | 14 px |
-| 4 s | +15 % | 5 | 35 | 17 px |
-| 5 s | +25 % | 10 | 45 | 22 px |
+| Carga | Multiplicador del daño base | Quemadura | Recarga | Energía cobrada en ese segundo | Coste total acumulado | Radio de la esfera |
+|---|---|---|---|---|---|---|
+| Sin carga | x0.6 | 2 s | 8 s | 15 | 15 | 6 px |
+| 1 s | x0.8 | 3 s | 9.4 s | 5 | 20 | 8 px |
+| 2 s | x1.0 | 4 s | 10.8 s | 5 | 25 | 11 px |
+| 3 s | x1.3 | 5 s | 12.2 s | 5 | 30 | 14 px |
+| 4 s | x1.6 | 6 s | 13.6 s | 5 | 35 | 17 px |
+| 5 s | x2.0 | 7 s | 15 s | 10 | 45 | 22 px |
 
 ### 2.6 Aura Eléctrica
 
@@ -485,29 +487,29 @@ Potenciador **mágico**: vuelve invisible al personaje (no a sus invocaciones). 
 
 ### 2.15 Disparo Venenoso
 
-Habilidad de **daño mágico**: esfera verde (núcleo morado, velocidad 12) que se detiene en el primer enemigo y lo **envenena**; el impacto no daña ni empuja. El veneno hace su daño total repartido en su duración (un golpe por segundo), lo amortigua el escudo mágico y no se acumula (reinicia). Escalado **lineal**.
+Habilidad de **daño mágico**: esfera verde (núcleo morado, velocidad 12) que se detiene en el primer enemigo y lo **envenena**; el impacto no daña ni empuja. El veneno hace su daño total repartido en su duración (un golpe por segundo), lo amortigua el escudo mágico y no se acumula (reinicia). Escalado **lineal** (coste 20 → 45 En.).
 
 | Nivel | Coste En. | Veneno total | Duración | Daño por segundo | Recarga |
 |---|---|---|---|---|---|
 | 1 | 20 | 20 | 20 s | 1 | 30 s |
-| 2 | 23 | 21.1 | 19.5 s | 1.08 | 29.2 s |
-| 3 | 26 | 22.1 | 18.9 s | 1.17 | 28.4 s |
-| 4 | 29 | 23.2 | 18.4 s | 1.26 | 27.6 s |
-| 5 | 33 | 24.2 | 17.9 s | 1.35 | 26.8 s |
-| 6 | 36 | 25.3 | 17.4 s | 1.45 | 26.1 s |
-| 7 | 39 | 26.3 | 16.8 s | 1.57 | 25.3 s |
-| 8 | 42 | 27.4 | 16.3 s | 1.68 | 24.5 s |
-| 9 | 45 | 28.4 | 15.8 s | 1.8 | 23.7 s |
-| 10 | 48 | 29.5 | 15.3 s | 1.93 | 22.9 s |
-| 11 | 52 | 30.5 | 14.7 s | 2.07 | 22.1 s |
-| 12 | 55 | 31.6 | 14.2 s | 2.23 | 21.3 s |
-| 13 | 58 | 32.6 | 13.7 s | 2.38 | 20.5 s |
-| 14 | 61 | 33.7 | 13.2 s | 2.55 | 19.7 s |
-| 15 | 64 | 34.7 | 12.6 s | 2.75 | 18.9 s |
-| 16 | 67 | 35.8 | 12.1 s | 2.96 | 18.2 s |
-| 17 | 71 | 36.8 | 11.6 s | 3.17 | 17.4 s |
-| 18 | 74 | 37.9 | 11.1 s | 3.41 | 16.6 s |
-| 19 | 77 | 38.9 | 10.5 s | 3.7 | 15.8 s |
-| 20 | 80 | 40 | 10 s | 4 | 15 s |
+| 2 | 21 | 21.1 | 19.5 s | 1.08 | 29.2 s |
+| 3 | 23 | 22.1 | 18.9 s | 1.17 | 28.4 s |
+| 4 | 24 | 23.2 | 18.4 s | 1.26 | 27.6 s |
+| 5 | 25 | 24.2 | 17.9 s | 1.35 | 26.8 s |
+| 6 | 27 | 25.3 | 17.4 s | 1.45 | 26.1 s |
+| 7 | 28 | 26.3 | 16.8 s | 1.57 | 25.3 s |
+| 8 | 29 | 27.4 | 16.3 s | 1.68 | 24.5 s |
+| 9 | 31 | 28.4 | 15.8 s | 1.8 | 23.7 s |
+| 10 | 32 | 29.5 | 15.3 s | 1.93 | 22.9 s |
+| 11 | 33 | 30.5 | 14.7 s | 2.07 | 22.1 s |
+| 12 | 34 | 31.6 | 14.2 s | 2.23 | 21.3 s |
+| 13 | 36 | 32.6 | 13.7 s | 2.38 | 20.5 s |
+| 14 | 37 | 33.7 | 13.2 s | 2.55 | 19.7 s |
+| 15 | 38 | 34.7 | 12.6 s | 2.75 | 18.9 s |
+| 16 | 40 | 35.8 | 12.1 s | 2.96 | 18.2 s |
+| 17 | 41 | 36.8 | 11.6 s | 3.17 | 17.4 s |
+| 18 | 42 | 37.9 | 11.1 s | 3.41 | 16.6 s |
+| 19 | 44 | 38.9 | 10.5 s | 3.7 | 15.8 s |
+| 20 | 45 | 40 | 10 s | 4 | 15 s |
 
 **Autoveneno de Golpe de Suerte** (resultado negativo): mitad del daño total, misma duración, al nivel del tramo (nv1 → 10 en 20 s · nv5 → 12.1 en 17.9 s · nv10 → 14.75 en 15.3 s · nv15 → 17.35 en 12.6 s · nv20 → 20 en 10 s).
