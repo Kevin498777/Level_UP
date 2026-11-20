@@ -11,17 +11,17 @@ from vegetacion import SistemaVegetacion, OSCURECIMIENTO
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
 # -----------------------------
-RADIO_MUNDO = 5000          # Límite circular del mapa
+RADIO_MUNDO = 10000         # Límite circular del mapa
 MARGEN_MUNDO = 150          # Espacio extra alrededor del círculo (zona oscura fuera del mapa)
 TAMANO_MUNDO = (RADIO_MUNDO + MARGEN_MUNDO) * 2
 CENTRO_MUNDO = pygame.Vector2(RADIO_MUNDO + MARGEN_MUNDO, RADIO_MUNDO + MARGEN_MUNDO)
 
-MIN_ROCAS = 100
-MAX_ROCAS = 250
-MIN_CHARCOS = 4
-MAX_CHARCOS = 6
-RADIO_CHARCO_MIN = 100
-RADIO_CHARCO_MAX = 500
+MIN_ROCAS = 300
+MAX_ROCAS = 700
+MIN_CHARCOS = 14
+MAX_CHARCOS = 22
+RADIO_CHARCO_MIN = 150
+RADIO_CHARCO_MAX = 750
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
 ZONA_SEGURA_SPAWN = 140     # Radio alrededor del centro sin obstáculos (para no aparecer atrapado)
 SUAVIZADO_CAMARA = 8.0      # Más alto = la cámara sigue más pegada al personaje
@@ -35,6 +35,12 @@ COLOR_BARRO = (128, 98, 66)
 COLOR_AGUA = (38, 104, 182)
 COLOR_AGUA_CLARA = (62, 136, 214)
 COLOR_AGUA_PROFUNDA = (16, 52, 104)   # Centro oscuro de los lagos grandes (zona de peligro)
+COLOR_NENUFAR = (46, 120, 70)
+COLOR_NENUFAR_BORDE = (28, 80, 48)
+COLOR_FLOR = (235, 225, 240)
+COLOR_FLOR_ROSA = (235, 150, 185)
+COLOR_JUNCO = (70, 140, 70)
+COLOR_JUNCO_PUNTA = (120, 85, 50)
 
 # Lagos grandes: si el radio supera este umbral, su centro es una zona peligrosa
 RADIO_LAGO_PELIGRO = 300
@@ -64,7 +70,7 @@ class Charco:
             self.circulos.append((pos, r_lobulo))
 
         # Pre-renderizar el charco una sola vez (barro + agua + brillo)
-        extension = radio + ANCHO_BARRO + 2
+        extension = radio + ANCHO_BARRO + 18
         lado = int(extension * 2)
         self.superficie = pygame.Surface((lado, lado), pygame.SRCALPHA)
         origen = pygame.Vector2(x - extension, y - extension)
@@ -86,6 +92,34 @@ class Charco:
             centro_local = self.centro - origen
             pygame.draw.circle(self.superficie, COLOR_AGUA_PROFUNDA,
                                (round(centro_local.x), round(centro_local.y)), round(self.radio_peligro))
+
+        # Flora acuatica: nenufares sobre el agua y juncos/espadanas en las orillas
+        for _ in range(max(2, int(radio / 45))):
+            c, r = random.choice(locales)
+            pr = random.randint(5, 9)
+            ang = random.uniform(0, math.tau)
+            d = random.uniform(0, max(0.0, r - pr - 3))
+            lx = c.x + math.cos(ang) * d
+            ly = c.y + math.sin(ang) * d
+            pygame.draw.circle(self.superficie, COLOR_NENUFAR_BORDE, (round(lx), round(ly)), pr + 1)
+            pygame.draw.circle(self.superficie, COLOR_NENUFAR, (round(lx), round(ly)), pr)
+            na = random.uniform(0, math.tau)
+            pygame.draw.line(self.superficie, COLOR_AGUA, (round(lx), round(ly)),
+                             (round(lx + math.cos(na) * pr), round(ly + math.sin(na) * pr)), 2)
+            if random.random() < 0.4:
+                pygame.draw.circle(self.superficie, random.choice((COLOR_FLOR, COLOR_FLOR_ROSA)), (round(lx), round(ly)), 2)
+        for _ in range(max(3, int(radio / 35))):
+            c, r = random.choice(locales)
+            ang = random.uniform(0, math.tau)
+            bx = c.x + math.cos(ang) * r
+            by = c.y + math.sin(ang) * r
+            for _ in range(random.randint(2, 4)):
+                tx = bx + random.uniform(-4, 4)
+                ty = by + random.uniform(-3, 3)
+                h = random.randint(8, 16)
+                pygame.draw.line(self.superficie, COLOR_JUNCO, (round(tx), round(ty)), (round(tx), round(ty - h)), 1)
+                if random.random() < 0.5:
+                    pygame.draw.circle(self.superficie, COLOR_JUNCO_PUNTA, (round(tx), round(ty - h)), 2)
 
     def contiene(self, punto):
         """True si el punto (centro del jugador) está sobre el agua."""
@@ -791,7 +825,7 @@ def iniciar_mundo(config):
 
     charcos = generar_charcos()
     vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
-    rocas = generar_rocas(list(charcos) + vegetacion.arbustos)
+    rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles)
     vegetacion.registrar_obstaculos(rocas)
 
     # Maniqui de pruebas en el centro del mapa (recibe dano para probar las invocaciones)
@@ -1112,7 +1146,7 @@ def iniciar_mundo(config):
         # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto
         for hab in jugador.habilidades:
             if hasattr(hab, "actualizar_cuchillas"):
-                destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
+                destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, vegetacion.arboles, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
                 vegetacion.liberar_obstaculos(destruidas)
 
         # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
@@ -1198,6 +1232,8 @@ def iniciar_mundo(config):
                 roca.dibujar(pantalla, desplazamiento)
 
         # Maniqui de pruebas en el centro
+        # Arboles (bosques): tronco solido + copa, bajo las entidades
+        vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
         # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
         for hab in jugador.habilidades:
             if hasattr(hab, "dibujar_telaranas"):
@@ -1217,6 +1253,8 @@ def iniciar_mundo(config):
                 hab.dibujar_ondas(pantalla, desplazamiento)
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
+        # Copas de los arboles por encima de las entidades (profundidad)
+        vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
 
         # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque

@@ -26,9 +26,9 @@ TIPO_VENENOSO = "Venenoso"
 TIPO_FRUTAL = "Frutal"
 
 CANTIDADES = {
-    TIPO_ESCONDITE: (35, 80),
-    TIPO_VENENOSO: (25, 45),
-    TIPO_FRUTAL: (10, 16),
+    TIPO_ESCONDITE: (110, 210),
+    TIPO_VENENOSO: (60, 110),
+    TIPO_FRUTAL: (20, 32),
 }
 
 DIAMETRO_MIN = 50
@@ -186,6 +186,139 @@ class Arbusto:
 
 
 # -----------------------------
+# ARBOLES Y BIOMAS (bosques)
+# -----------------------------
+CELDA_REJILLA = 256            # Tamanio de celda para la rejilla espacial de colocacion
+
+NUM_BOSQUES_MIN = 10
+NUM_BOSQUES_MAX = 16
+BOSQUE_RADIO_MIN = 500
+BOSQUE_RADIO_MAX = 1600
+PROB_ARBUSTO_EN_BOSQUE = 0.70  # sesgo de los arbustos hacia los bosques
+
+TIPOS_ARBOL = ["frondoso", "pino", "seco"]
+PESOS_ARBOL = [0.55, 0.35, 0.10]
+ARBOL_ESCALA_MIN = 1.0
+ARBOL_ESCALA_MAX = 1.9
+ARBOL_COPA_BASE = 34           # radio de la copa a escala 1 (solo visual)
+ARBOL_TRONCO_BASE = 7          # radio del tronco (solido) a escala 1
+ARBOL_ESPACIADO = 110          # separacion objetivo entre arboles de un bosque
+DENSIDAD_BOSQUE = 0.22         # fraccion del area del bosque que se llena de arboles
+ARBOL_SOLITARIO_CADA = 500     # 1 arbol solitario por cada N px de radio del mundo
+
+COLOR_SOMBRA_ARBOL = (20, 23, 29)
+COLOR_TRONCO = (92, 66, 44)
+COLOR_TRONCO_BORDE = (60, 42, 28)
+COLOR_RAMA_SECA = (74, 56, 40)
+COLOR_FRONDOSO = (64, 132, 62)
+COLOR_FRONDOSO_BORDE = (30, 70, 36)
+COLOR_PINO = (38, 92, 56)
+COLOR_PINO_BORDE = (22, 58, 38)
+
+
+class RejillaEspacial:
+    """Rejilla espacial (hash por celdas) para consultar solapamientos de cajas en O(1)
+    amortizado, en vez de recorrer todas las plantas (evita que generar miles sea lento)."""
+    def __init__(self, celda):
+        self.celda = celda
+        self.celdas = {}
+
+    def _rango(self, caja):
+        return (int(caja.left // self.celda), int(caja.top // self.celda),
+                int(caja.right // self.celda), int(caja.bottom // self.celda))
+
+    def agregar(self, caja):
+        x0, y0, x1, y1 = self._rango(caja)
+        for cx in range(x0, x1 + 1):
+            for cy in range(y0, y1 + 1):
+                self.celdas.setdefault((cx, cy), []).append(caja)
+
+    def hay_colision(self, caja):
+        x0, y0, x1, y1 = self._rango(caja)
+        for cx in range(x0, x1 + 1):
+            for cy in range(y0, y1 + 1):
+                for r in self.celdas.get((cx, cy), ()):
+                    if caja.colliderect(r):
+                        return True
+        return False
+
+    def quitar(self, caja):
+        x0, y0, x1, y1 = self._rango(caja)
+        for cx in range(x0, x1 + 1):
+            for cy in range(y0, y1 + 1):
+                lst = self.celdas.get((cx, cy))
+                if lst and caja in lst:
+                    lst.remove(caja)
+
+
+class Arbol:
+    """Arbol del mundo: tronco solido (circulo) + copa visual mas grande dibujada encima.
+    Tipos: 'frondoso' (copa redonda verde), 'pino' (mas oscuro y punteado), 'seco' (sin copa,
+    ramas marrones). Se dibuja de forma procedural (sin pre-render) para no gastar memoria."""
+    def __init__(self, x, y, tipo, escala, radio_tronco, radio_copa):
+        self.centro = pygame.Vector2(x, y)
+        self.tipo = tipo
+        self.escala = escala
+        self.radio_tronco = radio_tronco
+        self.radio_copa = radio_copa
+        ext = radio_copa + 6
+        self.rect = pygame.Rect(round(x - ext), round(y - ext), ext * 2, ext * 2)
+        # Lobulos de copa (estables, precomputados) para frondoso/pino
+        self.lobulos = []
+        if tipo != "seco":
+            n = random.randint(4, 7)
+            for i in range(n):
+                a = (i / n) * math.tau + random.uniform(-0.3, 0.3)
+                rl = radio_copa * random.uniform(0.45, 0.62)
+                dd = (radio_copa - rl) * random.uniform(0.5, 0.9)
+                self.lobulos.append((math.cos(a) * dd, math.sin(a) * dd, rl))
+        # Ramas para el arbol seco
+        self.ramas = []
+        if tipo == "seco":
+            for _ in range(random.randint(4, 6)):
+                a = -math.pi / 2 + random.uniform(-1.2, 1.2)
+                ln = radio_copa * random.uniform(0.6, 1.0)
+                self.ramas.append((a, ln))
+
+    def dibujar_base(self, pantalla, desplazamiento):
+        """Sombra + tronco (y ramas del seco): va DEBAJO de las entidades."""
+        px = round(self.centro.x - desplazamiento[0])
+        py = round(self.centro.y - desplazamiento[1])
+        rc, rt = self.radio_copa, self.radio_tronco
+        pygame.draw.circle(pantalla, COLOR_SOMBRA_ARBOL, (px + 3, py + 4), rc)
+        pygame.draw.circle(pantalla, COLOR_TRONCO, (px, py), rt)
+        if self.tipo == "seco":
+            pygame.draw.circle(pantalla, COLOR_TRONCO_BORDE, (px, py), rt, 1)
+            for a, ln in self.ramas:
+                ex = px + int(math.cos(a) * ln)
+                ey = py + int(math.sin(a) * ln)
+                pygame.draw.line(pantalla, COLOR_RAMA_SECA, (px, py), (ex, ey), max(1, rt // 3))
+
+    def dibujar_copa(self, pantalla, desplazamiento):
+        """Copa (frondoso/pino): va ENCIMA de las entidades, para dar profundidad."""
+        if self.tipo == "seco":
+            return
+        px = round(self.centro.x - desplazamiento[0])
+        py = round(self.centro.y - desplazamiento[1])
+        rc = self.radio_copa
+        base, borde = (COLOR_PINO, COLOR_PINO_BORDE) if self.tipo == "pino" else (COLOR_FRONDOSO, COLOR_FRONDOSO_BORDE)
+        pygame.draw.circle(pantalla, borde, (px, py), rc + 2)
+        for ox, oy, rl in self.lobulos:
+            pygame.draw.circle(pantalla, base, (px + int(ox), py + int(oy)), int(rl))
+        pygame.draw.circle(pantalla, base, (px, py), int(rc * 0.7))
+        if self.tipo == "pino":
+            for i in range(6):
+                a = math.tau * i / 6
+                ex = px + int(math.cos(a) * rc)
+                ey = py + int(math.sin(a) * rc)
+                pygame.draw.line(pantalla, borde, (px, py), (ex, ey), 1)
+
+    def dibujar(self, pantalla, desplazamiento):
+        self.dibujar_base(pantalla, desplazamiento)
+        self.dibujar_copa(pantalla, desplazamiento)
+
+
+# -----------------------------
 # SISTEMA DE VEGETACIÓN
 # -----------------------------
 class SistemaVegetacion:
@@ -195,7 +328,16 @@ class SistemaVegetacion:
         self.zona_segura = zona_segura
         self.zonas_ocupadas = [z.rect for z in zonas_ocupadas]  # charcos, rocas...
         self.arbustos = []
+        self.arboles = []
+        self.bosques = []               # (centro, radio) de cada bosque/bioma
         self.reapariciones_frutal = []  # temporizadores (segundos restantes)
+        self.rejilla = RejillaEspacial(CELDA_REJILLA)
+        for r in self.zonas_ocupadas:
+            self.rejilla.agregar(r)
+
+        # Biomas: primero los bosques, luego sus arboles (densos), luego los arbustos
+        self._generar_bosques()
+        self._generar_arboles()
 
         for tipo, (minimo, maximo) in CANTIDADES.items():
             for _ in range(random.randint(minimo, maximo)):
@@ -203,7 +345,6 @@ class SistemaVegetacion:
                 if arbusto:
                     self.arbustos.append(arbusto)
 
-        # 10% de probabilidad de que el mundo tenga de 1 a 3 matorrales (conjuntos densos)
         if random.random() < PROB_MATORRAL:
             for _ in range(random.randint(1, 3)):
                 self._crear_matorral()
@@ -218,29 +359,25 @@ class SistemaVegetacion:
             if o.rect in self.zonas_ocupadas:
                 self.zonas_ocupadas.remove(o.rect)
 
-    def _crear_en_lugar_libre(self, tipo, evitar=None, intentos=500, fase="maduro"):
+    def _crear_en_lugar_libre(self, tipo, evitar=None, intentos=400, fase="maduro"):
         minimo = DIAMETRO_MIN_FRUTAL if tipo == TIPO_FRUTAL else DIAMETRO_MIN
         for _ in range(intentos):
             radio_final = random.randint(minimo, DIAMETRO_MAX) // 2
-            ang = random.uniform(0, math.tau)
-            dist = math.sqrt(random.random()) * (self.radio_mundo - radio_final - 20)
-            if dist - radio_final < self.zona_segura:
+            # Sesgo hacia los bosques (vegetacion agrupada = mas natural)
+            if self.bosques and evitar is None and random.random() < PROB_ARBUSTO_EN_BOSQUE:
+                x, y = self._punto_en_bosque(random.choice(self.bosques))
+            else:
+                x, y = self._punto_en_mundo(radio_final)
+            if not self._dentro_del_mapa(x, y, radio_final):
                 continue
-            x = self.centro_mundo.x + math.cos(ang) * dist
-            y = self.centro_mundo.y + math.sin(ang) * dist
-
-            # No aparecer encima del jugador (reapariciones)
             if evitar is not None and (pygame.Vector2(x, y) - evitar).length() < 300:
                 continue
-
             # La caja reserva el espacio del tamaño FINAL (aunque empiece como brote)
             caja = pygame.Rect(0, 0, radio_final * 2 + 30, radio_final * 2 + 30)
             caja.center = (round(x), round(y))
-            if any(caja.colliderect(z) for z in self.zonas_ocupadas):
+            if self.rejilla.hay_colision(caja):
                 continue
-            if any(caja.colliderect(a.rect) for a in self.arbustos):
-                continue
-
+            self.rejilla.agregar(caja)
             if fase == "brote":
                 return Arbusto(x, y, DIAMETRO_BROTE // 2, tipo, fase="brote", radio_final=radio_final)
             return Arbusto(x, y, radio_final, tipo)
@@ -260,10 +397,9 @@ class SistemaVegetacion:
 
             caja = pygame.Rect(0, 0, radio_cluster * 2 + 40, radio_cluster * 2 + 40)
             caja.center = (round(cx), round(cy))
-            if any(caja.colliderect(z) for z in self.zonas_ocupadas):
+            if self.rejilla.hay_colision(caja):
                 continue
-            if any(caja.colliderect(a.rect) for a in self.arbustos):
-                continue
+            self.rejilla.agregar(caja)
 
             # Colocar los arbustos solapados para formar una masa densa sin huecos
             for i in range(cantidad):
@@ -277,9 +413,78 @@ class SistemaVegetacion:
             return True
         return False
 
+    # ---- Biomas (bosques) y arboles --------------------------------------
+    def _generar_bosques(self):
+        n = random.randint(NUM_BOSQUES_MIN, NUM_BOSQUES_MAX)
+        for _ in range(n):
+            ang = random.uniform(0, math.tau)
+            dist = math.sqrt(random.random()) * (self.radio_mundo * 0.9)
+            cx = self.centro_mundo.x + math.cos(ang) * dist
+            cy = self.centro_mundo.y + math.sin(ang) * dist
+            radio = random.randint(BOSQUE_RADIO_MIN, BOSQUE_RADIO_MAX)
+            self.bosques.append((pygame.Vector2(cx, cy), radio))
+
+    def _punto_en_mundo(self, margen):
+        ang = random.uniform(0, math.tau)
+        dist = math.sqrt(random.random()) * max(0.0, self.radio_mundo - margen - 20)
+        return self.centro_mundo.x + math.cos(ang) * dist, self.centro_mundo.y + math.sin(ang) * dist
+
+    def _punto_en_bosque(self, bosque):
+        centro, radio = bosque
+        ang = random.uniform(0, math.tau)
+        dist = math.sqrt(random.random()) * radio
+        return centro.x + math.cos(ang) * dist, centro.y + math.sin(ang) * dist
+
+    def _dentro_del_mapa(self, x, y, margen):
+        d = (pygame.Vector2(x, y) - self.centro_mundo).length()
+        return d - margen >= self.zona_segura and d + margen <= self.radio_mundo - 20
+
+    def _generar_arboles(self):
+        # Arboles densos dentro de cada bosque + algunos solitarios por el mundo
+        for centro, radio in self.bosques:
+            n = int(math.pi * radio * radio / (ARBOL_ESPACIADO ** 2) * DENSIDAD_BOSQUE)
+            for _ in range(n):
+                self._crear_arbol(zona=(centro, radio))
+        for _ in range(int(self.radio_mundo / ARBOL_SOLITARIO_CADA)):
+            self._crear_arbol()
+
+    def _crear_arbol(self, zona=None, intentos=14):
+        for _ in range(intentos):
+            tipo = random.choices(TIPOS_ARBOL, weights=PESOS_ARBOL)[0]
+            escala = random.uniform(ARBOL_ESCALA_MIN, ARBOL_ESCALA_MAX)
+            radio_copa = round(ARBOL_COPA_BASE * escala)
+            radio_tronco = round(ARBOL_TRONCO_BASE * escala)
+            if zona is not None:
+                x, y = self._punto_en_bosque(zona)
+            else:
+                x, y = self._punto_en_mundo(radio_copa)
+            if not self._dentro_del_mapa(x, y, radio_copa):
+                continue
+            # Solo reservamos el TRONCO (solido): las copas pueden solaparse (bosque tupido)
+            caja = pygame.Rect(0, 0, radio_tronco * 2 + 16, radio_tronco * 2 + 16)
+            caja.center = (round(x), round(y))
+            if self.rejilla.hay_colision(caja):
+                continue
+            self.rejilla.agregar(caja)
+            self.arboles.append(Arbol(x, y, tipo, escala, radio_tronco, radio_copa))
+            return True
+        return False
+
+    def dibujar_arboles_base(self, pantalla, vista, desplazamiento):
+        for a in self.arboles:
+            if a.rect.colliderect(vista):
+                a.dibujar_base(pantalla, desplazamiento)
+
+    def dibujar_arboles_copas(self, pantalla, vista, desplazamiento):
+        for a in self.arboles:
+            if a.rect.colliderect(vista):
+                a.dibujar_copa(pantalla, desplazamiento)
+
     def obstaculos_para(self, personaje):
-        """Arbustos demasiado pequeños para el personaje: se comportan como sólidos."""
-        return [(a.centro, a.radio) for a in self.arbustos if not a.puede_entrar(personaje)]
+        """Solidos para el personaje: arbustos en los que no cabe + troncos de arboles."""
+        solidos = [(a.centro, a.radio) for a in self.arbustos if not a.puede_entrar(personaje)]
+        solidos.extend((t.centro, t.radio_tronco) for t in self.arboles)
+        return solidos
 
     def actualizar(self, dt, jugador):
         # ¿En qué arbusto está metido?
@@ -347,6 +552,10 @@ class SistemaVegetacion:
 
     def dibujar_hitboxes(self, pantalla, vista, desplazamiento, fuente):
         ox, oy = desplazamiento
+        for t in self.arboles:
+            if t.rect.colliderect(vista):
+                pygame.draw.circle(pantalla, (150, 110, 70), (round(t.centro.x - ox), round(t.centro.y - oy)), t.radio_tronco, 1)
+                pygame.draw.circle(pantalla, (90, 150, 90), (round(t.centro.x - ox), round(t.centro.y - oy)), t.radio_copa, 1)
         for a in self.arbustos:
             if not a.rect.colliderect(vista):
                 continue

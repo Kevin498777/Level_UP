@@ -595,7 +595,7 @@ class CuchillaCortante:
         self.hitbox = pygame.Rect(round(min(a.x, b.x)) - 2, round(min(a.y, b.y)) - 2,
                                   round(abs(a.x - b.x)) + 4, round(abs(a.y - b.y)) + 4)
 
-    def avanzar(self, rocas, arbustos, enemigos, centro_mundo, radio_mundo):
+    def avanzar(self, rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo):
         """Mueve la cuchilla un frame. Las rocas y arbustos destruidos se quitan de sus listas.
         Devuelve la roca destruida (o None) para liberar su zona en la vegetacion."""
         if self._arbustos_origen is None:
@@ -630,6 +630,15 @@ class CuchillaCortante:
                 self.activo = False
                 if not getattr(arbusto, "grande", False) or self.corta_grandes:
                     arbustos.remove(arbusto)
+                return None
+
+            # Arboles: se rompen al tocar CUALQUIER parte (la copa); la cuchilla se rompe con el
+            arboles_tocados = [arb for arb in arboles
+                               if _distancia_punto_segmento(arb.centro, a, b) <= arb.radio_copa]
+            if arboles_tocados:
+                arbol = min(arboles_tocados, key=lambda arb: (arb.centro - self.posicion).length())
+                self.activo = False
+                arboles.remove(arbol)
                 return None
 
             if (self.posicion - centro_mundo).length() > radio_mundo:
@@ -711,11 +720,11 @@ class Cortar(HabilidadBase):
         self.tiempo_restante_activo = 0.0
         self.tiempo_restante_cooldown = self.duracion_cooldown
 
-    def actualizar_cuchillas(self, rocas, arbustos, enemigos, centro_mundo, radio_mundo):
+    def actualizar_cuchillas(self, rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo):
         """Mueve las cuchillas. Devuelve las rocas destruidas en este frame."""
         destruidas = []
         for c in self.cuchillas:
-            roca = c.avanzar(rocas, arbustos, enemigos, centro_mundo, radio_mundo)
+            roca = c.avanzar(rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo)
             if roca is not None:
                 destruidas.append(roca)
         self.cuchillas = [c for c in self.cuchillas if c.activo]
