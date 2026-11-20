@@ -13,6 +13,13 @@ ALFA_INVISIBLE_RELLENO = 25
 ALFA_INVISIBLE_CONTORNO = 90
 ALFA_INVISIBLE_OJOS = 140
 
+# Autoapuntado (clic derecho sobre un enemigo, sin mantener la tecla de una invocación):
+# el personaje mira siempre al objetivo. Se cancela si se aleja más de AUTOAPUNTADO_RANGO,
+# si el objetivo muere o con otro clic derecho en terreno libre o sobre el mismo objetivo.
+AUTOAPUNTADO_RANGO = 500
+AUTOAPUNTADO_DEBUFF = 0.40          # -40 % de velocidad mientras está activo
+AUTOAPUNTADO_MARGEN_CLIC = 30       # margen para considerar que el clic cae sobre un enemigo
+
 # --- Escudo del personaje (reserva que absorbe daño físico) ---
 # Progresión del escudo: inicial 0, +5 por mejora hasta un máximo de 15 y, a partir
 # de ahí, +2 por mejora. El escudo mágico (Fase 2) compartirá este mismo esquema.
@@ -135,6 +142,11 @@ class Personaje:
         # Empuje acumulado pendiente de aplicar (retroceso por recibir daño)
         self.empuje = pygame.Vector2(0, 0)
 
+        # Autoapuntado: enemigo fijado (None si no está activo)
+        self.objetivo_apuntado = None
+        self.mensaje_apuntado = ""         # aviso breve (ej. no se puede activar cargando)
+        self.tiempo_mensaje_apuntado = 0.0
+
         # Radio visual base escalado por el tamaño
         self.radio = int(20 * self.tamano)
 
@@ -177,6 +189,52 @@ class Personaje:
             return False
         escudo.bloquear(self, cantidad, self.posicion - pygame.Vector2(origen))
         return True
+
+    def esta_cargando(self):
+        """True si mantiene una carga: Carga de Fuego o el Arco tensando. La curación que se
+        mantiene pulsada (Regeneración Inversa) no cuenta."""
+        if getattr(self.herramienta, "cargando", False):
+            return True
+        return any(getattr(h, "cargando", False) for h in self.habilidades)
+
+    def alternar_autoapuntado(self, enemigo):
+        """Clic derecho para autoapuntar. Sobre el objetivo actual o sin enemigo (terreno libre)
+        lo desactiva; sobre otro enemigo lo fija si está a AUTOAPUNTADO_RANGO o menos y no se
+        está cargando nada (se puede cargar después de activarlo). Devuelve True si queda activo."""
+        if enemigo is None or enemigo is self.objetivo_apuntado:
+            self.objetivo_apuntado = None
+            return False
+        if self.esta_cargando():
+            self._avisar_apuntado("No puedes autoapuntar mientras cargas")
+        elif (enemigo.posicion - self.posicion).length() > AUTOAPUNTADO_RANGO:
+            self._avisar_apuntado("Objetivo fuera de rango")
+        else:
+            self.objetivo_apuntado = enemigo
+            self._mirar_a(enemigo.posicion)
+        return self.objetivo_apuntado is not None
+
+    def _avisar_apuntado(self, texto):
+        self.mensaje_apuntado = texto
+        self.tiempo_mensaje_apuntado = 2.0
+
+    def _mirar_a(self, punto):
+        hacia = pygame.Vector2(punto) - self.posicion
+        if hacia.length_squared() > 0:
+            self.angulo = math.degrees(math.atan2(hacia.x, -hacia.y)) % 360.0
+
+    def actualizar_autoapuntado(self, dt):
+        """Mantiene la mirada en el objetivo y lo suelta si muere o pasa de AUTOAPUNTADO_RANGO."""
+        if self.tiempo_mensaje_apuntado > 0:
+            self.tiempo_mensaje_apuntado -= dt
+            if self.tiempo_mensaje_apuntado <= 0:
+                self.mensaje_apuntado = ""
+        obj = self.objetivo_apuntado
+        if obj is None:
+            return
+        if not getattr(obj, "vivo", True) or (obj.posicion - self.posicion).length() > AUTOAPUNTADO_RANGO:
+            self.objetivo_apuntado = None
+            return
+        self._mirar_a(obj.posicion)
 
     def habilidades_en_efecto(self):
         """Habilidades equipadas más los efectos temporales activos (ej. de Golpe de Suerte)."""
@@ -360,6 +418,10 @@ class Personaje:
             # Arco tensando la cuerda: ralentizacion extra mientras carga
             modificador -= getattr(self.herramienta, "ralentizacion_carga", 0.0)
 
+        # Autoapuntado activo
+        if self.objetivo_apuntado is not None:
+            modificador -= AUTOAPUNTADO_DEBUFF
+
         # Ralentizacion recibida (ej. Onda Sonora)
         modificador -= self.ralentizacion
 
@@ -388,7 +450,8 @@ class Personaje:
 
         # Actualizar ángulo de rotación:
         # 0° = Hacia arriba (0, -1), 180° = Hacia abajo (0, 1), 90° = Derecha (1, 0)
-        if distancia > 0.1:
+        # Con autoapuntado la orientación la fija el objetivo (ver actualizar_autoapuntado)
+        if distancia > 0.1 and self.objetivo_apuntado is None:
             self.angulo = math.degrees(math.atan2(direccion.x, -direccion.y)) % 360.0
 
         if distancia > self.velocidad:

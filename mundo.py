@@ -1,10 +1,11 @@
 import math
 import random
 import pygame
-from personaje import Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
+from personaje import (Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO,
+                       AUTOAPUNTADO_MARGEN_CLIC)
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
-                         aplicar_veneno, COLOR_VENENO)
+                         aplicar_veneno, enemigo_en, COLOR_VENENO)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
 
@@ -521,6 +522,9 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             "Escudo: absorbe daño físico; se gasta y regenera tras 10s sin recibir golpes.",
             "Escudo M.: absorbe daño mágico (habilidades); se gasta y regenera igual.",
             "",
+            "Clic derecho sobre un enemigo: Autoapuntado (lo miras siempre; -40% Vel;",
+            "se suelta a más de 500, en terreno libre o sobre el mismo objetivo).",
+            "",
             "Mejora con [+]: cuesta 1 punto (el arma cuesta 2).",
             "[L] sube de nivel y otorga 3 puntos.",
         ]
@@ -554,6 +558,20 @@ def hitboxes_de_armas_chocan(arma_a, arma_b):
         if ha and ha.collidelist(rects_b) != -1:
             return True
     return False
+
+
+COLOR_MIRA = (255, 60, 60)
+
+
+def dibujar_mira(pantalla, objetivo, desplazamiento):
+    """Mira roja del Autoapuntado sobre el objetivo: anillo con cuatro marcas."""
+    cx = round(objetivo.posicion.x - desplazamiento[0])
+    cy = round(objetivo.posicion.y - desplazamiento[1])
+    r = objetivo.radio + 10
+    pygame.draw.circle(pantalla, COLOR_MIRA, (cx, cy), r, 2)
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        pygame.draw.line(pantalla, COLOR_MIRA, (cx + dx * (r - 5), cy + dy * (r - 5)),
+                         (cx + dx * (r + 6), cy + dy * (r + 6)), 2)
 
 
 def resolver_solapamientos(entidades):
@@ -1031,6 +1049,8 @@ def iniciar_mundo(config):
                     # Sobre un enemigo lo persiguen aunque se mueva; en terreno libre van al
                     # punto; cerca del jugador vuelven a seguirlo. El clic izquierdo sigue
                     # libre para mover al personaje.
+                    # Sin ninguna invocacion en modo combate, el clic derecho es el Autoapuntado:
+                    # sobre un enemigo lo fija; en terreno libre o sobre el mismo objetivo lo quita.
                     mouse_x, mouse_y = evento.pos
                     if mundo_x <= mouse_x <= (mundo_x + mundo_w):
                         vista = vista_camara()
@@ -1038,9 +1058,11 @@ def iniciar_mundo(config):
                             vista.x + (mouse_x - mundo_x),
                             vista.y + (mouse_y - mundo_y)
                         )
-                        for hab in jugador.habilidades:
-                            if getattr(hab, "modo_combate", False):
-                                hab.ordenar(punto, jugador, enemigos)
+                        en_combate = [h for h in jugador.habilidades if getattr(h, "modo_combate", False)]
+                        for hab in en_combate:
+                            hab.ordenar(punto, jugador, enemigos)
+                        if not en_combate:
+                            jugador.alternar_autoapuntado(enemigo_en(punto, enemigos, AUTOAPUNTADO_MARGEN_CLIC))
 
         # Actualizar herramienta (temporizador y cálculo de su hitbox)
         if jugador.herramienta:
@@ -1199,6 +1221,9 @@ def iniciar_mundo(config):
         else:
             jugador.tiempo_dano_lago = 0.0
 
+        # Autoapuntado: mira al objetivo (o lo suelta si muere o sale de rango) antes de moverse
+        jugador.actualizar_autoapuntado(dt)
+
         # Calcular velocidad acumulando debuffs y buffs
         jugador.actualizar_velocidad()
 
@@ -1259,6 +1284,10 @@ def iniciar_mundo(config):
 
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
+
+        # Mira roja sobre el enemigo autoapuntado
+        if jugador.objetivo_apuntado is not None:
+            dibujar_mira(pantalla, jugador.objetivo_apuntado, desplazamiento)
 
         # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
         for hab in jugador.habilidades:
@@ -1342,7 +1371,8 @@ def iniciar_mundo(config):
             txt_agua = "  |  EN AGUA: -50% Vel"
         else:
             txt_agua = ""
-        txt_oculto = ("  |  OCULTO EN ARBUSTO" if jugador.oculto else "") + ("  |  INVISIBLE" if jugador.invisible else "")
+        txt_oculto = (("  |  OCULTO EN ARBUSTO" if jugador.oculto else "") + ("  |  INVISIBLE" if jugador.invisible else "")
+                      + ("  |  AUTOAPUNTADO: -40% Vel" if jugador.objetivo_apuntado is not None else ""))
         if jugador.oculto or jugador.invisible:
             color_info = (140, 230, 140)
         elif jugador.en_agua_profunda:
@@ -1356,6 +1386,9 @@ def iniciar_mundo(config):
             True, color_info
         )
         pantalla.blit(txt_coord, (mundo_x + 12, mundo_h - 22))
+        if jugador.mensaje_apuntado:
+            txt_aviso = fuentes["sub"].render(jugador.mensaje_apuntado, True, (255, 150, 90))
+            pantalla.blit(txt_aviso, (mundo_x + 12, mundo_h - 42))
 
         # 2. Dibujar Interfaces Laterales (Fuera del mundo)
         # Panel Izquierdo: Ficha del Personaje y Estado del Arma

@@ -144,6 +144,16 @@ El escudo absorbe su parte hasta agotarse; si esa parte supera el escudo disponi
 
 Si el **Reforzamiento Mágico** está activo, su campo de fuerza recibe primero cualquier daño físico o mágico; solo lo que sobra cuando se rompe llega a los escudos y a la vida (ver 9.7).
 
+
+### 6.4 Autoapuntado
+
+Con el **clic derecho sobre un enemigo** (sin mantener la tecla de una invocación) el personaje lo **fija como objetivo** y se queda **mirándolo siempre**, aunque se mueva con el clic izquierdo (camina de lado). Como golpes, flechas y disparos salen hacia donde mira, todos van hacia el objetivo, aunque **no lo persiguen**: van al punto donde estaba al disparar.
+
+- **Activación:** solo sobre un enemigo a **500 o menos** de distancia. **No se puede activar mientras se mantiene una carga**: Carga de Fuego cargando o el Arco tensando (aviso "No puedes autoapuntar mientras cargas"). Con una invocación en modo combate (su tecla mantenida) el clic derecho da órdenes a las sombras, no autoapunta. La curación mantenida (Regeneración Inversa) no lo impide. **Una vez activo sí se puede cargar.**
+- **Debuff:** **−40 % de velocidad** mientras está activo; se suma a los demás modificadores (arma, agua…), con el mínimo de velocidad de siempre.
+- **Se desactiva:** con otro clic derecho en **terreno libre** o sobre **el mismo objetivo**, si el objetivo **muere** o si te alejas **más de 500**. Un clic derecho sobre **otro enemigo** cambia de objetivo.
+- **Cómo se ve:** **mira roja** sobre el objetivo y el aviso **"AUTOAPUNTADO: -40% Vel"** en la barra inferior. No se muestra la distancia: la calcula el jugador.
+- **Con el Escudo:** el arco de bloqueo mira siempre al objetivo, así que bloquea sus golpes de frente (la espalda sigue expuesta).
 ---
 
 ## 7. Progresión y puntos de mejora
@@ -485,7 +495,7 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 - **Panel derecho (en juego):** más ancho y con letra más grande y de alto contraste. Una tarjeta por habilidad con tecla, nivel, coste, estado, recarga, resumen del efecto según el nivel y botón **[+]**.
 - **Volver a selección:** el botón del panel izquierdo o **[M]** cierran el mundo y reabren la pantalla de creación para probar otro personaje sin salir del juego.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
-- **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto o **invisible** (Paso 0).
+- **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto, **invisible** (Paso 0) o en **autoapuntado**.
 
 ---
 
@@ -502,6 +512,7 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 | Clic derecho (en modo combate) | Enviar a las sombras a un punto o a perseguir y atacar al enemigo bajo el clic (la orden persiste al soltar la tecla) |
 | Mantener y soltar [2] [3] [4] con una orden en curso | Devolver esa invocación al estado pasivo (te siguen) |
 | Clic derecho junto a ti | Llamar de vuelta a las sombras (vuelven a seguirte) |
+| Clic derecho sobre un enemigo (sin modo combate) | **Autoapuntado**: el personaje mira siempre a ese enemigo (−40 % Vel, rango 500). En terreno libre o sobre el mismo objetivo lo quita (ver 6.4) |
 | [H] | Mostrar / ocultar las hitboxes |
 | [L] | (Prueba) Subir de nivel al personaje (+3 puntos) |
 | [J] | (Prueba) Simular un golpe del arma (desgasta durabilidad) |

@@ -75,6 +75,7 @@ Gancho para enemigos futuros: `Personaje.bloquear_con_escudo(daño, origen)`. Lo
 5. **Espada Ligera (sin papel):** darle un rasgo propio, como más cadencia o no desgastarse en los choques de armas.
 6. **Disparo Veloz (algo débil al principio):** coste de nv1 de 10 de energía o daño inicial de 10.
 7. **Escudo (vigilar):** con el maniquí siempre te da de frente. Cuando haya enemigos que rodeen o disparen, revisar que el bloqueo total sin coste para el jugador más el empuje de 40 no lo haga intocable.
+8. **Autoapuntado (vigilar):** −40 % de velocidad a cambio de apuntar siempre. Con el Escudo, el arco de bloqueo mira siempre al objetivo; junto al −34 % del escudo, la velocidad baja al mínimo (0.4). Revisar cuando haya enemigos reales que rodeen.
 
 Orden sugerido para la próxima sesión: **Lobos → Regeneración Inversa → Aura Eléctrica**, y después el resto.
 
