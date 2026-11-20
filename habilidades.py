@@ -596,8 +596,8 @@ class CuchillaCortante:
                                   round(abs(a.x - b.x)) + 4, round(abs(a.y - b.y)) + 4)
 
     def avanzar(self, rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo):
-        """Mueve la cuchilla un frame. Las rocas y arbustos destruidos se quitan de sus listas.
-        Devuelve la roca destruida (o None) para liberar su zona en la vegetacion."""
+        """Mueve la cuchilla un frame. Las rocas, arbustos y arboles destruidos se quitan de sus
+        listas. Devuelve el obstaculo destruido (o None) para liberar su zona en la vegetacion."""
         if self._arbustos_origen is None:
             self._arbustos_origen = {id(arb) for arb in arbustos if arb.contiene(self.origen)}
         sub_pasos = max(1, math.ceil(self.velocidad / self.PASO_MAX))
@@ -630,6 +630,7 @@ class CuchillaCortante:
                 self.activo = False
                 if not getattr(arbusto, "grande", False) or self.corta_grandes:
                     arbustos.remove(arbusto)
+                    return arbusto
                 return None
 
             # Arboles: se rompen al tocar CUALQUIER parte (la copa); la cuchilla se rompe con el
@@ -639,7 +640,7 @@ class CuchillaCortante:
                 arbol = min(arboles_tocados, key=lambda arb: (arb.centro - self.posicion).length())
                 self.activo = False
                 arboles.remove(arbol)
-                return None
+                return arbol
 
             if (self.posicion - centro_mundo).length() > radio_mundo:
                 self.activo = False
@@ -721,12 +722,13 @@ class Cortar(HabilidadBase):
         self.tiempo_restante_cooldown = self.duracion_cooldown
 
     def actualizar_cuchillas(self, rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo):
-        """Mueve las cuchillas. Devuelve las rocas destruidas en este frame."""
+        """Mueve las cuchillas. Devuelve los obstaculos (rocas, arbustos, arboles) destruidos
+        en este frame."""
         destruidas = []
         for c in self.cuchillas:
-            roca = c.avanzar(rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo)
-            if roca is not None:
-                destruidas.append(roca)
+            obstaculo = c.avanzar(rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo)
+            if obstaculo is not None:
+                destruidas.append(obstaculo)
         self.cuchillas = [c for c in self.cuchillas if c.activo]
         return destruidas
 

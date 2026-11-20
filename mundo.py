@@ -16,10 +16,18 @@ MARGEN_MUNDO = 150          # Espacio extra alrededor del círculo (zona oscura 
 TAMANO_MUNDO = (RADIO_MUNDO + MARGEN_MUNDO) * 2
 CENTRO_MUNDO = pygame.Vector2(RADIO_MUNDO + MARGEN_MUNDO, RADIO_MUNDO + MARGEN_MUNDO)
 
-MIN_ROCAS = 600
-MAX_ROCAS = 1200
-MIN_CHARCOS = 24
-MAX_CHARCOS = 40
+# Rocas y lagos escalan con el AREA del mundo: la densidad se define para un mundo de
+# referencia (radio 5000) y se multiplica por (RADIO_MUNDO / referencia)^2.
+RADIO_MUNDO_REFERENCIA = 5000
+ESCALA_AREA_MUNDO = (RADIO_MUNDO / RADIO_MUNDO_REFERENCIA) ** 2
+ROCAS_POR_AREA_REFERENCIA = (150, 300)
+CHARCOS_POR_AREA_REFERENCIA = (6, 10)
+MIN_ROCAS = round(ROCAS_POR_AREA_REFERENCIA[0] * ESCALA_AREA_MUNDO)       # 600 en radio 10000
+MAX_ROCAS = round(ROCAS_POR_AREA_REFERENCIA[1] * ESCALA_AREA_MUNDO)       # 1200
+MIN_CHARCOS = round(CHARCOS_POR_AREA_REFERENCIA[0] * ESCALA_AREA_MUNDO)   # 24
+MAX_CHARCOS = round(CHARCOS_POR_AREA_REFERENCIA[1] * ESCALA_AREA_MUNDO)   # 40
+INTENTOS_POR_ROCA = 30          # Intentos de colocacion por roca objetivo
+INTENTOS_POR_CHARCO = 60        # Intentos de colocacion por lago objetivo
 RADIO_CHARCO_MIN = 150
 RADIO_CHARCO_MAX = 750
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
@@ -134,11 +142,12 @@ class Charco:
 
 
 def generar_charcos():
-    """Genera de 4 a 6 charcos con radio aleatorio de 100 a 500 dentro del círculo, sin solaparse."""
+    """Genera MIN_CHARCOS a MAX_CHARCOS lagos (escalan con el area del mundo) con radio
+    RADIO_CHARCO_MIN a RADIO_CHARCO_MAX dentro del círculo, sin solaparse."""
     charcos = []
     objetivo = random.randint(MIN_CHARCOS, MAX_CHARCOS)
     intentos = 0
-    while len(charcos) < objetivo and intentos < 1000:
+    while len(charcos) < objetivo and intentos < objetivo * INTENTOS_POR_CHARCO:
         intentos += 1
         radio = random.randint(RADIO_CHARCO_MIN, RADIO_CHARCO_MAX)
         extension = radio + ANCHO_BARRO + 10
@@ -186,8 +195,9 @@ class Roca:
 
 def generar_rocas(zonas_ocupadas=()):
     """
-    Genera entre 100 y 250 rocas (pequeñas, grandes y gigantes) dentro del círculo, sin solaparse
-    ni caer sobre zonas ocupadas (charcos, arbustos: cualquier objeto con .rect).
+    Genera MIN_ROCAS a MAX_ROCAS rocas (escalan con el area del mundo; pequeñas, grandes y
+    gigantes) dentro del círculo, sin solaparse ni caer sobre zonas ocupadas (charcos,
+    arbustos, arboles: cualquier objeto con .rect).
     """
     cantidad = random.randint(MIN_ROCAS, MAX_ROCAS)
     rocas = []
@@ -196,7 +206,7 @@ def generar_rocas(zonas_ocupadas=()):
     for z in zonas_ocupadas:
         rejilla.agregar(z.rect)
 
-    while len(rocas) < cantidad and intentos < 30000:
+    while len(rocas) < cantidad and intentos < cantidad * INTENTOS_POR_ROCA:
         intentos += 1
 
         # 60% pequeñas (22-45), 35% grandes (70-130), 5% gigantes (150-300)
@@ -1229,15 +1239,15 @@ def iniciar_mundo(config):
             if roca.rect.colliderect(vista):
                 roca.dibujar(pantalla, desplazamiento)
 
-        # Maniqui de pruebas en el centro
-        # Arboles (bosques): tronco solido + copa, bajo las entidades
         # Pasto y flores (cobertura de suelo, bajo las entidades)
         vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
+        # Arboles (bosques): sombra + tronco solido bajo las entidades; la copa va al final
         vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
         # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
         for hab in jugador.habilidades:
             if hasattr(hab, "dibujar_telaranas"):
                 hab.dibujar_telaranas(pantalla, desplazamiento)
+        # Maniqui de pruebas en el centro
         maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
 
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
@@ -1253,9 +1263,13 @@ def iniciar_mundo(config):
                 hab.dibujar_ondas(pantalla, desplazamiento)
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
-        # Copas de los arboles por encima de las entidades (profundidad)
-        vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, jugador)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
+        # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
+        # semitransparentes si hay una entidad debajo: jugador, maniqui o invocaciones.
+        entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
+        for hab in jugador.habilidades:
+            entidades.extend(getattr(hab, "criaturas", ()))
+        vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
 
         # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
         # se den ambos) y en el arbusto solo tú ves sus orbes

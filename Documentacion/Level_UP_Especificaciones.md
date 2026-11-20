@@ -2,7 +2,7 @@
 
 > Documento de información (no técnico) sobre el estado actual del juego.
 > Pensado como contexto de referencia para la IA y para el equipo.
-> Actualizado: 19 de noviembre de 2026.
+> Actualizado: 20 de noviembre de 2026.
 
 ---
 
@@ -16,7 +16,9 @@ Actualmente el juego cuenta con la generación completa del mundo, el sistema de
 
 ## 2. El mundo
 
-- **Forma y tamaño:** mapa circular de radio 5000, rodeado por una franja oscura exterior que marca el límite.
+- **Forma y tamaño:** mapa circular de radio **10000**, rodeado por una franja oscura exterior que marca el límite.
+- **Escalado con el tamaño:** las cantidades de **rocas y lagos** se calculan a partir del área del mundo. Su densidad se define para un mundo de referencia de radio 5000 y se multiplica por (radio / 5000)²; con radio 10000 el factor es **×4**. Si el mundo vuelve a cambiar de tamaño, se ajustan solas.
+- **Biomas:** **bosques** (árboles densos, arbustos y pasto de sotobosque) y **praderas** (pasto y flores), repartidos por todo el mapa (ver 5).
 - **Aparición:** el personaje aparece en el centro del mapa, dentro de una zona segura de 140 px sin obstáculos.
 - **Cámara:** sigue al personaje con un movimiento suave, manteniéndolo centrado en el área de juego.
 - **Fondo:** cuadrícula sutil recortada al círculo, con el borde y el centro del mundo marcados.
@@ -25,7 +27,9 @@ Actualmente el juego cuenta con la generación completa del mundo, el sistema de
 
 ## 3. Terreno acuático: charcos y lagos
 
-Cada mundo genera entre **4 y 6** masas de agua con forma de nube, con radios de **100 a 500**. No se solapan entre sí ni invaden la zona de aparición.
+Cada mundo genera entre **24 y 40** masas de agua con forma de nube (6 – 10 por área de referencia ×4), con radios de **150 a 750**. No se solapan entre sí ni invaden la zona de aparición.
+
+- **Flora acuática:** cada lago trae **nenúfares** (algunos con flor blanca o rosa) sobre el agua y **juncos/espadañas** en la orilla. Es solo decorativa. Es la **única** flora que crece en los lagos: el pasto y las flores de pradera nunca aparecen sobre el agua ni sobre el barro de la orilla.
 
 - **Agua normal:** reduce la velocidad de movimiento un **50 %**.
 - **Lago profundo (peligroso):** si un lago supera un radio de **300**, su zona central (el 35 % interior, azul más oscuro) reduce la movilidad un **80 %** y resta **10 puntos de vida por segundo**. El resto del lago conserva el −50 %.
@@ -34,7 +38,7 @@ Cada mundo genera entre **4 y 6** masas de agua con forma de nube, con radios de
 
 ## 4. Rocas
 
-Cada mundo genera entre **100 y 250** rocas. Son **sólidas** (no se atraviesan ni se empujan) y **bloquean los proyectiles**. No aparecen sobre el agua, la vegetación ni la zona segura.
+Cada mundo genera entre **600 y 1200** rocas (150 – 300 por área de referencia ×4). Son **sólidas** (no se atraviesan ni se empujan) y **bloquean los proyectiles**. No aparecen sobre el agua, los arbustos, los troncos de los árboles ni la zona segura. El pasto y las flores que quedarían debajo de una roca se retiran.
 
 | Tipo de roca | Proporción | Tamaño (px) |
 |---|---|---|
@@ -54,17 +58,42 @@ Los arbustos tienen forma de nube y los **tres tipos se ven idénticos** a simpl
 
 | Tipo | Cantidad | Efecto |
 |---|---|---|
-| Escondite | 35 – 80 | Solo sirve para ocultarse. |
-| Venenoso | 25 – 45 | Oculta, pero hace 1 de daño cada 2 s (ignora defensa). |
-| Frutal | 10 – 16 | Oculta y contiene 1 – 5 orbes rojos; cada uno cura +2 de vida. |
+| Escondite | 110 – 210 | Solo sirve para ocultarse. |
+| Venenoso | 60 – 110 | Oculta, pero hace 1 de daño cada 2 s (ignora defensa). |
+| Frutal | 20 – 32 | Oculta y contiene 1 – 5 orbes rojos; cada uno cura +2 de vida. |
+
+El **70 %** de los arbustos se genera dentro de los bosques (vegetación agrupada).
 
 ### 5.2 Ciclo de los frutales
 
-Al quedarse sin orbes, el frutal desaparece y **un minuto después** reaparece pasando por tres fases: **brote** (20 px, sin fruta) → **joven** (tamaño normal, 1 fruta, tras 1 min) → **maduro** (frutas aleatorias 1–5, tras otro minuto).
+Al quedarse sin orbes, el frutal desaparece y **un minuto después** reaparece en **otro lugar libre** (a más de 300 px del personaje), pasando por tres fases: **brote** (20 px, sin fruta) → **joven** (tamaño normal, 1 fruta, tras 1 min) → **maduro** (frutas aleatorias 1–5, tras otro minuto). Nunca reaparece encima de una roca, un lago, un tronco u otro arbusto. El espacio de un frutal consumido, o de una roca, arbusto o árbol destruido con Cortar, queda libre para futuras reapariciones.
 
 ### 5.3 Matorrales
 
 Un **40 % de probabilidad** por mundo genera entre **1 y 3 matorrales**: conjuntos densos de 5 a 8 arbustos de distintos tipos y tamaños, solapados como una sola masa de vegetación.
+
+### 5.4 Bosques y árboles
+
+Cada mundo tiene **10 – 16 bosques** (zonas circulares de radio 500 – 1600) donde los árboles crecen densos, más unos **20 árboles solitarios** repartidos por el mapa (en total, unos 750 – 1100 árboles).
+
+| Tipo de árbol | Proporción | Aspecto |
+|---|---|---|
+| Frondoso | 55 % | Copa redonda verde claro. |
+| Pino | 35 % | Copa verde oscuro con radios marcados. |
+| Seco | 10 % | Sin copa: solo ramas marrones. |
+
+- **Tamaño:** escala 1.0 – 1.9; copa de radio 34 – 65 y tronco de radio 7 – 13.
+- **Tronco sólido:** el personaje y las criaturas chocan con él. La **copa** es solo visual y puede solaparse con la de otros árboles (bosque tupido).
+- **Profundidad:** la sombra y el tronco se dibujan **debajo** de las entidades; las copas, **encima de todo**, incluidos los arbustos (los arbustos quedan bajo los árboles).
+- **Copa transparente:** si **cualquier entidad** (personaje, maniquí o invocaciones) está bajo una copa, aunque sea en parte, esa copa se vuelve **semitransparente** para que se vea. Bajo un árbol **no te escondes**: para ocultarse están los arbustos.
+- **Cortar** destruye un árbol al tocar **cualquier parte** (la copa), a cualquier nivel (ver 9.14).
+
+### 5.5 Praderas: pasto y flores
+
+Cada mundo tiene **8 – 14 praderas** (zonas de radio 600 – 1800) cubiertas de **pasto** (hierba de altura media) y **flores** de varios colores (20 – 60 por pradera). En los bosques también crece pasto, más ralo (sotobosque).
+
+- Son **decorativos**: sin colisión y dibujados **bajo las entidades**, así que nunca tapan al personaje.
+- **No crecen en los lagos** ni en su orilla (ahí solo hay flora acuática, ver 3), ni debajo de las rocas.
 
 ---
 
@@ -314,7 +343,9 @@ El personaje, el maniquí y las invocaciones tienen **hitbox circular** (su radi
 Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
 
 - **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 8 s** (ver 6.3).
-- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Si hay arbustos solapados (matorral), corta el más cercano. Los objetos destruidos **no reaparecen** (tampoco los frutales) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
+- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Si hay arbustos solapados (matorral), corta el más cercano.
+- **Árbol:** lo **destruye al tocar cualquier parte** (incluida la copa), **a cualquier nivel**, y la cuchilla se rompe con él.
+- Los objetos destruidos **no reaparecen** (tampoco los frutales) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
 
 | Nivel | Daño | Velocidad | Coste En. | Recarga |
 |---|---|---|---|---|

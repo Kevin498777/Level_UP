@@ -330,7 +330,7 @@ class Arbol:
 # -----------------------------
 # PASTO (hierba) Y FLORES — cobertura de suelo decorativa (bajo las entidades)
 # -----------------------------
-ALFA_COPA_DESVANECIDA = 95     # Alfa de la copa de un arbol cuando el jugador esta debajo
+ALFA_COPA_DESVANECIDA = 95     # Alfa de la copa de un arbol con una entidad debajo
 
 NUM_PRADERAS_MIN = 8
 NUM_PRADERAS_MAX = 14
@@ -350,6 +350,10 @@ FLORES_POR_PRADERA = (20, 60)
 COLORES_FLOR = [(235, 92, 104), (240, 196, 72), (150, 120, 230), (240, 240, 245), (240, 140, 190)]
 COLOR_TALLO_FLOR = (70, 130, 66)
 COLOR_CENTRO_FLOR = (250, 220, 120)
+
+# Pasto y flores no crecen en los lagos (ahi solo hay flora acuatica). El margen cubre el barro
+# de la orilla y la altura de la hierba, que se dibuja hacia arriba desde su base.
+MARGEN_COBERTURA_AGUA = 40
 
 
 class Pasto:
@@ -402,7 +406,9 @@ class SistemaVegetacion:
         self.centro_mundo = pygame.Vector2(centro_mundo)
         self.radio_mundo = radio_mundo
         self.zona_segura = zona_segura
-        self.zonas_ocupadas = [z.rect for z in zonas_ocupadas]  # charcos, rocas...
+        zonas_ocupadas = list(zonas_ocupadas)   # charcos u otros objetos con .rect
+        # Lagos (objetos con .circulos): el pasto y las flores no crecen dentro
+        self.charcos = [z for z in zonas_ocupadas if hasattr(z, "circulos")]
         self.arbustos = []
         self.arboles = []
         self.bosques = []               # (centro, radio) de cada bosque/bioma
@@ -410,9 +416,10 @@ class SistemaVegetacion:
         self.pasto = []
         self.flores = []
         self.reapariciones_frutal = []  # temporizadores (segundos restantes)
+        # Rejilla de espacio ocupado: la consultan la generacion y la reaparicion de frutales
         self.rejilla = RejillaEspacial(CELDA_REJILLA)
-        for r in self.zonas_ocupadas:
-            self.rejilla.agregar(r)
+        for z in zonas_ocupadas:
+            self.rejilla.agregar(z.rect)
 
         # Biomas: bosques (arboles) y praderas (pasto/flores), luego arbustos
         self._generar_bosques()
@@ -432,14 +439,30 @@ class SistemaVegetacion:
                 self._crear_matorral()
 
     def registrar_obstaculos(self, objetos):
-        """Añade obstáculos (ej. rocas generadas después) para que los frutales nuevos no caigan encima."""
-        self.zonas_ocupadas.extend(o.rect for o in objetos)
+        """Añade a la rejilla obstáculos generados después (ej. rocas) para que los frutales
+        que reaparecen no caigan encima, y quita el pasto/flores que quedaron debajo."""
+        objetos = list(objetos)
+        tapados = RejillaEspacial(CELDA_REJILLA)
+        for o in objetos:
+            self.rejilla.agregar(o.rect)
+            tapados.agregar(o.rect)
+        self.pasto = [g for g in self.pasto if not tapados.hay_colision(g.rect)]
+        self.flores = [f for f in self.flores if not tapados.hay_colision(f.rect)]
 
     def liberar_obstaculos(self, objetos):
-        """Quita de las zonas ocupadas los obstaculos destruidos (ej. rocas cortadas)."""
+        """Libera en la rejilla el espacio de obstaculos destruidos (rocas, arbustos o arboles
+        cortados, frutales consumidos). Usa la caja reservada al crearlos si la tienen."""
         for o in objetos:
-            if o.rect in self.zonas_ocupadas:
-                self.zonas_ocupadas.remove(o.rect)
+            self.rejilla.quitar(getattr(o, "caja_rejilla", o.rect))
+
+    def _en_agua(self, x, y, margen):
+        """True si el punto esta dentro de un lago o a menos de `margen` de su borde."""
+        for charco in self.charcos:
+            if not charco.rect.inflate(margen * 2, margen * 2).collidepoint(x, y):
+                continue
+            if any(math.hypot(x - c.x, y - c.y) <= r + margen for c, r in charco.circulos):
+                return True
+        return False
 
     def _crear_en_lugar_libre(self, tipo, evitar=None, intentos=400, fase="maduro"):
         minimo = DIAMETRO_MIN_FRUTAL if tipo == TIPO_FRUTAL else DIAMETRO_MIN
@@ -461,8 +484,11 @@ class SistemaVegetacion:
                 continue
             self.rejilla.agregar(caja)
             if fase == "brote":
-                return Arbusto(x, y, DIAMETRO_BROTE // 2, tipo, fase="brote", radio_final=radio_final)
-            return Arbusto(x, y, radio_final, tipo)
+                arbusto = Arbusto(x, y, DIAMETRO_BROTE // 2, tipo, fase="brote", radio_final=radio_final)
+            else:
+                arbusto = Arbusto(x, y, radio_final, tipo)
+            arbusto.caja_rejilla = caja   # para liberar su espacio si se destruye o se consume
+            return arbusto
         return None
 
     def _crear_matorral(self, intentos=300):
@@ -548,7 +574,9 @@ class SistemaVegetacion:
             if self.rejilla.hay_colision(caja):
                 continue
             self.rejilla.agregar(caja)
-            self.arboles.append(Arbol(x, y, tipo, escala, radio_tronco, radio_copa))
+            arbol = Arbol(x, y, tipo, escala, radio_tronco, radio_copa)
+            arbol.caja_rejilla = caja     # para liberar su espacio si Cortar lo rompe
+            self.arboles.append(arbol)
             return True
         return False
 
@@ -557,10 +585,12 @@ class SistemaVegetacion:
             if a.rect.colliderect(vista):
                 a.dibujar_base(pantalla, desplazamiento)
 
-    def dibujar_arboles_copas(self, pantalla, vista, desplazamiento, jugador=None):
+    def dibujar_arboles_copas(self, pantalla, vista, desplazamiento, entidades=()):
+        """Copas encima de todo. Si alguna entidad (jugador, maniqui, invocaciones) esta
+        debajo, aunque sea en parte, la copa se ve semitransparente para no ocultarla."""
         for a in self.arboles:
             if a.rect.colliderect(vista):
-                desv = jugador is not None and (jugador.posicion - a.centro).length() <= a.radio_copa
+                desv = any((e.posicion - a.centro).length() <= a.radio_copa + e.radio for e in entidades)
                 a.dibujar_copa(pantalla, desplazamiento, desv)
 
     # ---- Praderas: pasto y flores (cobertura decorativa) -----------------
@@ -576,7 +606,7 @@ class SistemaVegetacion:
 
     def _soltar_pasto(self, zona):
         x, y = self._punto_en_bosque(zona)   # punto aleatorio dentro de la zona
-        if self._dentro_del_mapa(x, y, 4):
+        if self._dentro_del_mapa(x, y, 4) and not self._en_agua(x, y, MARGEN_COBERTURA_AGUA):
             self.pasto.append(Pasto(x, y, random.uniform(PASTO_ESCALA_MIN, PASTO_ESCALA_MAX)))
 
     def _generar_pasto(self):
@@ -593,7 +623,7 @@ class SistemaVegetacion:
         for centro, radio in self.praderas:
             for _ in range(random.randint(*FLORES_POR_PRADERA)):
                 x, y = self._punto_en_bosque((centro, radio))
-                if self._dentro_del_mapa(x, y, 4):
+                if self._dentro_del_mapa(x, y, 4) and not self._en_agua(x, y, MARGEN_COBERTURA_AGUA):
                     self.flores.append(Flor(x, y, random.choice(COLORES_FLOR)))
 
     def dibujar_cobertura(self, pantalla, vista, desplazamiento):
@@ -643,6 +673,7 @@ class SistemaVegetacion:
             # Sin orbes (solo si ya estaba maduro): desaparece y se programa uno nuevo en 1 minuto
             if not arbusto.orbes and arbusto.fase == "maduro":
                 self.arbustos.remove(arbusto)
+                self.liberar_obstaculos([arbusto])
                 self.reapariciones_frutal.append(TIEMPO_REAPARICION_FRUTAL)
                 jugador.arbusto_actual = None
                 jugador.oculto = False
