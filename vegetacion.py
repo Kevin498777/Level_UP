@@ -294,28 +294,104 @@ class Arbol:
                 ey = py + int(math.sin(a) * ln)
                 pygame.draw.line(pantalla, COLOR_RAMA_SECA, (px, py), (ex, ey), max(1, rt // 3))
 
-    def dibujar_copa(self, pantalla, desplazamiento):
-        """Copa (frondoso/pino): va ENCIMA de las entidades, para dar profundidad."""
+    def _pintar_copa(self, target, cx, cy):
+        rc = self.radio_copa
+        base, borde = (COLOR_PINO, COLOR_PINO_BORDE) if self.tipo == "pino" else (COLOR_FRONDOSO, COLOR_FRONDOSO_BORDE)
+        pygame.draw.circle(target, borde, (cx, cy), rc + 2)
+        for ox, oy, rl in self.lobulos:
+            pygame.draw.circle(target, base, (cx + int(ox), cy + int(oy)), int(rl))
+        pygame.draw.circle(target, base, (cx, cy), int(rc * 0.7))
+        if self.tipo == "pino":
+            for i in range(6):
+                a = math.tau * i / 6
+                pygame.draw.line(target, borde, (cx, cy), (cx + int(math.cos(a) * rc), cy + int(math.sin(a) * rc)), 1)
+
+    def dibujar_copa(self, pantalla, desplazamiento, desvanecer=False):
+        """Copa (frondoso/pino) ENCIMA de las entidades (profundidad). Si el jugador esta
+        debajo, se dibuja semitransparente para no ocultarlo (bajo un arbol no te escondes)."""
         if self.tipo == "seco":
             return
         px = round(self.centro.x - desplazamiento[0])
         py = round(self.centro.y - desplazamiento[1])
-        rc = self.radio_copa
-        base, borde = (COLOR_PINO, COLOR_PINO_BORDE) if self.tipo == "pino" else (COLOR_FRONDOSO, COLOR_FRONDOSO_BORDE)
-        pygame.draw.circle(pantalla, borde, (px, py), rc + 2)
-        for ox, oy, rl in self.lobulos:
-            pygame.draw.circle(pantalla, base, (px + int(ox), py + int(oy)), int(rl))
-        pygame.draw.circle(pantalla, base, (px, py), int(rc * 0.7))
-        if self.tipo == "pino":
-            for i in range(6):
-                a = math.tau * i / 6
-                ex = px + int(math.cos(a) * rc)
-                ey = py + int(math.sin(a) * rc)
-                pygame.draw.line(pantalla, borde, (px, py), (ex, ey), 1)
+        if not desvanecer:
+            self._pintar_copa(pantalla, px, py)
+            return
+        ext = self.radio_copa + 4
+        capa = pygame.Surface((ext * 2, ext * 2), pygame.SRCALPHA)
+        self._pintar_copa(capa, ext, ext)
+        capa.fill((255, 255, 255, ALFA_COPA_DESVANECIDA), special_flags=pygame.BLEND_RGBA_MULT)
+        pantalla.blit(capa, (px - ext, py - ext))
 
     def dibujar(self, pantalla, desplazamiento):
         self.dibujar_base(pantalla, desplazamiento)
         self.dibujar_copa(pantalla, desplazamiento)
+
+
+# -----------------------------
+# PASTO (hierba) Y FLORES — cobertura de suelo decorativa (bajo las entidades)
+# -----------------------------
+ALFA_COPA_DESVANECIDA = 95     # Alfa de la copa de un arbol cuando el jugador esta debajo
+
+NUM_PRADERAS_MIN = 8
+NUM_PRADERAS_MAX = 14
+PRADERA_RADIO_MIN = 600
+PRADERA_RADIO_MAX = 1800
+
+PASTO_ESPACIADO = 90
+DENSIDAD_PRADERA_PASTO = 0.25
+DENSIDAD_BOSQUE_PASTO = 0.10      # sotobosque mas ralo
+PASTO_ALTURA_MIN = 12             # altura media (no tapa al personaje: va bajo las entidades)
+PASTO_ALTURA_MAX = 22
+PASTO_ESCALA_MIN = 0.8
+PASTO_ESCALA_MAX = 1.4
+COLORES_PASTO = [(70, 138, 66), (86, 156, 74), (58, 120, 56)]
+
+FLORES_POR_PRADERA = (20, 60)
+COLORES_FLOR = [(235, 92, 104), (240, 196, 72), (150, 120, 230), (240, 240, 245), (240, 140, 190)]
+COLOR_TALLO_FLOR = (70, 130, 66)
+COLOR_CENTRO_FLOR = (250, 220, 120)
+
+
+class Pasto:
+    """Mechon de hierba de altura media. Decorativo: se dibuja BAJO las entidades (nunca tapa
+    al personaje) y no tiene colision."""
+    def __init__(self, x, y, escala):
+        self.centro = pygame.Vector2(x, y)
+        alto = random.randint(PASTO_ALTURA_MIN, PASTO_ALTURA_MAX) * escala
+        self.briznas = []
+        for _ in range(random.randint(3, 5)):
+            ox = random.uniform(-5, 5) * escala
+            h = alto * random.uniform(0.7, 1.0)
+            curva = random.uniform(-0.3, 0.3) * h
+            self.briznas.append((ox, h, curva, random.choice(COLORES_PASTO)))
+        ext = int(alto) + 6
+        self.rect = pygame.Rect(round(x - ext), round(y - ext), ext * 2, ext * 2)
+
+    def dibujar(self, pantalla, desplazamiento):
+        bx = round(self.centro.x - desplazamiento[0])
+        by = round(self.centro.y - desplazamiento[1])
+        for ox, h, curva, col in self.briznas:
+            x0 = bx + int(ox)
+            pygame.draw.line(pantalla, col, (x0, by), (x0 + int(curva), by - int(h)), 2)
+
+
+class Flor:
+    """Florecita decorativa (tallo + petalos). Bajo las entidades, sin colision."""
+    def __init__(self, x, y, color):
+        self.centro = pygame.Vector2(x, y)
+        self.color = color
+        self.alto = random.randint(8, 14)
+        self.rect = pygame.Rect(round(x - 6), round(y - self.alto - 6), 12, self.alto + 12)
+
+    def dibujar(self, pantalla, desplazamiento):
+        bx = round(self.centro.x - desplazamiento[0])
+        by = round(self.centro.y - desplazamiento[1])
+        ty = by - self.alto
+        pygame.draw.line(pantalla, COLOR_TALLO_FLOR, (bx, by), (bx, ty), 1)
+        for i in range(5):
+            a = math.tau * i / 5
+            pygame.draw.circle(pantalla, self.color, (bx + int(math.cos(a) * 2), ty + int(math.sin(a) * 2)), 2)
+        pygame.draw.circle(pantalla, COLOR_CENTRO_FLOR, (bx, ty), 1)
 
 
 # -----------------------------
@@ -330,14 +406,20 @@ class SistemaVegetacion:
         self.arbustos = []
         self.arboles = []
         self.bosques = []               # (centro, radio) de cada bosque/bioma
+        self.praderas = []              # (centro, radio) de cada pradera (pasto/flores)
+        self.pasto = []
+        self.flores = []
         self.reapariciones_frutal = []  # temporizadores (segundos restantes)
         self.rejilla = RejillaEspacial(CELDA_REJILLA)
         for r in self.zonas_ocupadas:
             self.rejilla.agregar(r)
 
-        # Biomas: primero los bosques, luego sus arboles (densos), luego los arbustos
+        # Biomas: bosques (arboles) y praderas (pasto/flores), luego arbustos
         self._generar_bosques()
+        self._generar_praderas()
         self._generar_arboles()
+        self._generar_pasto()
+        self._generar_flores()
 
         for tipo, (minimo, maximo) in CANTIDADES.items():
             for _ in range(random.randint(minimo, maximo)):
@@ -475,10 +557,53 @@ class SistemaVegetacion:
             if a.rect.colliderect(vista):
                 a.dibujar_base(pantalla, desplazamiento)
 
-    def dibujar_arboles_copas(self, pantalla, vista, desplazamiento):
+    def dibujar_arboles_copas(self, pantalla, vista, desplazamiento, jugador=None):
         for a in self.arboles:
             if a.rect.colliderect(vista):
-                a.dibujar_copa(pantalla, desplazamiento)
+                desv = jugador is not None and (jugador.posicion - a.centro).length() <= a.radio_copa
+                a.dibujar_copa(pantalla, desplazamiento, desv)
+
+    # ---- Praderas: pasto y flores (cobertura decorativa) -----------------
+    def _generar_praderas(self):
+        n = random.randint(NUM_PRADERAS_MIN, NUM_PRADERAS_MAX)
+        for _ in range(n):
+            ang = random.uniform(0, math.tau)
+            dist = math.sqrt(random.random()) * (self.radio_mundo * 0.92)
+            cx = self.centro_mundo.x + math.cos(ang) * dist
+            cy = self.centro_mundo.y + math.sin(ang) * dist
+            radio = random.randint(PRADERA_RADIO_MIN, PRADERA_RADIO_MAX)
+            self.praderas.append((pygame.Vector2(cx, cy), radio))
+
+    def _soltar_pasto(self, zona):
+        x, y = self._punto_en_bosque(zona)   # punto aleatorio dentro de la zona
+        if self._dentro_del_mapa(x, y, 4):
+            self.pasto.append(Pasto(x, y, random.uniform(PASTO_ESCALA_MIN, PASTO_ESCALA_MAX)))
+
+    def _generar_pasto(self):
+        for centro, radio in self.praderas:       # praderas: hierba densa
+            n = int(math.pi * radio * radio / (PASTO_ESPACIADO ** 2) * DENSIDAD_PRADERA_PASTO)
+            for _ in range(n):
+                self._soltar_pasto((centro, radio))
+        for centro, radio in self.bosques:         # bosques: sotobosque ralo
+            n = int(math.pi * radio * radio / (PASTO_ESPACIADO ** 2) * DENSIDAD_BOSQUE_PASTO)
+            for _ in range(n):
+                self._soltar_pasto((centro, radio))
+
+    def _generar_flores(self):
+        for centro, radio in self.praderas:
+            for _ in range(random.randint(*FLORES_POR_PRADERA)):
+                x, y = self._punto_en_bosque((centro, radio))
+                if self._dentro_del_mapa(x, y, 4):
+                    self.flores.append(Flor(x, y, random.choice(COLORES_FLOR)))
+
+    def dibujar_cobertura(self, pantalla, vista, desplazamiento):
+        """Pasto y flores: cobertura de suelo bajo las entidades (nunca tapa al personaje)."""
+        for g in self.pasto:
+            if g.rect.colliderect(vista):
+                g.dibujar(pantalla, desplazamiento)
+        for f in self.flores:
+            if f.rect.colliderect(vista):
+                f.dibujar(pantalla, desplazamiento)
 
     def obstaculos_para(self, personaje):
         """Solidos para el personaje: arbustos en los que no cabe + troncos de arboles."""

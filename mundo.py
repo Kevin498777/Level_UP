@@ -6,7 +6,7 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
                          aplicar_veneno, COLOR_VENENO)
 from herramientas import EspadaLigera, EspadaLarga
-from vegetacion import SistemaVegetacion, OSCURECIMIENTO
+from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
 
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
@@ -16,10 +16,10 @@ MARGEN_MUNDO = 150          # Espacio extra alrededor del círculo (zona oscura 
 TAMANO_MUNDO = (RADIO_MUNDO + MARGEN_MUNDO) * 2
 CENTRO_MUNDO = pygame.Vector2(RADIO_MUNDO + MARGEN_MUNDO, RADIO_MUNDO + MARGEN_MUNDO)
 
-MIN_ROCAS = 300
-MAX_ROCAS = 700
-MIN_CHARCOS = 14
-MAX_CHARCOS = 22
+MIN_ROCAS = 600
+MAX_ROCAS = 1200
+MIN_CHARCOS = 24
+MAX_CHARCOS = 40
 RADIO_CHARCO_MIN = 150
 RADIO_CHARCO_MAX = 750
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
@@ -189,12 +189,14 @@ def generar_rocas(zonas_ocupadas=()):
     Genera entre 100 y 250 rocas (pequeñas, grandes y gigantes) dentro del círculo, sin solaparse
     ni caer sobre zonas ocupadas (charcos, arbustos: cualquier objeto con .rect).
     """
-    charcos = zonas_ocupadas
     cantidad = random.randint(MIN_ROCAS, MAX_ROCAS)
     rocas = []
     intentos = 0
+    rejilla = RejillaEspacial(CELDA_REJILLA)
+    for z in zonas_ocupadas:
+        rejilla.agregar(z.rect)
 
-    while len(rocas) < cantidad and intentos < 8000:
+    while len(rocas) < cantidad and intentos < 30000:
         intentos += 1
 
         # 60% pequeñas (22-45), 35% grandes (70-130), 5% gigantes (150-300)
@@ -219,14 +221,10 @@ def generar_rocas(zonas_ocupadas=()):
 
         nueva = Roca(x, y, lado)
 
-        # Evitar solapamiento (con un pequeño hueco para poder pasar entre rocas)
-        if any(nueva.rect.inflate(30, 30).colliderect(r.rect) for r in rocas):
+        # Evitar solapamiento con rocas/charcos/vegetacion (rejilla espacial = rapido)
+        if rejilla.hay_colision(nueva.rect.inflate(30, 30)):
             continue
-
-        # No colocar rocas dentro de los charcos
-        if any(nueva.rect.inflate(20, 20).colliderect(c.rect) for c in charcos):
-            continue
-
+        rejilla.agregar(nueva.rect)
         rocas.append(nueva)
 
     return rocas
@@ -1233,6 +1231,8 @@ def iniciar_mundo(config):
 
         # Maniqui de pruebas en el centro
         # Arboles (bosques): tronco solido + copa, bajo las entidades
+        # Pasto y flores (cobertura de suelo, bajo las entidades)
+        vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
         vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
         # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
         for hab in jugador.habilidades:
@@ -1254,7 +1254,7 @@ def iniciar_mundo(config):
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         # Copas de los arboles por encima de las entidades (profundidad)
-        vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento)
+        vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, jugador)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
 
         # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
