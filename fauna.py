@@ -306,13 +306,13 @@ class SistemaFauna:
             if c.radio >= PEZ_MIN_RADIO_LAGO:
                 self.ranas.extend(Rana(c) for _ in range(random.randint(1, 3)))
 
-        # Madrigueras de conejos salvajes en las praderas (5 a 10 en el mundo).
+        # Madrigueras de conejos salvajes en el pasto alto (10 a 15 en el mundo).
         self.madrigueras = []
         self.conejos = []
-        praderas = list(getattr(vegetacion, "praderas", []))
-        if praderas:
+        zonas = list(getattr(vegetacion, "pastizales", [])) or list(getattr(vegetacion, "praderas", []))
+        if zonas:
             for _ in range(random.randint(MADRIGUERAS_MIN, MADRIGUERAS_MAX)):
-                centro_p, radio_p = random.choice(praderas)
+                centro_p, radio_p = random.choice(zonas)
                 ang = random.uniform(0, math.tau)
                 r = random.uniform(0, max(0.0, radio_p * 0.7))
                 pos = pygame.Vector2(centro_p) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
@@ -321,8 +321,9 @@ class SistemaFauna:
                 for _ in range(random.randint(*CONEJOS_POR_MADRIGUERA)):
                     self.conejos.append(ConejoSalvaje(m))
 
-        # Venados: poblacion dinamica alrededor de la camara.
-        self.venados = []
+        # Venados: poblacion global repartida por el mundo (hasta VENADO_MAX).
+        self.venados = [self._nuevo_venado() for _ in range(VENADO_MAX)]
+        self._t_repro_venado = 0.0
 
     def _punto_mariposa(self, zona):
         """Punto para generar una mariposa: sesgado hacia flores visibles."""
@@ -373,21 +374,33 @@ class SistemaFauna:
             if zona.collidepoint(rn.centro.x, rn.centro.y):
                 rn.actualizar(dt, jugador)
 
-        # Conejos salvajes: solo los de madrigueras cercanas.
+        # Conejos salvajes: quitar muertos y actualizar los cercanos.
+        self.conejos = [c for c in self.conejos if c.vivo]
         for cn in self.conejos:
             if zona.collidepoint(cn.posicion.x, cn.posicion.y) or zona.collidepoint(cn.madriguera.centro.x, cn.madriguera.centro.y):
                 cn.actualizar(dt, jugador)
+        # Reproduccion por madriguera: cada 30 s nace +1 si hay >=2 y no supera el maximo.
+        for m in self.madrigueras:
+            m._t_repro += dt
+            if m._t_repro >= CONEJO_REPRO_INTERVALO:
+                m._t_repro -= CONEJO_REPRO_INTERVALO
+                vivos = sum(1 for c in self.conejos if c.madriguera is m)
+                if 2 <= vivos < m.max_conejos:
+                    self.conejos.append(ConejoSalvaje(m))
 
-        # Venados: cull de muertos/lejanos, actualizacion y repoblado dinamico.
-        self.venados = [v for v in self.venados if v.vivo and zona.collidepoint(v.posicion.x, v.posicion.y)]
+        # Venados: quitar muertos y actualizar los cercanos.
+        self.venados = [v for v in self.venados if v.vivo]
         for v in self.venados:
-            v.actualizar(dt, jugador)
-        intentos = 0
-        while len(self.venados) < VENADO_MAX and intentos < 6:
-            intentos += 1
-            pv = self._punto_venado(zona, jugador)
-            if pv is not None:
-                self.venados.append(Venado(pv.x, pv.y))
+            if zona.collidepoint(v.posicion.x, v.posicion.y):
+                v.actualizar(dt, jugador)
+        # Reproduccion: cada 60 s nace +1 si hay >=2 venados y no supera VENADO_MAX.
+        self._t_repro_venado += dt
+        if self._t_repro_venado >= VENADO_REPRO_INTERVALO:
+            self._t_repro_venado -= VENADO_REPRO_INTERVALO
+            if 2 <= len(self.venados) < VENADO_MAX:
+                padre = random.choice(self.venados)
+                off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
+                self.venados.append(Venado(padre.posicion.x + off.x, padre.posicion.y + off.y))
 
     # ---- Dibujo por capas (llamados desde el render de mundo.py) ----
     def dibujar_peces(self, pantalla, vista, desplazamiento):
@@ -422,6 +435,20 @@ class SistemaFauna:
             return p
         return None
 
+    def _punto_mundo(self):
+        for _ in range(20):
+            ang = random.uniform(0, math.tau)
+            d = math.sqrt(random.random()) * self.radio_mundo * 0.95
+            p = self.centro_mundo + pygame.Vector2(math.cos(ang), math.sin(ang)) * d
+            if any(c.contiene(p) for c in self.charcos):
+                continue
+            return p
+        return pygame.Vector2(self.centro_mundo)
+
+    def _nuevo_venado(self):
+        p = self._punto_mundo()
+        return Venado(p.x, p.y)
+
     def cuerpos_solidos(self, vista):
         """Animales con colision solida cerca de la camara (para resolver_solapamientos)."""
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
@@ -435,9 +462,11 @@ class SistemaFauna:
         return solidos
 
     def animales_con_vida(self, vista):
-        """Animales que pueden recibir dano cerca de la camara (venados)."""
+        """Animales que pueden recibir dano cerca de la camara (venados y conejos)."""
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
-        return [v for v in self.venados if v.vivo and zona.collidepoint(v.posicion.x, v.posicion.y)]
+        res = [v for v in self.venados if v.vivo and zona.collidepoint(v.posicion.x, v.posicion.y)]
+        res += [c for c in self.conejos if c.vivo and c.estado != "escondido" and zona.collidepoint(c.posicion.x, c.posicion.y)]
+        return res
 
     def dibujar_madrigueras(self, pantalla, vista, desplazamiento):
         for m in self.madrigueras:
@@ -460,8 +489,8 @@ class SistemaFauna:
 # =====================================================================
 # CONEJOS SALVAJES Y MADRIGUERAS  (praderas; huyen a su madriguera)
 # =====================================================================
-MADRIGUERAS_MIN = 5
-MADRIGUERAS_MAX = 10
+MADRIGUERAS_MIN = 10
+MADRIGUERAS_MAX = 15
 CONEJOS_POR_MADRIGUERA = (2, 10)
 CONEJO_RADIO = 7
 CONEJO_MASA = 1.0
@@ -469,12 +498,17 @@ CONEJO_VISION = 100.0          # ve al jugador a esta distancia -> huye
 CONEJO_VEL_PASEO = 34.0
 CONEJO_VEL_HUIDA = 120.0
 CONEJO_COLORES = [(150, 130, 110), (172, 150, 128), (132, 116, 98), (120, 120, 126)]
+CONEJO_VIDA = (5, 20)
+CONEJO_MAX_MADRIGUERA = 10
+CONEJO_REPRO_INTERVALO = 30.0
 
 
 class Madriguera:
     def __init__(self, centro):
         self.centro = pygame.Vector2(centro)
-        self.radio_zona = random.uniform(70, 120)   # radio de deambular de sus conejos
+        self.radio_zona = random.uniform(180, 320)   # radio de deambular (separacion progresiva)
+        self.max_conejos = CONEJO_MAX_MADRIGUERA
+        self._t_repro = random.uniform(0, CONEJO_REPRO_INTERVALO)
 
     def dibujar(self, pantalla, desplazamiento):
         px = round(self.centro.x - desplazamiento[0])
@@ -498,6 +532,9 @@ class ConejoSalvaje:
         self.radio = CONEJO_RADIO
         self.masa = CONEJO_MASA
         self.color = random.choice(CONEJO_COLORES)
+        self.vida = random.randint(*CONEJO_VIDA)
+        self.vida_max = self.vida
+        self.vivo = True
         self.posicion = self._punto_zona()
         self.destino = pygame.Vector2(self.posicion)
         self.estado = "deambula"          # deambula / huye / escondido
@@ -507,12 +544,24 @@ class ConejoSalvaje:
 
     @property
     def solido(self):
-        return self.estado != "escondido"
+        return self.vivo and self.estado != "escondido"
 
     def _punto_zona(self):
         ang = random.uniform(0, math.tau)
         r = random.uniform(0, self.madriguera.radio_zona)
         return pygame.Vector2(self.madriguera.centro) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        if not self.vivo:
+            return 0
+        self.vida -= cantidad
+        self.estado = "huye"          # al recibir dano huye a la madriguera
+        if direccion_empuje is not None and direccion_empuje.length() > 0:
+            self.posicion += direccion_empuje.normalize() * 4
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
+        return cantidad
 
     def actualizar(self, dt, jugador):
         dist_j = (jugador.posicion - self.posicion).length()
@@ -538,7 +587,7 @@ class ConejoSalvaje:
             d = self.madriguera.centro - self.posicion
             if d.length() <= 10:
                 self.estado = "escondido"
-                self._t_esc = random.uniform(2.0, 4.0)
+                self._t_esc = 30.0
                 return
             self.posicion += d.normalize() * CONEJO_VEL_HUIDA * dt
             self.dir_mira = d.normalize()
@@ -574,14 +623,15 @@ class ConejoSalvaje:
 # =====================================================================
 # VENADOS  (timidos; huyen lejos y se regeneran si reciben dano)
 # =====================================================================
-VENADO_MAX = 3
+VENADO_MAX = 30
 VENADO_RADIO = 12
 VENADO_MASA = 40.0
-VENADO_VIDA = 30
+VENADO_VIDA = (20, 40)
 VENADO_REGEN_INTERVALO = 2.0   # 1 pv cada 2 s tras recibir dano
 VENADO_SUSTO = 160.0
 VENADO_VEL_PASEO = 30.0
 VENADO_VEL_HUIDA = 150.0
+VENADO_REPRO_INTERVALO = 60.0
 VENADO_COLORES = [(140, 96, 60), (120, 82, 52), (156, 110, 72)]
 
 
@@ -591,8 +641,8 @@ class Venado:
         self.radio = VENADO_RADIO
         self.masa = VENADO_MASA
         self.color = random.choice(VENADO_COLORES)
-        self.vida = VENADO_VIDA
-        self.vida_max = VENADO_VIDA
+        self.vida = random.randint(*VENADO_VIDA)
+        self.vida_max = self.vida
         self.vivo = True
         self.cornamenta = random.random() < 0.5
         self.estado = "pasta"             # pasta / huye
