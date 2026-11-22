@@ -23,6 +23,9 @@ jabalí, zorro):
   desangrado…) y las **mascotas** (invocaciones de sombra).
 - La **telaraña** de la Sombra Araña las **inmoviliza**.
 - Al **golpearlas con un arma** son **empujadas** (puntos de empuje × 6 px).
+- **Sigilo:** si el jugador está **oculto en un arbusto** o en **Paso 0**
+  (indetectable), **ningún animal** lo detecta — los pasivos no huyen de él, los
+  neutrales no reaccionan y los hostiles no lo persiguen.
 
 ---
 
@@ -142,6 +145,29 @@ El zorro tiene **tres pasivas**:
    conejo huye de él, ni el jugador puede golpearlo). Si el tiro falla, reinicia la
    recarga de 10 s. Puede activarlo también mientras corre.
 - **Velocidad:** paseo 42, correr 150 (×1.3 mientras roba velocidad).
+
+---
+
+## Fase 4 — Fauna hostil (te caza)
+
+### Lobo (en manada)
+- **Manada de 4 lobos:** 1 **alfa** (vida 40, daño 15, 30% de desangrado) y 3
+  normales (vida 25, daño 8, 10% de desangrado). Hay **7 manadas** por mundo,
+  en los bosques.
+- **Aspecto:** cuerpo gris con orejas puntiagudas y cola; el **alfa** es más
+  grande y oscuro, con ojos amarillos y una marca sobre la cabeza.
+- **Hostil:** si la manada **ve al jugador** (a 250 px, estando detectable), se
+  **alerta** y lo **persigue hasta matarlo**, mordiendo (daño + posible
+  **desangrado**). Ataca también a las **sombras** que se acerquen, siempre a la
+  **amenaza más cercana**. Pierde el rastro si te alejas más de 600 px o te
+  vuelves indetectable.
+- **Retirada:** si la manada queda reducida a **1 lobo**, ese lobo **huye** del
+  jugador con la **velocidad aumentada**.
+- **Hambre compartida (cada 6 min):** si tiene hambre y no está en combate,
+  **caza conejos y venados**; con que **un** lobo mate a una presa, **toda la
+  manada** sacia el hambre. Aunque no tengan hambre, atacan al jugador o a las
+  sombras que se acerquen o los ataquen.
+- **Velocidad:** paseo 40, persecución 165, retirada 210.
 
 ---
 

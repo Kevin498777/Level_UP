@@ -13,6 +13,7 @@ no afectar el rendimiento aunque el mundo sea enorme.
 import math
 import random
 import pygame
+from habilidades import aplicar_desangrado
 
 # Margen extra (px) alrededor de la vista para activar/mantener la fauna.
 MARGEN_CULL = 90
@@ -331,6 +332,19 @@ class SistemaFauna:
         self._t_repro_jabali = 0.0
         self.zorros = [self._nuevo_zorro() for _ in range(ZORRO_MAX)]
 
+        # Manadas de lobos (7 por mundo), en los bosques.
+        self.manadas = []
+        bosques = list(getattr(vegetacion, "bosques", []))
+        for _ in range(LOBO_MANADAS):
+            if bosques:
+                centro_b, radio_b = random.choice(bosques)
+                ang = random.uniform(0, math.tau)
+                r = random.uniform(0, max(0.0, radio_b * 0.6))
+                centro = pygame.Vector2(centro_b) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
+            else:
+                centro = self._punto_mundo()
+            self.manadas.append(Manada(centro))
+
     def _punto_mariposa(self, zona):
         """Punto para generar una mariposa: sesgado hacia flores visibles."""
         flores = self.vegetacion.flores
@@ -381,7 +395,7 @@ class SistemaFauna:
                 rn.actualizar(dt, jugador)
 
         # Amenazas de las que huyen los animales: el jugador y sus sombras (invocaciones).
-        amenazas = [jugador]
+        amenazas = [jugador] if getattr(jugador, "detectable", True) else []
         for hab in getattr(jugador, "habilidades", ()):
             for cr in getattr(hab, "criaturas", ()):
                 if getattr(cr, "vivo", True):
@@ -437,6 +451,12 @@ class SistemaFauna:
         for z in self.zorros:
             if zona.collidepoint(z.posicion.x, z.posicion.y):
                 z.actualizar(dt, jugador, amenazas, self.conejos)
+
+        # Manadas de lobos: actualizar las que tienen algun lobo cerca de la camara.
+        presas = [c for c in self.conejos if c.vivo] + [v for v in self.venados if v.vivo]
+        for man in self.manadas:
+            if any(l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y) for l in man.lobos):
+                man.actualizar(dt, jugador, amenazas, presas)
 
     # ---- Dibujo por capas (llamados desde el render de mundo.py) ----
     def dibujar_peces(self, pantalla, vista, desplazamiento):
@@ -509,6 +529,10 @@ class SistemaFauna:
         for z in self.zorros:
             if z.vivo and not z.invisible and zona.collidepoint(z.posicion.x, z.posicion.y):
                 solidos.append(z)
+        for man in self.manadas:
+            for l in man.lobos:
+                if l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y):
+                    solidos.append(l)
         return solidos
 
     def animales_con_vida(self, vista):
@@ -518,6 +542,8 @@ class SistemaFauna:
         res += [c for c in self.conejos if c.vivo and c.estado != "escondido" and zona.collidepoint(c.posicion.x, c.posicion.y)]
         res += [j for j in self.jabalies if j.vivo and zona.collidepoint(j.posicion.x, j.posicion.y)]
         res += [z for z in self.zorros if z.vivo and not z.invisible and zona.collidepoint(z.posicion.x, z.posicion.y)]
+        for man in self.manadas:
+            res += [l for l in man.lobos if l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y)]
         return res
 
     def dibujar_madrigueras(self, pantalla, vista, desplazamiento):
@@ -548,6 +574,13 @@ class SistemaFauna:
         for z in self.zorros:
             if zona.collidepoint(z.posicion.x, z.posicion.y):
                 z.dibujar(pantalla, desplazamiento)
+
+    def dibujar_lobos(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for man in self.manadas:
+            for l in man.lobos:
+                if zona.collidepoint(l.posicion.x, l.posicion.y):
+                    l.dibujar(pantalla, desplazamiento)
 
 
 # =====================================================================
@@ -680,9 +713,12 @@ class ConejoSalvaje(AnimalCombatible):
         if self.inmovilizado is not None:
             return
         if amenazas is None:
-            amenazas = (jugador,)
-        cercana = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
-        dist_j = (cercana.posicion - self.posicion).length()
+            amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
+        if amenazas:
+            cercana = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
+            dist_j = (cercana.posicion - self.posicion).length()
+        else:
+            dist_j = float("inf")
 
         if self.estado == "escondido":
             self._t_esc -= dt
@@ -812,9 +848,13 @@ class Venado(AnimalCombatible):
                 self._regen_t = 0.0
 
         if amenazas is None:
-            amenazas = (jugador,)
-        cercana = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
-        dist_j = (cercana.posicion - self.posicion).length()
+            amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
+        if amenazas:
+            cercana = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
+            dist_j = (cercana.posicion - self.posicion).length()
+        else:
+            cercana = None
+            dist_j = float("inf")
         if dist_j < VENADO_SUSTO:
             self.estado = "huye"
             self._t_huida = max(self._t_huida, 0.6)
@@ -922,9 +962,11 @@ class Jabali(AnimalCombatible):
         return cantidad
 
     def _elegir_objetivo(self, jugador, amenazas):
-        if self._objetivo_pos is not None and amenazas:
+        if not amenazas:
+            return None
+        if self._objetivo_pos is not None:
             return min(amenazas, key=lambda o: (o.posicion - self._objetivo_pos).length_squared())
-        return jugador
+        return min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
 
     def actualizar(self, dt, jugador, amenazas=None):
         self._tick_efectos(dt)
@@ -933,12 +975,18 @@ class Jabali(AnimalCombatible):
         if self.inmovilizado is not None:
             return
         if amenazas is None:
-            amenazas = (jugador,)
+            amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
 
         if self.estado == "rabia":
             self._t_rabia -= dt
             self._cd_golpe -= dt
             objetivo = self._elegir_objetivo(jugador, amenazas)
+            if objetivo is None:
+                if self._t_rabia <= 0:
+                    self.estado = "huye"
+                    self._t_huida = random.uniform(2.5, 4.0)
+                    self._objetivo_pos = None
+                return
             self._t_jitter -= dt
             if self._t_jitter <= 0:
                 ang = random.uniform(-1.0, 1.0)
@@ -1098,7 +1146,7 @@ class Zorro(AnimalCombatible):
         if self.inmovilizado is not None:
             return
         if amenazas is None:
-            amenazas = (jugador,)
+            amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
 
         # Paso 0: invisibilidad activa y recarga (CD de 10 s).
         if self.invisible:
@@ -1113,15 +1161,16 @@ class Zorro(AnimalCombatible):
         self.hambriento = self._hambre_t >= ZORRO_HAMBRE
         self._cd_mordida -= dt
 
-        amenaza = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
-        d_amen = (amenaza.posicion - self.posicion).length()
+        amenaza = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared()) if amenazas else None
+        d_amen = (amenaza.posicion - self.posicion).length() if amenaza is not None else float("inf")
 
         # El robo es permanente: la presa se mantiene hasta morir, esconderse o salir de la vista.
         if self.presa is not None:
             viva = getattr(self.presa, "vivo", True)
             escondida = getattr(self.presa, "estado", None) == "escondido"
             lejos = (self.presa.posicion - self.posicion).length() > ZORRO_VISTA
-            if (not viva) or escondida or lejos:
+            indetectable = (not self._presa_es_conejo) and (not getattr(self.presa, "detectable", True))
+            if (not viva) or escondida or lejos or indetectable:
                 mad = getattr(self.presa, "madriguera", None) if self._presa_es_conejo else None
                 self._liberar_robo()
                 if mad is not None:
@@ -1150,9 +1199,9 @@ class Zorro(AnimalCombatible):
                 self._paso0_cd = ZORRO_PASO0_CD
 
         # Si lo acorralan o lo golpearon, esa amenaza pasa a ser su objetivo (robo permanente).
-        if d_amen < ZORRO_ACORRALA or self._agredido:
+        if amenaza is not None and (d_amen < ZORRO_ACORRALA or self._agredido):
             self._robar_de(amenaza, es_conejo=False)
-            self._agredido = False
+        self._agredido = False
 
         # 1) Objetivo-amenaza (jugador/sombra): muerde si esta cerca, huye y sigue robando.
         if self.presa is not None and not self._presa_es_conejo:
@@ -1226,3 +1275,181 @@ class Zorro(AnimalCombatible):
             w = 18; fw = int(w * self.vida / self.vida_max)
             pygame.draw.rect(pantalla, (40, 30, 25), (px - 9, py - 14, w, 3))
             pygame.draw.rect(pantalla, (120, 200, 90), (px - 9, py - 14, fw, 3))
+
+
+# =====================================================================
+# LOBOS EN MANADA  (hostiles; cazan al jugador/sombras y, con hambre, presas)
+# =====================================================================
+LOBO_MANADAS = 7
+LOBO_POR_MANADA = 4
+LOBO_VIDA = 25
+LOBO_VIDA_ALFA = 40
+LOBO_DANO = 8
+LOBO_DANO_ALFA = 15
+LOBO_DESANGRADO = 0.10
+LOBO_DESANGRADO_ALFA = 0.30
+LOBO_DETECCION = 250.0
+LOBO_PIERDE = 600.0              # pierde el rastro si te alejas mas
+LOBO_RANGO_CAZA = 450.0
+LOBO_HAMBRE = 360.0             # 6 min
+LOBO_RADIO = 10
+LOBO_RADIO_ALFA = 12
+LOBO_MASA = 8.0
+LOBO_VEL = 165.0
+LOBO_VEL_RETIRADA = 210.0
+LOBO_VEL_PASEO = 40.0
+LOBO_MORDIDA_CD = 1.0
+LOBO_COLOR = [(90, 92, 100), (76, 78, 86), (108, 110, 118)]
+LOBO_COLOR_ALFA = (58, 60, 70)
+
+
+class Lobo(AnimalCombatible):
+    def __init__(self, x, y, manada, alfa=False):
+        self.posicion = pygame.Vector2(x, y)
+        self.manada = manada
+        self.es_alfa = alfa
+        self.radio = LOBO_RADIO_ALFA if alfa else LOBO_RADIO
+        self.masa = LOBO_MASA
+        self.color = LOBO_COLOR_ALFA if alfa else random.choice(LOBO_COLOR)
+        self.vida = LOBO_VIDA_ALFA if alfa else LOBO_VIDA
+        self.vida_max = self.vida
+        self.dano = LOBO_DANO_ALFA if alfa else LOBO_DANO
+        self.prob_desangrado = LOBO_DESANGRADO_ALFA if alfa else LOBO_DESANGRADO
+        self.vivo = True
+        self.destino = pygame.Vector2(self.posicion)
+        self._espera = random.uniform(1.0, 3.0)
+        self._cd_mordida = 0.0
+        self.dir_mira = pygame.Vector2(1, 0)
+        self._init_combate()
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        if not self.vivo:
+            return 0
+        self.vida -= cantidad
+        self.manada.alertada = True      # al ser agredido, la manada se alerta
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
+        return cantidad
+
+    def _mover_hacia(self, objetivo_pos, vel, dt):
+        d = objetivo_pos - self.posicion
+        if d.length() > 0:
+            self.posicion += d.normalize() * vel * dt
+            self.dir_mira = d.normalize()
+        return d.length()
+
+    def _morder(self, objetivo):
+        if self._cd_mordida > 0:
+            return
+        self._cd_mordida = LOBO_MORDIDA_CD
+        if hasattr(objetivo, "recibir_dano"):
+            objetivo.recibir_dano(self.dano, "fisico", objetivo.posicion - self.posicion)
+        if random.random() < self.prob_desangrado and hasattr(objetivo, "desangrado"):
+            aplicar_desangrado(objetivo)
+
+    def dibujar(self, pantalla, desplazamiento):
+        if not self.vivo:
+            return
+        px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        c = self.color
+        s = 1 if self.dir_mira.x >= 0 else -1
+        rr = self.radio
+        for lx in (-rr + 2, rr - 2):
+            pygame.draw.line(pantalla, (58, 60, 68), (px + lx, py + 2), (px + lx, py + rr), 2)
+        pygame.draw.ellipse(pantalla, c, (px - rr, py - rr + 3, rr * 2, rr + 4))
+        nx = px + s * rr
+        pygame.draw.circle(pantalla, c, (nx, py - 1), rr - 3)
+        pygame.draw.polygon(pantalla, c, [(nx - 2, py - 4), (nx - 1, py - 8), (nx + 2, py - 4)])
+        pygame.draw.polygon(pantalla, c, [(nx + 1, py - 4), (nx + 3, py - 8), (nx + 4, py - 4)])
+        ojo = (235, 200, 60) if self.es_alfa else (210, 210, 225)
+        pygame.draw.circle(pantalla, ojo, (nx + s * 2, py - 1), 1)
+        pygame.draw.circle(pantalla, (235, 235, 240), (px - s * rr, py + 2), 2)
+        if self.es_alfa:
+            pygame.draw.circle(pantalla, (235, 200, 60), (px, py - rr - 2), 2)
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 5, 1)
+        if self.vida < self.vida_max:
+            w = self.radio * 2
+            fw = int(w * self.vida / self.vida_max)
+            pygame.draw.rect(pantalla, (40, 30, 25), (px - self.radio, py - self.radio - 8, w, 3))
+            col = (235, 160, 60) if self.es_alfa else (120, 200, 90)
+            pygame.draw.rect(pantalla, col, (px - self.radio, py - self.radio - 8, fw, 3))
+
+
+class Manada:
+    def __init__(self, centro):
+        self.centro = pygame.Vector2(centro)
+        self.alertada = False
+        self._hambre_t = random.uniform(0, LOBO_HAMBRE)
+        self.lobos = []
+        for i in range(LOBO_POR_MANADA):
+            off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
+            self.lobos.append(Lobo(centro.x + off.x, centro.y + off.y, self, alfa=(i == 0)))
+
+    def vivos(self):
+        return [l for l in self.lobos if l.vivo]
+
+    def actualizar(self, dt, jugador, amenazas, presas):
+        vivos = self.vivos()
+        if not vivos:
+            return
+        self._hambre_t += dt
+        hambriento = self._hambre_t >= LOBO_HAMBRE
+
+        # Objetivo: la amenaza (jugador detectable o sombra) mas cercana a cualquier lobo.
+        objetivo = None
+        if amenazas:
+            objetivo = min(amenazas, key=lambda o: min((o.posicion - l.posicion).length_squared() for l in vivos))
+            dmin = min((objetivo.posicion - l.posicion).length() for l in vivos)
+            if self.alertada:
+                if dmin > LOBO_PIERDE:
+                    self.alertada = False
+                    objetivo = None
+            elif dmin < LOBO_DETECCION:
+                self.alertada = True
+            else:
+                objetivo = None
+        else:
+            self.alertada = False
+
+        retirada = len(vivos) == 1
+
+        presa = None
+        if hambriento and not self.alertada and presas:
+            c0 = vivos[0].posicion
+            cand = min(presas, key=lambda a: (a.posicion - c0).length_squared())
+            if (cand.posicion - c0).length() <= LOBO_RANGO_CAZA:
+                presa = cand
+
+        for l in vivos:
+            l._tick_efectos(dt)
+            if not l.vivo or l.inmovilizado is not None:
+                continue
+            l._cd_mordida -= dt
+            if retirada:
+                d = l.posicion - jugador.posicion
+                if d.length() < 1:
+                    d = pygame.Vector2(1, 0)
+                l.posicion += d.normalize() * LOBO_VEL_RETIRADA * dt
+                l.dir_mira = d.normalize()
+            elif self.alertada and objetivo is not None:
+                dist = l._mover_hacia(objetivo.posicion, LOBO_VEL, dt)
+                if dist <= l.radio + getattr(objetivo, "radio", 10) + 2:
+                    l._morder(objetivo)
+            elif presa is not None:
+                dist = l._mover_hacia(presa.posicion, LOBO_VEL, dt)
+                if dist <= l.radio + presa.radio + 2:
+                    presa.vivo = False
+                    self._hambre_t = 0.0      # una presa sacia a toda la manada
+                    presa = None
+            else:
+                l._espera -= dt
+                d = l.destino - l.posicion
+                if l._espera <= 0:
+                    ang = random.uniform(0, math.tau)
+                    l.destino = l.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(40, 120)
+                    l._espera = random.uniform(1.0, 3.0)
+                elif d.length() > 3:
+                    l.posicion += d.normalize() * LOBO_VEL_PASEO * dt
+                    l.dir_mira = d.normalize()
