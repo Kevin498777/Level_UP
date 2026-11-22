@@ -193,6 +193,22 @@ El zorro tiene **tres pasivas**:
   adelante).
 - **Velocidad:** lento (paseo 90, persecución 120).
 
+### Cocodrilo (zona profunda del lago)
+- **Depredador de emboscada acuática:** vive en la **zona profunda peligrosa** de
+  los lagos grandes (**1 por lago**). Vida **70** y un **escudo físico de 30** con
+  las mismas reglas que el del jugador (absorbe parte del daño físico y se
+  regenera).
+- **Acecho sumergido:** mientras espera es **intocable** — solo se ven una sombra
+  y sus ojos sobre el agua. Patrulla el lago (temáticamente "caza" peces/ranas,
+  que reaparecen).
+- **Emboscada:** solo te detecta si **entras a la zona profunda peligrosa** del
+  lago (el centro); entonces **emerge** y muerde fuerte (**18–30** + empuje).
+  Solo es vulnerable mientras está emergido.
+- **Veloz en el agua, lento en tierra:** te persigue muy rápido dentro del lago y
+  sale un poco a la orilla, pero en tierra es lento; si te alejas del lago, **vuelve
+  a sumergirse**.
+- **Velocidad:** agua 210, tierra 65.
+
 ---
 
 ## Notas de diseño

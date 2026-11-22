@@ -14,6 +14,7 @@ import math
 import random
 import pygame
 from habilidades import aplicar_desangrado
+from personaje import repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
 
 # Margen extra (px) alrededor de la vista para activar/mantener la fauna.
 MARGEN_CULL = 90
@@ -355,6 +356,9 @@ class SistemaFauna:
         for r in gigantes[:n_osos]:
             self.osos.append(Oso(r))
 
+        # Cocodrilos: uno por lago grande (con zona profunda peligrosa).
+        self.cocodrilos = [Cocodrilo(c) for c in self.charcos if getattr(c, "es_lago_profundo", False)]
+
     def _punto_mariposa(self, zona):
         """Punto para generar una mariposa: sesgado hacia flores visibles."""
         flores = self.vegetacion.flores
@@ -482,6 +486,11 @@ class SistemaFauna:
             r.actualizar(dt, jugador)
         self.rugidos = [r for r in self.rugidos if r.activa]
 
+        # Cocodrilos: emboscada acuatica (actualizar los cercanos).
+        for coco in self.cocodrilos:
+            if coco.vivo and (zona.collidepoint(coco.posicion.x, coco.posicion.y) or zona.collidepoint(coco.centro_lago.x, coco.centro_lago.y)):
+                coco.actualizar(dt, jugador)
+
     # ---- Dibujo por capas (llamados desde el render de mundo.py) ----
     def dibujar_peces(self, pantalla, vista, desplazamiento):
         for pz in self.peces:
@@ -560,6 +569,9 @@ class SistemaFauna:
         for o in self.osos:
             if o.vivo and not o.en_cueva and zona.collidepoint(o.posicion.x, o.posicion.y):
                 solidos.append(o)
+        for co in self.cocodrilos:
+            if co.vivo and not co.sumergido and zona.collidepoint(co.posicion.x, co.posicion.y):
+                solidos.append(co)
         return solidos
 
     def animales_con_vida(self, vista):
@@ -572,6 +584,7 @@ class SistemaFauna:
         for man in self.manadas:
             res += [l for l in man.lobos if l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y)]
         res += [o for o in self.osos if o.vivo and not o.en_cueva and zona.collidepoint(o.posicion.x, o.posicion.y)]
+        res += [co for co in self.cocodrilos if co.vivo and not co.sumergido and zona.collidepoint(co.posicion.x, co.posicion.y)]
         return res
 
     def dibujar_madrigueras(self, pantalla, vista, desplazamiento):
@@ -617,6 +630,12 @@ class SistemaFauna:
                 oso.dibujar(pantalla, desplazamiento)
         for r in self.rugidos:
             r.dibujar(pantalla, desplazamiento)
+
+    def dibujar_cocodrilos(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for coco in self.cocodrilos:
+            if zona.collidepoint(coco.posicion.x, coco.posicion.y):
+                coco.dibujar(pantalla, desplazamiento)
 
     def dibujar_entradas_cueva(self, pantalla, vista, desplazamiento):
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
@@ -1786,3 +1805,162 @@ class Oso(AnimalCombatible):
             w = 32; fw = int(w * self.vida / self.vida_max)
             pygame.draw.rect(pantalla, (40, 30, 25), (px - 16, py - 22, w, 4))
             pygame.draw.rect(pantalla, (210, 110, 70), (px - 16, py - 22, fw, 4))
+
+
+# =====================================================================
+# COCODRILO  (depredador de emboscada acuatica; sumergido = intocable)
+# =====================================================================
+COCODRILO_VIDA = 70
+COCODRILO_ESCUDO = 30            # escudo fisico, mismas reglas que el del jugador
+COCODRILO_RADIO = 13
+COCODRILO_MASA = 30.0
+COCODRILO_DANO = (18, 30)
+COCODRILO_EMPUJE = 20
+COCODRILO_VEL_AGUA = 210.0       # muy veloz en el agua
+COCODRILO_VEL_TIERRA = 65.0      # lento fuera del agua
+COCODRILO_ORILLA = 40.0          # margen de orilla para detectarte
+COCODRILO_PERSIGUE = 120.0       # cuanto sale a tierra tras de ti
+COCODRILO_MORDIDA_CD = 1.2
+COCODRILO_COLOR = (70, 92, 60)
+
+
+class Cocodrilo(AnimalCombatible):
+    def __init__(self, charco):
+        self.charco = charco
+        self.centro_lago = pygame.Vector2(charco.centro)
+        self.posicion = pygame.Vector2(charco.centro)
+        self.radio = COCODRILO_RADIO
+        self.masa = COCODRILO_MASA
+        self.color = COCODRILO_COLOR
+        self.vida = COCODRILO_VIDA
+        self.vida_max = COCODRILO_VIDA
+        self.escudo_max = float(COCODRILO_ESCUDO)
+        self.tiempo_sin_dano_escudo = 0.0
+        self.vivo = True
+        self.estado = "acecho"       # acecho (sumergido, intocable) / ataca / regresa
+        self.destino = pygame.Vector2(self.posicion)
+        self._espera = random.uniform(1.0, 3.0)
+        self._cd_mordida = 0.0
+        self.dir_mira = pygame.Vector2(1, 0)
+        self._init_combate()
+        self.escudo = float(COCODRILO_ESCUDO)   # tras _init_combate (que lo reinicia a 0)
+
+    @property
+    def sumergido(self):
+        return self.estado != "ataca"     # intocable salvo cuando emerge a morder
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        if not self.vivo or self.sumergido:
+            return 0
+        d = max(0.0, float(cantidad))
+        if d <= 0:
+            return 0
+        if tipo_dano == "magico":
+            absorbido, dano_vida = 0.0, d          # no tiene escudo magico
+        else:
+            absorbido, dano_vida = repartir_dano(d, tipo_dano, self.escudo)
+            self.escudo = max(0.0, round(self.escudo - absorbido, 2))
+            self.tiempo_sin_dano_escudo = 0.0
+        self.vida = max(0.0, round(self.vida - dano_vida, 2))
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
+        return round(absorbido + dano_vida, 2)
+
+    def _regen_escudo(self, dt):
+        if self.escudo < self.escudo_max:
+            self.tiempo_sin_dano_escudo += dt
+            if self.tiempo_sin_dano_escudo >= REGEN_ESCUDO_RETRASO:
+                self.escudo = min(self.escudo_max, round(self.escudo + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
+
+    def _vel(self):
+        return COCODRILO_VEL_AGUA if self.charco.contiene(self.posicion) else COCODRILO_VEL_TIERRA
+
+    def actualizar(self, dt, jugador):
+        self._tick_efectos(dt)
+        if not self.vivo:
+            return
+        if self.inmovilizado is not None:
+            return
+        self._cd_mordida -= dt
+        self._regen_escudo(dt)
+
+        det = getattr(jugador, "detectable", True)
+        d_lago = (jugador.posicion - self.centro_lago).length() if det else float("inf")
+        # Solo te detecta si entras a la zona profunda peligrosa del lago.
+        detecta = det and self.charco.en_zona_peligro(jugador.posicion)
+
+        if self.estado != "ataca" and detecta:
+            self.estado = "ataca"      # emerge: emboscada
+
+        if self.estado == "ataca":
+            if not det or d_lago > self.charco.radio + COCODRILO_PERSIGUE:
+                self.estado = "regresa"
+                return
+            d = jugador.posicion - self.posicion
+            dist = d.length()
+            if dist <= self.radio + jugador.radio + 4:
+                if self._cd_mordida <= 0:
+                    self._cd_mordida = COCODRILO_MORDIDA_CD
+                    dano = random.randint(*COCODRILO_DANO)
+                    if hasattr(jugador, "recibir_dano"):
+                        jugador.recibir_dano(dano, "fisico", jugador.posicion - self.posicion)
+                    if hasattr(jugador, "aplicar_empuje"):
+                        jugador.aplicar_empuje(jugador.posicion - self.posicion, COCODRILO_EMPUJE)
+            elif dist > 0:
+                self.posicion += d.normalize() * self._vel() * dt
+                self.dir_mira = d.normalize()
+            return
+
+        if self.estado == "regresa":
+            d = self.centro_lago - self.posicion
+            if d.length() <= 8:
+                self.estado = "acecho"
+            else:
+                self.posicion += d.normalize() * self._vel() * dt
+                self.dir_mira = d.normalize()
+            return
+
+        # acecho: patrulla la zona del lago (tematico: "caza" fauna acuatica que reaparece)
+        self._espera -= dt
+        d = self.destino - self.posicion
+        if self._espera <= 0:
+            ang = random.uniform(0, math.tau)
+            r = random.uniform(0, max(0.0, self.charco.radio * 0.5))
+            self.destino = self.centro_lago + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
+            self._espera = random.uniform(1.5, 4.0)
+        elif d.length() > 3:
+            self.posicion += d.normalize() * (COCODRILO_VEL_AGUA * 0.4) * dt
+            self.dir_mira = d.normalize()
+
+    def dibujar(self, pantalla, desplazamiento):
+        if not self.vivo:
+            return
+        px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        s = 1 if self.dir_mira.x >= 0 else -1
+        if self.sumergido:
+            # Sumergido: solo una sombra tenue y los ojos sobre el agua.
+            pygame.draw.ellipse(pantalla, (40, 62, 56), (px - 12, py - 4, 24, 8))
+            pygame.draw.circle(pantalla, (225, 225, 190), (px + s * 4, py - 2), 1)
+            pygame.draw.circle(pantalla, (225, 225, 190), (px + s * 8, py - 2), 1)
+            return
+        c = self.color
+        pygame.draw.polygon(pantalla, (60, 80, 52), [(px - s * 16, py), (px - s * 28, py - 4), (px - s * 28, py + 4)])  # cola
+        pygame.draw.ellipse(pantalla, c, (px - 16, py - 6, 32, 12))         # cuerpo
+        for lx in (-8, 6):
+            pygame.draw.line(pantalla, (52, 70, 46), (px + lx, py + 5), (px + lx + s * 4, py + 9), 2)  # patas
+        nx = px + s * 16
+        pygame.draw.ellipse(pantalla, c, (nx - 6, py - 4, 16, 8))           # hocico
+        pygame.draw.circle(pantalla, (225, 225, 170), (nx - 2, py - 5), 1)  # ojo
+        for i in range(-4, 8, 3):
+            pygame.draw.line(pantalla, (240, 240, 230), (nx + i, py + 1), (nx + i, py + 3), 1)  # dientes
+        if self.vida < self.vida_max or self.escudo < self.escudo_max:
+            w = 32
+            fw = int(w * self.vida / self.vida_max)
+            pygame.draw.rect(pantalla, (40, 30, 25), (px - 16, py - 16, w, 3))
+            pygame.draw.rect(pantalla, (120, 200, 90), (px - 16, py - 16, fw, 3))
+            sw = int(w * self.escudo / self.escudo_max)
+            pygame.draw.rect(pantalla, (45, 60, 80), (px - 16, py - 20, w, 2))
+            pygame.draw.rect(pantalla, (120, 180, 240), (px - 16, py - 20, sw, 2))
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 6, 1)

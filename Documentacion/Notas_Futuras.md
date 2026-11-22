@@ -47,14 +47,14 @@ las estadisicas basicas(vida,defensa,energia) * 9
 Daño instantaneo al quien atrape en el dominio 9999 por segundo mientras este activo el dominio
 coste 1 de energia por 1s
 Barrea creada
-Cuando el dominio se desactiva tus habilidaes [2][3][4][5] quedan inabiilitadas por 3 minutos
+Cuando el dominio se desactiva tus habilidaes [2][3][4][5] quedan inabiilitadas por 199 segundos
 
 
 
 Pasivas
 -Purpura
     Solo puede activarse si azul y rojo estan al maximo
-    10s de cd
+    9s de cd
     Esta se activa cargando azul al maximo y rojo al maximo al mismo tiempo
     Daño 9999
     Ignora defensa magica y fisica
@@ -62,8 +62,9 @@ Pasivas
     Esta esfera no importa si no esta cargada al maximo o si lo esta vieja a alta velocidad destruyendo todo a su paso sin destruirse hasta salir del mapa 
     Habilidad inbloqueable destruye instanatanemento todo lo que no agudanta su daño 
 
--Regeneracion 1 de energia cada 1s
-
-
-
-Activas
+-Regeneracion del infinito
+    Regeneracion 1 de energia cada 1s
+-Curasion inversa del infinito 
+    Cura 9 de vida por segundo y cuesta 1 de energia por segundo se activa cuando cargas el rojo
+-Potencia del infinito
+    Golpes reforzados por el infinito daño por 9 se activa cuando lanzas azul y dura 9s
