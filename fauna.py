@@ -374,11 +374,18 @@ class SistemaFauna:
             if zona.collidepoint(rn.centro.x, rn.centro.y):
                 rn.actualizar(dt, jugador)
 
+        # Amenazas de las que huyen los animales: el jugador y sus sombras (invocaciones).
+        amenazas = [jugador.posicion]
+        for hab in getattr(jugador, "habilidades", ()):
+            for cr in getattr(hab, "criaturas", ()):
+                if getattr(cr, "vivo", True):
+                    amenazas.append(cr.posicion)
+
         # Conejos salvajes: quitar muertos y actualizar los cercanos.
         self.conejos = [c for c in self.conejos if c.vivo]
         for cn in self.conejos:
             if zona.collidepoint(cn.posicion.x, cn.posicion.y) or zona.collidepoint(cn.madriguera.centro.x, cn.madriguera.centro.y):
-                cn.actualizar(dt, jugador)
+                cn.actualizar(dt, jugador, amenazas)
         # Reproduccion por madriguera: cada 30 s nace +1 si hay >=2 y no supera el maximo.
         for m in self.madrigueras:
             m._t_repro += dt
@@ -392,7 +399,7 @@ class SistemaFauna:
         self.venados = [v for v in self.venados if v.vivo]
         for v in self.venados:
             if zona.collidepoint(v.posicion.x, v.posicion.y):
-                v.actualizar(dt, jugador)
+                v.actualizar(dt, jugador, amenazas)
         # Reproduccion: cada 60 s nace +1 si hay >=2 venados y no supera VENADO_MAX.
         self._t_repro_venado += dt
         if self._t_repro_venado >= VENADO_REPRO_INTERVALO:
@@ -490,17 +497,60 @@ class SistemaFauna:
 # CONEJOS SALVAJES Y MADRIGUERAS  (praderas; huyen a su madriguera)
 # =====================================================================
 MADRIGUERAS_MIN = 10
-MADRIGUERAS_MAX = 15
+MADRIGUERAS_MAX = 10
 CONEJOS_POR_MADRIGUERA = (2, 10)
 CONEJO_RADIO = 7
 CONEJO_MASA = 1.0
 CONEJO_VISION = 100.0          # ve al jugador a esta distancia -> huye
-CONEJO_VEL_PASEO = 34.0
-CONEJO_VEL_HUIDA = 120.0
+CONEJO_VEL_PASEO = 45.0
+CONEJO_VEL_HUIDA = 160.0
 CONEJO_COLORES = [(150, 130, 110), (172, 150, 128), (132, 116, 98), (120, 120, 126)]
 CONEJO_VIDA = (5, 20)
 CONEJO_MAX_MADRIGUERA = 10
 CONEJO_REPRO_INTERVALO = 30.0
+
+
+class AnimalCombatible:
+    """Interfaz minima de 'enemigo' para que armas, habilidades, mascotas y telaranas
+    puedan danar/atrapar al animal (se mete en la lista 'enemigos' del juego).
+    No tiene escudos: recibir_dano (definido en cada animal) baja la vida directo."""
+
+    def _init_combate(self):
+        self.escudo = 0.0
+        self.escudo_magico = 0.0
+        self.anulacion_escudo_magico = 0.0
+        self.herramienta = None            # no ataca: los bucles de 'arma enemiga' lo saltan
+        self.detectable = True
+        self.desangrado = None
+        self.veneno = None
+        self.quemadura = None
+        self.inmovilizado = None
+        self.ralentizacion = 0.0
+
+    def aplicar_empuje(self, direccion, puntos):
+        if direccion is not None and direccion.length() > 0:
+            self.posicion += direccion.normalize() * min(float(puntos), 30.0) * 0.4
+
+    def _tick_efectos(self, dt):
+        if self.desangrado is not None:
+            self.desangrado.actualizar(dt, self)
+            if not self.desangrado.activo:
+                self.desangrado = None
+        if self.quemadura is not None:
+            self.quemadura.actualizar(dt, self)
+            if not self.quemadura.activo:
+                self.quemadura = None
+        if self.veneno is not None:
+            self.veneno.actualizar(dt, self)
+            if not self.veneno.activo:
+                self.veneno = None
+        if self.inmovilizado is not None:
+            self.inmovilizado.actualizar(dt, self)
+            if not self.inmovilizado.activo:
+                self.inmovilizado = None
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
 
 
 class Madriguera:
@@ -526,7 +576,7 @@ class Madriguera:
         pygame.draw.ellipse(pantalla, (26, 19, 15), (px - 8, py - 4, 16, 11))
 
 
-class ConejoSalvaje:
+class ConejoSalvaje(AnimalCombatible):
     def __init__(self, madriguera):
         self.madriguera = madriguera
         self.radio = CONEJO_RADIO
@@ -535,6 +585,7 @@ class ConejoSalvaje:
         self.vida = random.randint(*CONEJO_VIDA)
         self.vida_max = self.vida
         self.vivo = True
+        self._init_combate()
         self.posicion = self._punto_zona()
         self.destino = pygame.Vector2(self.posicion)
         self.estado = "deambula"          # deambula / huye / escondido
@@ -563,8 +614,16 @@ class ConejoSalvaje:
             self.vivo = False
         return cantidad
 
-    def actualizar(self, dt, jugador):
-        dist_j = (jugador.posicion - self.posicion).length()
+    def actualizar(self, dt, jugador, amenazas=None):
+        self._tick_efectos(dt)
+        if not self.vivo:
+            return
+        if self.inmovilizado is not None:
+            return
+        if amenazas is None:
+            amenazas = (jugador.posicion,)
+        cercana = min(amenazas, key=lambda a: (a - self.posicion).length_squared())
+        dist_j = (cercana - self.posicion).length()
 
         if self.estado == "escondido":
             self._t_esc -= dt
@@ -618,24 +677,31 @@ class ConejoSalvaje:
         pygame.draw.ellipse(pantalla, c, (hx + 1, py - 13, 3, 9))
         pygame.draw.circle(pantalla, (235, 235, 230), (px - s * 6, py + 2), 2)   # cola
         pygame.draw.circle(pantalla, (20, 18, 16), (hx + s, py - 4), 1)   # ojo
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 4, 1)
+        if self.vida < self.vida_max:
+            w = 14
+            fw = int(w * self.vida / self.vida_max)
+            pygame.draw.rect(pantalla, (40, 30, 25), (px - 7, py - 16, w, 3))
+            pygame.draw.rect(pantalla, (120, 200, 90), (px - 7, py - 16, fw, 3))
 
 
 # =====================================================================
 # VENADOS  (timidos; huyen lejos y se regeneran si reciben dano)
 # =====================================================================
-VENADO_MAX = 30
+VENADO_MAX = 50
 VENADO_RADIO = 12
 VENADO_MASA = 40.0
 VENADO_VIDA = (20, 40)
 VENADO_REGEN_INTERVALO = 2.0   # 1 pv cada 2 s tras recibir dano
 VENADO_SUSTO = 160.0
-VENADO_VEL_PASEO = 30.0
-VENADO_VEL_HUIDA = 150.0
+VENADO_VEL_PASEO = 40.0
+VENADO_VEL_HUIDA = 200.0
 VENADO_REPRO_INTERVALO = 60.0
 VENADO_COLORES = [(140, 96, 60), (120, 82, 52), (156, 110, 72)]
 
 
-class Venado:
+class Venado(AnimalCombatible):
     def __init__(self, x, y):
         self.posicion = pygame.Vector2(x, y)
         self.radio = VENADO_RADIO
@@ -652,6 +718,7 @@ class Venado:
         self._danado = False
         self._regen_t = 0.0
         self.dir_mira = pygame.Vector2(1, 0)
+        self._init_combate()
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         if not self.vivo:
@@ -667,8 +734,13 @@ class Venado:
             self.vivo = False
         return cantidad
 
-    def actualizar(self, dt, jugador):
+    def actualizar(self, dt, jugador, amenazas=None):
         if not self.vivo:
+            return
+        self._tick_efectos(dt)
+        if not self.vivo:
+            return
+        if self.inmovilizado is not None:
             return
         # Regeneracion: 1 pv cada 2 s mientras este dañado.
         if self._danado and self.vida < self.vida_max:
@@ -680,14 +752,17 @@ class Venado:
                 self._danado = False
                 self._regen_t = 0.0
 
-        dist_j = (jugador.posicion - self.posicion).length()
+        if amenazas is None:
+            amenazas = (jugador.posicion,)
+        cercana = min(amenazas, key=lambda a: (a - self.posicion).length_squared())
+        dist_j = (cercana - self.posicion).length()
         if dist_j < VENADO_SUSTO:
             self.estado = "huye"
             self._t_huida = max(self._t_huida, 0.6)
 
         if self.estado == "huye":
             self._t_huida -= dt
-            d = self.posicion - jugador.posicion
+            d = self.posicion - cercana
             if d.length() < 1:
                 d = pygame.Vector2(1, 0)
             self.posicion += d.normalize() * VENADO_VEL_HUIDA * dt
@@ -726,6 +801,8 @@ class Venado:
                 pygame.draw.line(pantalla, (212, 192, 152), (bx, py - 16), (bx, py - 22), 2)
                 pygame.draw.line(pantalla, (212, 192, 152), (bx, py - 20), (bx + dxh, py - 24), 2)
         pygame.draw.circle(pantalla, (236, 226, 216), (px - s * 11, py - 2), 2)  # cola
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 5, 1)
         if self._danado and self.vida < self.vida_max:                 # barra de vida
             w = 22
             fw = int(w * self.vida / self.vida_max)

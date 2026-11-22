@@ -899,7 +899,7 @@ def iniciar_mundo(config):
                 hab.modo_combate = (hab.estado == "INVOCADO" and teclas_estado[hab.tecla])
 
         # Enemigos actuales (por ahora solo el maniqui de pruebas)
-        enemigos = [maniqui] if maniqui.vivo else []
+        enemigos = ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
 
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -1078,23 +1078,6 @@ def iniciar_mundo(config):
                         enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
                     arma_actual.desgastar(1)
 
-        # Golpe del arma del jugador a la fauna con vida (venados, etc.)
-        if arma_actual and getattr(arma_actual, "golpeando", False):
-            for animal in fauna.animales_con_vida(vista_camara()):
-                if id(animal) in arma_actual.enemigos_golpeados:
-                    continue
-                tocado = any(
-                    hb and rect_circulo_colisionan(hb, animal.posicion, animal.radio)
-                    for hb in arma_actual.obtener_hitboxes()
-                )
-                if not tocado:
-                    continue
-                arma_actual.enemigos_golpeados.add(id(animal))
-                dano = arma_actual.calcular_dano(jugador)
-                if dano > 0:
-                    animal.recibir_dano(dano, arma_actual.tipo_dano, animal.posicion - jugador.posicion)
-                    arma_actual.desgastar(1)
-
         # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
         for enemigo in enemigos:
             arma_enemiga = getattr(enemigo, "herramienta", None)
@@ -1147,23 +1130,6 @@ def iniciar_mundo(config):
                         aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
                     if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
                         aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
-                    p.activo = False
-                    break
-        # Proyectiles que golpean a la fauna con vida (venados, etc.)
-        animales_fauna = fauna.animales_con_vida(vista_camara())
-        for p in jugador.proyectiles:
-            if not p.activo or getattr(p, "clavada", False):
-                continue
-            for animal in animales_fauna:
-                if not animal.vivo:
-                    continue
-                if rect_circulo_colisionan(p.hitbox, animal.posicion, animal.radio):
-                    if hasattr(p, "puntos_empuje"):
-                        aplicado = animal.recibir_dano(p.dano, p.tipo_dano, animal.posicion - p.posicion)
-                        if aplicado > 0:
-                            p.arco.desgastar(1)
-                    else:
-                        animal.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"), animal.posicion - p.posicion)
                     p.activo = False
                     break
         jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
