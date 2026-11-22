@@ -7,6 +7,7 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
                          aplicar_veneno, COLOR_VENENO)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
+from fauna import SistemaFauna
 
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
@@ -94,6 +95,7 @@ class Charco:
                                (round(centro_local.x), round(centro_local.y)), round(self.radio_peligro))
 
         # Flora acuatica: nenufares sobre el agua y juncos/espadanas en las orillas
+        self.nenufares = []  # posiciones (mundo) de los nenufares, para la fauna
         for _ in range(max(2, int(radio / 45))):
             c, r = random.choice(locales)
             pr = random.randint(5, 9)
@@ -101,6 +103,7 @@ class Charco:
             d = random.uniform(0, max(0.0, r - pr - 3))
             lx = c.x + math.cos(ang) * d
             ly = c.y + math.sin(ang) * d
+            self.nenufares.append((pygame.Vector2(origen.x + lx, origen.y + ly), pr))
             pygame.draw.circle(self.superficie, COLOR_NENUFAR_BORDE, (round(lx), round(ly)), pr + 1)
             pygame.draw.circle(self.superficie, COLOR_NENUFAR, (round(lx), round(ly)), pr)
             na = random.uniform(0, math.tau)
@@ -825,6 +828,7 @@ def iniciar_mundo(config):
     vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
     rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles)
     vegetacion.registrar_obstaculos(rocas)
+    fauna = SistemaFauna(CENTRO_MUNDO, RADIO_MUNDO, vegetacion, charcos)
 
     # Maniqui de pruebas en el centro del mapa (recibe dano para probar las invocaciones)
     maniqui = Maniqui(CENTRO_MUNDO)
@@ -1074,6 +1078,23 @@ def iniciar_mundo(config):
                         enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
                     arma_actual.desgastar(1)
 
+        # Golpe del arma del jugador a la fauna con vida (venados, etc.)
+        if arma_actual and getattr(arma_actual, "golpeando", False):
+            for animal in fauna.animales_con_vida(vista_camara()):
+                if id(animal) in arma_actual.enemigos_golpeados:
+                    continue
+                tocado = any(
+                    hb and rect_circulo_colisionan(hb, animal.posicion, animal.radio)
+                    for hb in arma_actual.obtener_hitboxes()
+                )
+                if not tocado:
+                    continue
+                arma_actual.enemigos_golpeados.add(id(animal))
+                dano = arma_actual.calcular_dano(jugador)
+                if dano > 0:
+                    animal.recibir_dano(dano, arma_actual.tipo_dano, animal.posicion - jugador.posicion)
+                    arma_actual.desgastar(1)
+
         # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
         for enemigo in enemigos:
             arma_enemiga = getattr(enemigo, "herramienta", None)
@@ -1126,6 +1147,23 @@ def iniciar_mundo(config):
                         aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
                     if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
                         aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
+                    p.activo = False
+                    break
+        # Proyectiles que golpean a la fauna con vida (venados, etc.)
+        animales_fauna = fauna.animales_con_vida(vista_camara())
+        for p in jugador.proyectiles:
+            if not p.activo or getattr(p, "clavada", False):
+                continue
+            for animal in animales_fauna:
+                if not animal.vivo:
+                    continue
+                if rect_circulo_colisionan(p.hitbox, animal.posicion, animal.radio):
+                    if hasattr(p, "puntos_empuje"):
+                        aplicado = animal.recibir_dano(p.dano, p.tipo_dano, animal.posicion - p.posicion)
+                        if aplicado > 0:
+                            p.arco.desgastar(1)
+                    else:
+                        animal.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"), animal.posicion - p.posicion)
                     p.activo = False
                     break
         jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
@@ -1201,6 +1239,7 @@ def iniciar_mundo(config):
         cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
         for hab in jugador.habilidades:
             cuerpos.extend(getattr(hab, "criaturas", ()))
+        cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
         resolver_solapamientos(cuerpos)
         jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
         jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)
@@ -1217,6 +1256,7 @@ def iniciar_mundo(config):
         # 1. Dibujar el mundo (solo lo visible), recortado al área central entre paneles
         vista = vista_camara()
         desplazamiento = (vista.x - mundo_x, vista.y - mundo_y)  # mundo -> pantalla
+        fauna.actualizar(dt, jugador, vista)
         pantalla.set_clip(area_mundo_pantalla)
 
         dibujar_suelo(pantalla, vista, desplazamiento)
@@ -1224,6 +1264,10 @@ def iniciar_mundo(config):
         for charco in charcos:
             if charco.rect.colliderect(vista):
                 charco.dibujar(pantalla, desplazamiento)
+
+        # Peces (sombras bajo el agua), por debajo de todo lo demas
+        fauna.dibujar_peces(pantalla, vista, desplazamiento)
+        fauna.dibujar_ranas(pantalla, vista, desplazamiento)
 
         for roca in rocas:
             if roca.rect.colliderect(vista):
@@ -1233,6 +1277,7 @@ def iniciar_mundo(config):
         # Arboles (bosques): tronco solido + copa, bajo las entidades
         # Pasto y flores (cobertura de suelo, bajo las entidades)
         vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
+        fauna.dibujar_madrigueras(pantalla, vista, desplazamiento)
         vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
         # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
         for hab in jugador.habilidades:
@@ -1242,6 +1287,8 @@ def iniciar_mundo(config):
 
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
+        fauna.dibujar_conejos(pantalla, vista, desplazamiento)
+        fauna.dibujar_venados(pantalla, vista, desplazamiento)
 
         # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
         for hab in jugador.habilidades:
@@ -1255,7 +1302,9 @@ def iniciar_mundo(config):
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         # Copas de los arboles por encima de las entidades (profundidad)
         vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, jugador)
+        fauna.dibujar_pajaros(pantalla, vista, desplazamiento)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
+        fauna.dibujar_mariposas(pantalla, vista, desplazamiento)
 
         # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
         # se den ambos) y en el arbusto solo tú ves sus orbes
