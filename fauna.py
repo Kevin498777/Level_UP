@@ -16,6 +16,7 @@ import pygame
 
 # Margen extra (px) alrededor de la vista para activar/mantener la fauna.
 MARGEN_CULL = 90
+PIXELES_POR_PUNTO_EMPUJE = 6   # igual que en el juego: puntos de arma -> px de empuje
 
 
 # =====================================================================
@@ -325,6 +326,11 @@ class SistemaFauna:
         self.venados = [self._nuevo_venado() for _ in range(VENADO_MAX)]
         self._t_repro_venado = 0.0
 
+        # Jabalies y zorros: poblacion global repartida por el mundo.
+        self.jabalies = [self._nuevo_jabali() for _ in range(JABALI_MAX)]
+        self._t_repro_jabali = 0.0
+        self.zorros = [self._nuevo_zorro() for _ in range(ZORRO_MAX)]
+
     def _punto_mariposa(self, zona):
         """Punto para generar una mariposa: sesgado hacia flores visibles."""
         flores = self.vegetacion.flores
@@ -375,11 +381,15 @@ class SistemaFauna:
                 rn.actualizar(dt, jugador)
 
         # Amenazas de las que huyen los animales: el jugador y sus sombras (invocaciones).
-        amenazas = [jugador.posicion]
+        amenazas = [jugador]
         for hab in getattr(jugador, "habilidades", ()):
             for cr in getattr(hab, "criaturas", ()):
                 if getattr(cr, "vivo", True):
-                    amenazas.append(cr.posicion)
+                    amenazas.append(cr)
+        # Los zorros hambrientos y visibles tambien asustan a los conejos (depredador).
+        for z in getattr(self, "zorros", ()):
+            if z.vivo and z.hambriento and not z.invisible:
+                amenazas.append(z)
 
         # Conejos salvajes: quitar muertos y actualizar los cercanos.
         self.conejos = [c for c in self.conejos if c.vivo]
@@ -408,6 +418,25 @@ class SistemaFauna:
                 padre = random.choice(self.venados)
                 off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
                 self.venados.append(Venado(padre.posicion.x + off.x, padre.posicion.y + off.y))
+
+        # Jabalies: quitar muertos, actualizar los cercanos, reproduccion.
+        self.jabalies = [j for j in self.jabalies if j.vivo]
+        for j in self.jabalies:
+            if zona.collidepoint(j.posicion.x, j.posicion.y):
+                j.actualizar(dt, jugador, amenazas)
+        self._t_repro_jabali += dt
+        if self._t_repro_jabali >= JABALI_REPRO_INTERVALO:
+            self._t_repro_jabali -= JABALI_REPRO_INTERVALO
+            if 2 <= len(self.jabalies) < JABALI_MAX:
+                padre = random.choice(self.jabalies)
+                off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
+                self.jabalies.append(Jabali(padre.posicion.x + off.x, padre.posicion.y + off.y))
+
+        # Zorros: quitar muertos, actualizar los cercanos (cazan conejos).
+        self.zorros = [z for z in self.zorros if z.vivo]
+        for z in self.zorros:
+            if zona.collidepoint(z.posicion.x, z.posicion.y):
+                z.actualizar(dt, jugador, amenazas, self.conejos)
 
     # ---- Dibujo por capas (llamados desde el render de mundo.py) ----
     def dibujar_peces(self, pantalla, vista, desplazamiento):
@@ -456,6 +485,14 @@ class SistemaFauna:
         p = self._punto_mundo()
         return Venado(p.x, p.y)
 
+    def _nuevo_jabali(self):
+        p = self._punto_mundo()
+        return Jabali(p.x, p.y)
+
+    def _nuevo_zorro(self):
+        p = self._punto_mundo()
+        return Zorro(p.x, p.y)
+
     def cuerpos_solidos(self, vista):
         """Animales con colision solida cerca de la camara (para resolver_solapamientos)."""
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
@@ -466,6 +503,12 @@ class SistemaFauna:
         for v in self.venados:
             if v.vivo and zona.collidepoint(v.posicion.x, v.posicion.y):
                 solidos.append(v)
+        for j in self.jabalies:
+            if j.vivo and zona.collidepoint(j.posicion.x, j.posicion.y):
+                solidos.append(j)
+        for z in self.zorros:
+            if z.vivo and not z.invisible and zona.collidepoint(z.posicion.x, z.posicion.y):
+                solidos.append(z)
         return solidos
 
     def animales_con_vida(self, vista):
@@ -473,6 +516,8 @@ class SistemaFauna:
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
         res = [v for v in self.venados if v.vivo and zona.collidepoint(v.posicion.x, v.posicion.y)]
         res += [c for c in self.conejos if c.vivo and c.estado != "escondido" and zona.collidepoint(c.posicion.x, c.posicion.y)]
+        res += [j for j in self.jabalies if j.vivo and zona.collidepoint(j.posicion.x, j.posicion.y)]
+        res += [z for z in self.zorros if z.vivo and not z.invisible and zona.collidepoint(z.posicion.x, z.posicion.y)]
         return res
 
     def dibujar_madrigueras(self, pantalla, vista, desplazamiento):
@@ -491,6 +536,18 @@ class SistemaFauna:
         for v in self.venados:
             if zona.collidepoint(v.posicion.x, v.posicion.y):
                 v.dibujar(pantalla, desplazamiento)
+
+    def dibujar_jabalies(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for j in self.jabalies:
+            if zona.collidepoint(j.posicion.x, j.posicion.y):
+                j.dibujar(pantalla, desplazamiento)
+
+    def dibujar_zorros(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for z in self.zorros:
+            if zona.collidepoint(z.posicion.x, z.posicion.y):
+                z.dibujar(pantalla, desplazamiento)
 
 
 # =====================================================================
@@ -528,8 +585,9 @@ class AnimalCombatible:
         self.ralentizacion = 0.0
 
     def aplicar_empuje(self, direccion, puntos):
-        if direccion is not None and direccion.length() > 0:
-            self.posicion += direccion.normalize() * min(float(puntos), 30.0) * 0.4
+        if puntos <= 0 or direccion is None or direccion.length() == 0:
+            return
+        self.posicion += direccion.normalize() * min(float(puntos) * PIXELES_POR_PUNTO_EMPUJE, 96.0)
 
     def _tick_efectos(self, dt):
         if self.desangrado is not None:
@@ -586,6 +644,7 @@ class ConejoSalvaje(AnimalCombatible):
         self.vida_max = self.vida
         self.vivo = True
         self._init_combate()
+        self.vel_mult = 1.0
         self.posicion = self._punto_zona()
         self.destino = pygame.Vector2(self.posicion)
         self.estado = "deambula"          # deambula / huye / escondido
@@ -621,9 +680,9 @@ class ConejoSalvaje(AnimalCombatible):
         if self.inmovilizado is not None:
             return
         if amenazas is None:
-            amenazas = (jugador.posicion,)
-        cercana = min(amenazas, key=lambda a: (a - self.posicion).length_squared())
-        dist_j = (cercana - self.posicion).length()
+            amenazas = (jugador,)
+        cercana = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
+        dist_j = (cercana.posicion - self.posicion).length()
 
         if self.estado == "escondido":
             self._t_esc -= dt
@@ -646,9 +705,9 @@ class ConejoSalvaje(AnimalCombatible):
             d = self.madriguera.centro - self.posicion
             if d.length() <= 10:
                 self.estado = "escondido"
-                self._t_esc = 30.0
+                self._t_esc = 60.0
                 return
-            self.posicion += d.normalize() * CONEJO_VEL_HUIDA * dt
+            self.posicion += d.normalize() * CONEJO_VEL_HUIDA * self.vel_mult * dt
             self.dir_mira = d.normalize()
             return
 
@@ -659,7 +718,7 @@ class ConejoSalvaje(AnimalCombatible):
             self.destino = self._punto_zona()
             self._espera = random.uniform(0.8, 2.6)
         elif d.length() > 3:
-            self.posicion += d.normalize() * CONEJO_VEL_PASEO * dt
+            self.posicion += d.normalize() * CONEJO_VEL_PASEO * self.vel_mult * dt
             self.dir_mira = d.normalize()
 
     def dibujar(self, pantalla, desplazamiento):
@@ -753,16 +812,16 @@ class Venado(AnimalCombatible):
                 self._regen_t = 0.0
 
         if amenazas is None:
-            amenazas = (jugador.posicion,)
-        cercana = min(amenazas, key=lambda a: (a - self.posicion).length_squared())
-        dist_j = (cercana - self.posicion).length()
+            amenazas = (jugador,)
+        cercana = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
+        dist_j = (cercana.posicion - self.posicion).length()
         if dist_j < VENADO_SUSTO:
             self.estado = "huye"
             self._t_huida = max(self._t_huida, 0.6)
 
         if self.estado == "huye":
             self._t_huida -= dt
-            d = self.posicion - cercana
+            d = self.posicion - cercana.posicion
             if d.length() < 1:
                 d = pygame.Vector2(1, 0)
             self.posicion += d.normalize() * VENADO_VEL_HUIDA * dt
@@ -808,3 +867,362 @@ class Venado(AnimalCombatible):
             fw = int(w * self.vida / self.vida_max)
             pygame.draw.rect(pantalla, (40, 30, 25), (px - 11, py - 20, w, 3))
             pygame.draw.rect(pantalla, (120, 200, 90), (px - 11, py - 20, fw, 3))
+
+
+# =====================================================================
+# JABALI  (neutral; si lo golpean entra en RABIA y embiste al atacante)
+# =====================================================================
+JABALI_MAX = 20
+JABALI_RADIO = 14
+JABALI_MASA = 60.0
+JABALI_VIDA = (40, 70)
+JABALI_DANO = (10, 18)
+JABALI_EMPUJE = 40               # empuje muy alto
+JABALI_VEL_PASEO = 30.0
+JABALI_VEL_RABIA = 195.0
+JABALI_VEL_HUIDA = 175.0
+JABALI_RABIA_DUR = 6.0
+JABALI_GOLPE_CD = 1.0
+JABALI_REPRO_INTERVALO = 60.0
+JABALI_COLORES = [(92, 72, 56), (76, 58, 46), (106, 82, 62)]
+
+
+class Jabali(AnimalCombatible):
+    def __init__(self, x, y):
+        self.posicion = pygame.Vector2(x, y)
+        self.radio = JABALI_RADIO
+        self.masa = JABALI_MASA
+        self.color = random.choice(JABALI_COLORES)
+        self.vida = random.randint(*JABALI_VIDA)
+        self.vida_max = self.vida
+        self.vivo = True
+        self.estado = "deambula"          # deambula / rabia / huye
+        self.destino = pygame.Vector2(self.posicion)
+        self._espera = random.uniform(1.5, 4.0)
+        self._t_rabia = 0.0
+        self._t_huida = 0.0
+        self._cd_golpe = 0.0
+        self._objetivo_pos = None
+        self._jitter = pygame.Vector2()
+        self._t_jitter = 0.0
+        self.dir_mira = pygame.Vector2(1, 0)
+        self._init_combate()
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        if not self.vivo:
+            return 0
+        self.vida -= cantidad
+        self.estado = "rabia"
+        self._t_rabia = JABALI_RABIA_DUR
+        if direccion_empuje is not None and direccion_empuje.length() > 0:
+            self._objetivo_pos = self.posicion - direccion_empuje   # hacia quien lo golpeo
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
+        return cantidad
+
+    def _elegir_objetivo(self, jugador, amenazas):
+        if self._objetivo_pos is not None and amenazas:
+            return min(amenazas, key=lambda o: (o.posicion - self._objetivo_pos).length_squared())
+        return jugador
+
+    def actualizar(self, dt, jugador, amenazas=None):
+        self._tick_efectos(dt)
+        if not self.vivo:
+            return
+        if self.inmovilizado is not None:
+            return
+        if amenazas is None:
+            amenazas = (jugador,)
+
+        if self.estado == "rabia":
+            self._t_rabia -= dt
+            self._cd_golpe -= dt
+            objetivo = self._elegir_objetivo(jugador, amenazas)
+            self._t_jitter -= dt
+            if self._t_jitter <= 0:
+                ang = random.uniform(-1.0, 1.0)
+                self._jitter = pygame.Vector2(math.cos(ang), math.sin(ang))
+                self._t_jitter = random.uniform(0.15, 0.35)
+            d = objetivo.posicion - self.posicion
+            base = d.normalize() if d.length() > 0 else pygame.Vector2(1, 0)
+            dir_mov = base + self._jitter * 0.6
+            if dir_mov.length() > 0:
+                dir_mov = dir_mov.normalize()
+                self.posicion += dir_mov * JABALI_VEL_RABIA * dt
+                self.dir_mira = dir_mov
+            if d.length() <= self.radio + getattr(objetivo, "radio", 10) + 4 and self._cd_golpe <= 0:
+                self._cd_golpe = JABALI_GOLPE_CD
+                dano = random.randint(*JABALI_DANO)
+                hacia = objetivo.posicion - self.posicion
+                if hasattr(objetivo, "recibir_dano"):
+                    objetivo.recibir_dano(dano, "fisico", hacia)
+                if hasattr(objetivo, "aplicar_empuje"):
+                    objetivo.aplicar_empuje(hacia, JABALI_EMPUJE)
+            if self._t_rabia <= 0:
+                self.estado = "huye"
+                self._t_huida = random.uniform(2.5, 4.0)
+                self._objetivo_pos = None
+        elif self.estado == "huye":
+            self._t_huida -= dt
+            d = self.posicion - jugador.posicion
+            if d.length() < 1:
+                d = pygame.Vector2(1, 0)
+            self.posicion += d.normalize() * JABALI_VEL_HUIDA * dt
+            self.dir_mira = d.normalize()
+            if self._t_huida <= 0:
+                self.estado = "deambula"
+                self._espera = random.uniform(1.5, 4.0)
+        else:
+            self._espera -= dt
+            d = self.destino - self.posicion
+            if self._espera <= 0:
+                ang = random.uniform(0, math.tau)
+                self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(30, 90)
+                self._espera = random.uniform(1.5, 4.0)
+            elif d.length() > 3:
+                self.posicion += d.normalize() * JABALI_VEL_PASEO * dt
+                self.dir_mira = d.normalize()
+
+    def dibujar(self, pantalla, desplazamiento):
+        if not self.vivo:
+            return
+        px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        c = self.color
+        s = 1 if self.dir_mira.x >= 0 else -1
+        for lx in (-8, 8):
+            pygame.draw.line(pantalla, (60, 46, 36), (px + lx, py + 3), (px + lx, py + 12), 2)
+        pygame.draw.ellipse(pantalla, c, (px - 13, py - 7, 26, 15))
+        nx = px + s * 13
+        pygame.draw.circle(pantalla, c, (nx, py - 1), 6)
+        pygame.draw.circle(pantalla, (40, 30, 24), (nx + s * 4, py - 1), 2)
+        pygame.draw.line(pantalla, (225, 220, 205), (nx + s * 3, py + 1), (nx + s * 7, py - 3), 2)
+        ojo = (230, 60, 50) if self.estado == "rabia" else (25, 20, 16)
+        pygame.draw.circle(pantalla, ojo, (nx, py - 3), 1)
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 5, 1)
+        if self.vida < self.vida_max:
+            w = 26; fw = int(w * self.vida / self.vida_max)
+            pygame.draw.rect(pantalla, (40, 30, 25), (px - 13, py - 20, w, 3))
+            pygame.draw.rect(pantalla, (210, 120, 70), (px - 13, py - 20, fw, 3))
+
+
+# =====================================================================
+# ZORRO  (neutral; muerde si lo acorralan/golpean; caza conejos; Paso 0)
+# =====================================================================
+ZORRO_MAX = 15
+ZORRO_RADIO = 9
+ZORRO_MASA = 6.0
+ZORRO_VIDA = (15, 30)
+ZORRO_DANO = (5, 10)
+ZORRO_DIST = 120.0
+ZORRO_ACORRALA = 45.0
+ZORRO_VEL_PASEO = 42.0
+ZORRO_VEL = 150.0
+ZORRO_HAMBRE = 300.0             # 5 min
+ZORRO_RANGO_CAZA = 450.0
+ZORRO_ROBO = 0.30
+ZORRO_PASO0_PROB = 0.30
+ZORRO_PASO0_DUR = 5.0
+ZORRO_PASO0_CD = 10.0            # recarga de Paso 0
+ZORRO_VISTA = 500.0             # a esta distancia dejas de ser su objetivo (sales de su pantalla)
+ZORRO_MORDIDA_CD = 1.2
+ZORRO_COLORES = [(192, 110, 55), (172, 96, 46), (206, 126, 66)]
+
+
+class Zorro(AnimalCombatible):
+    def __init__(self, x, y):
+        self.posicion = pygame.Vector2(x, y)
+        self.radio = ZORRO_RADIO
+        self.masa = ZORRO_MASA
+        self.color = random.choice(ZORRO_COLORES)
+        self.vida = random.randint(*ZORRO_VIDA)
+        self.vida_max = self.vida
+        self.vivo = True
+        self.estado = "ronda"            # ronda / caza / muerde
+        self.destino = pygame.Vector2(self.posicion)
+        self._espera = random.uniform(1.0, 3.0)
+        self.vel_mult = 1.0
+        self._hambre_t = random.uniform(0, ZORRO_HAMBRE)
+        self.hambriento = False
+        self.presa = None
+        self.invisible = False
+        self._paso0_t = 0.0
+        self._paso0_cd = 0.0
+        self._presa_es_conejo = False
+        self._agredido = False
+        self._cd_mordida = 0.0
+        self.dir_mira = pygame.Vector2(1, 0)
+        self._init_combate()
+
+    def _robar_de(self, objetivo, es_conejo=False):
+        if self.presa is objetivo:
+            return
+        self._liberar_robo()
+        self.presa = objetivo
+        self._presa_es_conejo = es_conejo
+        self.vel_mult = 1.0 + ZORRO_ROBO
+        if hasattr(objetivo, "vel_mult"):
+            objetivo.vel_mult = 1.0 - ZORRO_ROBO
+
+    def _mantener_robo(self, objetivo):
+        if not hasattr(objetivo, "vel_mult") and hasattr(objetivo, "ralentizacion"):
+            objetivo.ralentizacion = max(getattr(objetivo, "ralentizacion", 0.0), ZORRO_ROBO)
+            if hasattr(objetivo, "tiempo_ralentizacion"):
+                objetivo.tiempo_ralentizacion = max(getattr(objetivo, "tiempo_ralentizacion", 0.0), 0.3)
+
+    def _liberar_robo(self):
+        if self.presa is not None and hasattr(self.presa, "vel_mult"):
+            self.presa.vel_mult = 1.0
+        self.presa = None
+        self._presa_es_conejo = False
+        self.vel_mult = 1.0
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        if not self.vivo:
+            return 0
+        self.vida -= cantidad
+        self._agredido = True
+        self._cd_mordida = 0.0
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
+            self._liberar_robo()
+        return cantidad
+
+    def actualizar(self, dt, jugador, amenazas=None, conejos=()):
+        self._tick_efectos(dt)
+        if not self.vivo:
+            self._liberar_robo()
+            return
+        if self.inmovilizado is not None:
+            return
+        if amenazas is None:
+            amenazas = (jugador,)
+
+        # Paso 0: invisibilidad activa y recarga (CD de 10 s).
+        if self.invisible:
+            self._paso0_t -= dt
+            if self._paso0_t <= 0:
+                self.invisible = False
+                self._paso0_cd = ZORRO_PASO0_CD
+        else:
+            self._paso0_cd -= dt
+
+        self._hambre_t += dt
+        self.hambriento = self._hambre_t >= ZORRO_HAMBRE
+        self._cd_mordida -= dt
+
+        amenaza = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
+        d_amen = (amenaza.posicion - self.posicion).length()
+
+        # El robo es permanente: la presa se mantiene hasta morir, esconderse o salir de la vista.
+        if self.presa is not None:
+            viva = getattr(self.presa, "vivo", True)
+            escondida = getattr(self.presa, "estado", None) == "escondido"
+            lejos = (self.presa.posicion - self.posicion).length() > ZORRO_VISTA
+            if (not viva) or escondida or lejos:
+                mad = getattr(self.presa, "madriguera", None) if self._presa_es_conejo else None
+                self._liberar_robo()
+                if mad is not None:
+                    away = self.posicion - mad.centro
+                    paso = away.normalize() * 160 if away.length() > 1 else pygame.Vector2(1, 0) * 160
+                    self.destino = self.posicion + paso
+                    self._espera = random.uniform(2.0, 3.5)
+                    self.estado = "ronda"
+
+        # Conejo-presa (cuando tiene hambre).
+        presa_conejo = None
+        if self.hambriento and conejos:
+            vivos = [c for c in conejos if c.vivo and c.estado != "escondido"]
+            if vivos:
+                cand = min(vivos, key=lambda c: (c.posicion - self.posicion).length_squared())
+                if (cand.posicion - self.posicion).length() <= ZORRO_RANGO_CAZA:
+                    presa_conejo = cand
+
+        # Paso 0: un tiro del 30% al detectar algo si el CD esta listo; si falla, reinicia los 10 s.
+        detecta = (d_amen < ZORRO_DIST * 1.5) or (presa_conejo is not None) or (self.presa is not None)
+        if not self.invisible and self._paso0_cd <= 0 and detecta:
+            if random.random() < ZORRO_PASO0_PROB:
+                self.invisible = True
+                self._paso0_t = ZORRO_PASO0_DUR
+            else:
+                self._paso0_cd = ZORRO_PASO0_CD
+
+        # Si lo acorralan o lo golpearon, esa amenaza pasa a ser su objetivo (robo permanente).
+        if d_amen < ZORRO_ACORRALA or self._agredido:
+            self._robar_de(amenaza, es_conejo=False)
+            self._agredido = False
+
+        # 1) Objetivo-amenaza (jugador/sombra): muerde si esta cerca, huye y sigue robando.
+        if self.presa is not None and not self._presa_es_conejo:
+            self._mantener_robo(self.presa)
+            dp = (self.presa.posicion - self.posicion).length()
+            if self._cd_mordida <= 0 and dp < ZORRO_ACORRALA + 6:
+                self._cd_mordida = ZORRO_MORDIDA_CD
+                dano = random.randint(*ZORRO_DANO)
+                if hasattr(self.presa, "recibir_dano"):
+                    self.presa.recibir_dano(dano, "fisico", self.presa.posicion - self.posicion)
+            d = self.posicion - self.presa.posicion
+            if d.length() < 1:
+                d = pygame.Vector2(1, 0)
+            self.posicion += d.normalize() * ZORRO_VEL * self.vel_mult * dt
+            self.dir_mira = d.normalize()
+            return
+
+        # 2) Hambriento: caza al conejo (lo mata al contacto y se llena).
+        if presa_conejo is not None:
+            self.estado = "caza"
+            self._robar_de(presa_conejo, es_conejo=True)
+            d = presa_conejo.posicion - self.posicion
+            dist = d.length()
+            if dist <= self.radio + presa_conejo.radio + 2:
+                presa_conejo.vivo = False
+                self._liberar_robo()
+                self._hambre_t = 0.0
+                self.hambriento = False
+                self.estado = "ronda"
+            elif dist > 0:
+                self.posicion += d.normalize() * ZORRO_VEL * self.vel_mult * dt
+                self.dir_mira = d.normalize()
+            return
+
+        # 3) Ronda: mantiene distancia de la amenaza o deambula.
+        if d_amen < ZORRO_DIST:
+            d = self.posicion - amenaza.posicion
+            if d.length() < 1:
+                d = pygame.Vector2(1, 0)
+            self.posicion += d.normalize() * ZORRO_VEL_PASEO * 1.4 * dt
+            self.dir_mira = d.normalize()
+        else:
+            self._espera -= dt
+            d = self.destino - self.posicion
+            if self._espera <= 0:
+                ang = random.uniform(0, math.tau)
+                self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(40, 120)
+                self._espera = random.uniform(1.0, 3.0)
+            elif d.length() > 3:
+                self.posicion += d.normalize() * ZORRO_VEL_PASEO * dt
+                self.dir_mira = d.normalize()
+
+    def dibujar(self, pantalla, desplazamiento):
+        if not self.vivo or self.invisible:     # Paso 0: completamente invisible
+            return
+        px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        c = self.color
+        s = 1 if self.dir_mira.x >= 0 else -1
+        for lx in (-5, 5):
+            pygame.draw.line(pantalla, (120, 70, 35), (px + lx, py + 2), (px + lx, py + 9), 2)
+        pygame.draw.ellipse(pantalla, c, (px - 9, py - 4, 18, 9))
+        nx = px + s * 9
+        pygame.draw.circle(pantalla, c, (nx, py - 2), 4)
+        pygame.draw.polygon(pantalla, c, [(nx - 2, py - 5), (nx - 1, py - 9), (nx + 2, py - 5)])
+        pygame.draw.polygon(pantalla, c, [(nx + 1, py - 5), (nx + 3, py - 9), (nx + 4, py - 5)])
+        pygame.draw.circle(pantalla, (20, 16, 12), (nx + s * 2, py - 2), 1)
+        pygame.draw.circle(pantalla, (245, 240, 235), (px - s * 9, py), 3)
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 5, 1)
+        if self.vida < self.vida_max:
+            w = 18; fw = int(w * self.vida / self.vida_max)
+            pygame.draw.rect(pantalla, (40, 30, 25), (px - 9, py - 14, w, 3))
+            pygame.draw.rect(pantalla, (120, 200, 90), (px - 9, py - 14, fw, 3))

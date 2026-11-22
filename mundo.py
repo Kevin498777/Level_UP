@@ -1255,6 +1255,8 @@ def iniciar_mundo(config):
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
         fauna.dibujar_conejos(pantalla, vista, desplazamiento)
         fauna.dibujar_venados(pantalla, vista, desplazamiento)
+        fauna.dibujar_jabalies(pantalla, vista, desplazamiento)
+        fauna.dibujar_zorros(pantalla, vista, desplazamiento)
 
         # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
         for hab in jugador.habilidades:
