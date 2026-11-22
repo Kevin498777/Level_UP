@@ -285,11 +285,12 @@ class Rana:
 
 
 class SistemaFauna:
-    def __init__(self, centro_mundo, radio_mundo, vegetacion, charcos):
+    def __init__(self, centro_mundo, radio_mundo, vegetacion, charcos, rocas=()):
         self.centro_mundo = pygame.Vector2(centro_mundo)
         self.radio_mundo = radio_mundo
         self.vegetacion = vegetacion
         self.charcos = charcos
+        self.rocas = list(rocas)
         self.mariposas = []
 
         # Pajaros: una fraccion de los arboles existentes.
@@ -344,6 +345,15 @@ class SistemaFauna:
             else:
                 centro = self._punto_mundo()
             self.manadas.append(Manada(centro))
+
+        # Osos: uno por algunas rocas gigantes (8 a 12 por mundo), su cueva.
+        self.rugidos = []
+        self.osos = []
+        gigantes = [r for r in self.rocas if getattr(r, "gigante", False)]
+        random.shuffle(gigantes)
+        n_osos = min(len(gigantes), random.randint(OSO_MIN, OSO_MAX))
+        for r in gigantes[:n_osos]:
+            self.osos.append(Oso(r))
 
     def _punto_mariposa(self, zona):
         """Punto para generar una mariposa: sesgado hacia flores visibles."""
@@ -458,6 +468,20 @@ class SistemaFauna:
             if any(l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y) for l in man.lobos):
                 man.actualizar(dt, jugador, amenazas, presas)
 
+        # Osos: actualizar los cercanos (y su orbe tras morir).
+        for oso in self.osos:
+            cerca = zona.collidepoint(oso.posicion.x, oso.posicion.y) or zona.collidepoint(oso.cueva.x, oso.cueva.y)
+            if not cerca:
+                continue
+            if oso.vivo:
+                oso.actualizar(dt, jugador, amenazas, self.charcos, self.rugidos)
+            if oso.orbe is not None and oso.orbe.activo:
+                oso.orbe.actualizar(dt, jugador)
+        # Ondas de choque de los rugidos
+        for r in self.rugidos:
+            r.actualizar(dt, jugador)
+        self.rugidos = [r for r in self.rugidos if r.activa]
+
     # ---- Dibujo por capas (llamados desde el render de mundo.py) ----
     def dibujar_peces(self, pantalla, vista, desplazamiento):
         for pz in self.peces:
@@ -533,6 +557,9 @@ class SistemaFauna:
             for l in man.lobos:
                 if l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y):
                     solidos.append(l)
+        for o in self.osos:
+            if o.vivo and not o.en_cueva and zona.collidepoint(o.posicion.x, o.posicion.y):
+                solidos.append(o)
         return solidos
 
     def animales_con_vida(self, vista):
@@ -544,6 +571,7 @@ class SistemaFauna:
         res += [z for z in self.zorros if z.vivo and not z.invisible and zona.collidepoint(z.posicion.x, z.posicion.y)]
         for man in self.manadas:
             res += [l for l in man.lobos if l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y)]
+        res += [o for o in self.osos if o.vivo and not o.en_cueva and zona.collidepoint(o.posicion.x, o.posicion.y)]
         return res
 
     def dibujar_madrigueras(self, pantalla, vista, desplazamiento):
@@ -581,6 +609,52 @@ class SistemaFauna:
             for l in man.lobos:
                 if zona.collidepoint(l.posicion.x, l.posicion.y):
                     l.dibujar(pantalla, desplazamiento)
+
+    def dibujar_osos(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for oso in self.osos:
+            if zona.collidepoint(oso.posicion.x, oso.posicion.y):
+                oso.dibujar(pantalla, desplazamiento)
+        for r in self.rugidos:
+            r.dibujar(pantalla, desplazamiento)
+
+    def dibujar_entradas_cueva(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for oso in self.osos:
+            if zona.collidepoint(oso.cueva.x, oso.cueva.y):
+                oso.dibujar_entrada(pantalla, desplazamiento)
+
+    def dibujar_orbes_cueva(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for oso in self.osos:
+            if oso.orbe is not None and zona.collidepoint(oso.cueva.x, oso.cueva.y):
+                oso.orbe.dibujar(pantalla, desplazamiento)
+
+    def brujula(self, pos):
+        """Devuelve [(etiqueta, color, posicion)] del conejo, lobo y oso vivos mas cercanos."""
+        objetivos = []
+        def cercano(items):
+            vivos = [i for i in items if getattr(i, "vivo", True)]
+            if not vivos:
+                return None
+            return min(vivos, key=lambda i: (i.posicion - pos).length_squared())
+        c = cercano(self.conejos)
+        if c is not None:
+            objetivos.append(("C", (150, 205, 120), pygame.Vector2(c.posicion)))
+        lobos = [l for m in self.manadas for l in m.lobos]
+        lo = cercano(lobos)
+        if lo is not None:
+            objetivos.append(("L", (205, 205, 225), pygame.Vector2(lo.posicion)))
+        oso = cercano(self.osos)
+        if oso is not None:
+            objetivos.append(("O", (210, 150, 90), pygame.Vector2(oso.posicion)))
+        return objetivos
+
+    def jugador_en_cueva(self, jugador):
+        for oso in self.osos:
+            if (not oso.vivo) and (jugador.posicion - oso.entrada).length() <= ENTRADA_RADIO:
+                return True
+        return False
 
 
 # =====================================================================
@@ -791,7 +865,7 @@ VENADO_VIDA = (20, 40)
 VENADO_REGEN_INTERVALO = 2.0   # 1 pv cada 2 s tras recibir dano
 VENADO_SUSTO = 160.0
 VENADO_VEL_PASEO = 40.0
-VENADO_VEL_HUIDA = 200.0
+VENADO_VEL_HUIDA = 235.0
 VENADO_REPRO_INTERVALO = 60.0
 VENADO_COLORES = [(140, 96, 60), (120, 82, 52), (156, 110, 72)]
 
@@ -857,25 +931,37 @@ class Venado(AnimalCombatible):
             dist_j = float("inf")
         if dist_j < VENADO_SUSTO:
             self.estado = "huye"
-            self._t_huida = max(self._t_huida, 0.6)
 
         if self.estado == "huye":
-            self._t_huida -= dt
-            d = self.posicion - cercana.posicion
-            if d.length() < 1:
-                d = pygame.Vector2(1, 0)
-            self.posicion += d.normalize() * VENADO_VEL_HUIDA * dt
-            self.dir_mira = d.normalize()
-            if self._t_huida <= 0 and dist_j > VENADO_SUSTO:
+            if cercana is None:
                 self.estado = "pasta"
-                self._espera = random.uniform(1.5, 4.0)
+                self._espera = random.uniform(2.0, 5.0)
+                self.destino = pygame.Vector2(self.posicion)
+            else:
+                d = self.posicion - cercana.posicion
+                if d.length() < 1:
+                    d = pygame.Vector2(1, 0)
+                self.posicion += d.normalize() * VENADO_VEL_HUIDA * dt
+                self.dir_mira = d.normalize()
+                # Huye definitivamente: solo deja de correr cuando esta bien lejos.
+                if dist_j > VENADO_SUSTO * 2.0:
+                    self.estado = "pasta"
+                    self._espera = random.uniform(2.0, 5.0)
+                    self.destino = pygame.Vector2(self.posicion)
         else:
             self._espera -= dt
             d = self.destino - self.posicion
             if self._espera <= 0:
-                ang = random.uniform(0, math.tau)
-                self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(30, 90)
-                self._espera = random.uniform(1.5, 4.0)
+                if cercana is not None and dist_j < VENADO_SUSTO * 2.5:
+                    # Elige un destino ALEJANDOSE del jugador (no vuelve hacia el).
+                    away = self.posicion - cercana.posicion
+                    base = away.normalize() if away.length() > 1 else pygame.Vector2(1, 0)
+                    ang = math.atan2(base.y, base.x) + random.uniform(-0.6, 0.6)
+                    self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(60, 130)
+                else:
+                    ang = random.uniform(0, math.tau)
+                    self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(30, 90)
+                self._espera = random.uniform(2.0, 5.0)
             elif d.length() > 3:
                 self.posicion += d.normalize() * VENADO_VEL_PASEO * dt
                 self.dir_mira = d.normalize()
@@ -1453,3 +1539,250 @@ class Manada:
                 elif d.length() > 3:
                     l.posicion += d.normalize() * LOBO_VEL_PASEO * dt
                     l.dir_mira = d.normalize()
+
+
+# =====================================================================
+# OSO  (hostil tanque territorial; vive en una roca gigante = su cueva)
+# =====================================================================
+OSO_MIN = 8
+OSO_MAX = 12
+OSO_VIDA = 150
+OSO_RADIO = 16
+OSO_MASA = 80.0
+OSO_DANO = (15, 25)
+OSO_EMPUJE = 25
+OSO_ESCUDO_EXTRA = 0.30          # 30% extra de dano directo al escudo
+OSO_DETECCION = 180.0
+OSO_TERRITORIO = 1000.0
+OSO_VEL = 90.0                   # lento
+OSO_VEL_PERSEC = 120.0
+OSO_ZARPAZO_CD = 1.4
+OSO_REGEN_CUEVA = 5.0            # pv/s en la cueva
+OSO_CICLO_CUEVA = 60.0          # cada 60 s sale
+OSO_SALIDA_DUR = 10.0           # sale 10 s a "pescar"
+OSO_RUGIDO_CD = 10.0            # en combate
+OSO_RUGIDO_RALENT = 0.30
+OSO_RUGIDO_DUR = 2.0
+OSO_RUGIDO_RADIO = 230.0
+OSO_RUGIDO_VEL = 340.0
+OSO_COLOR = [(92, 70, 54), (78, 58, 44), (70, 52, 40)]
+LAGO_MIN_PESCA = 120
+ORBE_CURA = 20
+ORBE_RADIO = 9
+ENTRADA_RADIO = 40      # a esta distancia de la entrada estas 'dentro' de la cueva
+
+
+class RugidoOnda:
+    """Onda de choque del rugido del oso: anillo que se expande y ralentiza al jugador."""
+    def __init__(self, centro):
+        self.centro = pygame.Vector2(centro)
+        self.radio = 12.0
+        self.activa = True
+        self._golpeo = False
+
+    def actualizar(self, dt, jugador):
+        self.radio += OSO_RUGIDO_VEL * dt
+        if not self._golpeo and getattr(jugador, "detectable", True):
+            d = (jugador.posicion - self.centro).length()
+            if self.radio - jugador.radio - 10 <= d <= self.radio + jugador.radio:
+                jugador.ralentizacion = max(getattr(jugador, "ralentizacion", 0.0), OSO_RUGIDO_RALENT)
+                if hasattr(jugador, "tiempo_ralentizacion"):
+                    jugador.tiempo_ralentizacion = max(getattr(jugador, "tiempo_ralentizacion", 0.0), OSO_RUGIDO_DUR)
+                self._golpeo = True
+        if self.radio >= OSO_RUGIDO_RADIO:
+            self.activa = False
+
+    def dibujar(self, pantalla, desplazamiento):
+        px = round(self.centro.x - desplazamiento[0]); py = round(self.centro.y - desplazamiento[1])
+        grosor = max(1, 4 - int(3 * self.radio / OSO_RUGIDO_RADIO))
+        pygame.draw.circle(pantalla, (210, 190, 130), (px, py), int(self.radio), grosor)
+
+
+class OrbeCueva:
+    """Orbe de vida dentro de la cueva (aparece al morir el oso): cura +20, un solo uso."""
+    def __init__(self, centro):
+        self.centro = pygame.Vector2(centro)
+        self.activo = True
+        self._fase = 0.0
+
+    def actualizar(self, dt, jugador):
+        if not self.activo:
+            return
+        self._fase += dt
+        if (jugador.posicion - self.centro).length() <= jugador.radio + ORBE_RADIO:
+            if hasattr(jugador, "curar"):
+                jugador.curar(ORBE_CURA)
+            self.activo = False
+
+    def dibujar(self, pantalla, desplazamiento):
+        if not self.activo:
+            return
+        px = round(self.centro.x - desplazamiento[0]); py = round(self.centro.y - desplazamiento[1])
+        pulso = int(abs(math.sin(self._fase * 2.5)) * 3)
+        pygame.draw.circle(pantalla, (60, 180, 90), (px, py), ORBE_RADIO + 3 + pulso, 1)
+        pygame.draw.circle(pantalla, (120, 240, 150), (px, py), ORBE_RADIO)
+        pygame.draw.circle(pantalla, (235, 255, 240), (px - 2, py - 2), 2)
+
+
+class Oso(AnimalCombatible):
+    def __init__(self, roca):
+        self.roca = roca
+        self.cueva = pygame.Vector2(roca.rect.center)
+        self.cueva_radio = roca.rect.width / 2.0
+        ang = random.uniform(0, math.tau)
+        self.entrada_dir = pygame.Vector2(math.cos(ang), math.sin(ang))
+        self.entrada = self.cueva + self.entrada_dir * (self.cueva_radio + 12)
+        self.posicion = pygame.Vector2(self.cueva)
+        self.radio = OSO_RADIO
+        self.masa = OSO_MASA
+        self.color = random.choice(OSO_COLOR)
+        self.vida = OSO_VIDA
+        self.vida_max = OSO_VIDA
+        self.vivo = True
+        self.estado = "cueva"            # cueva / salida / regresa / ataca
+        self._t_ciclo = random.uniform(0, OSO_CICLO_CUEVA)
+        self._t_salida = 0.0
+        self._cd_zarpazo = 0.0
+        self._cd_rugido = 0.0
+        self._destino_pesca = None
+        self.dir_mira = pygame.Vector2(1, 0)
+        self.orbe = None
+        self._init_combate()
+
+    @property
+    def en_cueva(self):
+        return self.estado == "cueva"
+
+    def _boca(self):
+        return self.cueva + self.entrada_dir * (self.cueva_radio + self.radio + 6)
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        if not self.vivo or self.estado == "cueva":
+            return 0                      # intocable dentro de la cueva
+        self.vida -= cantidad
+        self.estado = "ataca"
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
+            self.orbe = OrbeCueva(self.entrada)
+        return cantidad
+
+    def actualizar(self, dt, jugador, amenazas, charcos, rugidos):
+        self._tick_efectos(dt)
+        if not self.vivo:
+            return
+        if self.inmovilizado is not None:
+            return
+        self._cd_zarpazo -= dt
+        self._cd_rugido -= dt
+
+        amenaza = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared()) if amenazas else None
+        if amenaza is not None:
+            da = (amenaza.posicion - self.posicion).length()
+            da_cueva = (amenaza.posicion - self.cueva).length()
+        else:
+            da = da_cueva = float("inf")
+
+        # Emboscada: si detecta una amenaza cerca de el o de su cueva, sale y ataca.
+        if self.estado != "ataca" and amenaza is not None and (da < OSO_DETECCION or da_cueva < OSO_DETECCION):
+            if self.estado == "cueva":
+                self.posicion = self._boca()
+            self.estado = "ataca"
+            self._cd_rugido = 0.0
+
+        if self.estado == "ataca":
+            if amenaza is None or da_cueva > OSO_TERRITORIO:
+                self.estado = "regresa"
+                return
+            if self._cd_rugido <= 0:
+                self._cd_rugido = OSO_RUGIDO_CD
+                rugidos.append(RugidoOnda(self.posicion))
+            d = amenaza.posicion - self.posicion
+            dist = d.length()
+            if dist <= self.radio + getattr(amenaza, "radio", 10) + 4:
+                if self._cd_zarpazo <= 0:
+                    self._cd_zarpazo = OSO_ZARPAZO_CD
+                    dano = random.randint(*OSO_DANO)
+                    if hasattr(amenaza, "recibir_dano"):
+                        amenaza.recibir_dano(dano, "fisico", amenaza.posicion - self.posicion)
+                    if hasattr(amenaza, "escudo"):
+                        amenaza.escudo = max(0.0, amenaza.escudo - dano * OSO_ESCUDO_EXTRA)
+                    if hasattr(amenaza, "aplicar_empuje"):
+                        amenaza.aplicar_empuje(amenaza.posicion - self.posicion, OSO_EMPUJE)
+            elif dist > 0:
+                self.posicion += d.normalize() * OSO_VEL_PERSEC * dt
+                self.dir_mira = d.normalize()
+            return
+
+        if self.estado == "cueva":
+            if self.vida < self.vida_max:
+                self.vida = min(self.vida_max, self.vida + OSO_REGEN_CUEVA * dt)
+            self._t_ciclo -= dt
+            if self._t_ciclo <= 0:
+                self._destino_pesca = self._lago_cercano(charcos)
+                self.posicion = self._boca()
+                self.estado = "salida"
+                self._t_salida = OSO_SALIDA_DUR
+            return
+
+        if self.estado == "salida":
+            self._t_salida -= dt
+            objetivo = self._destino_pesca if self._destino_pesca is not None else self.cueva
+            d = objetivo - self.posicion
+            if d.length() > self.radio + 8:
+                self.posicion += d.normalize() * OSO_VEL * dt
+                self.dir_mira = d.normalize()
+            if self._t_salida <= 0:
+                self.estado = "regresa"
+            return
+
+        if self.estado == "regresa":
+            d = self.cueva - self.posicion
+            if d.length() <= self.cueva_radio + 2:
+                self.posicion.update(self.cueva)
+                self.estado = "cueva"
+                self._t_ciclo = OSO_CICLO_CUEVA
+            else:
+                self.posicion += d.normalize() * OSO_VEL * dt
+                self.dir_mira = d.normalize()
+                if self.vida < self.vida_max:
+                    self.vida = min(self.vida_max, self.vida + OSO_REGEN_CUEVA * 0.5 * dt)
+
+    def dibujar_entrada(self, pantalla, desplazamiento):
+        mx = self.cueva.x + self.entrada_dir.x * (self.cueva_radio - 4)
+        my = self.cueva.y + self.entrada_dir.y * (self.cueva_radio - 4)
+        px = round(mx - desplazamiento[0]); py = round(my - desplazamiento[1])
+        pygame.draw.circle(pantalla, (34, 28, 26), (px, py), 12)
+        pygame.draw.circle(pantalla, (12, 10, 10), (px, py), 9)
+
+    def _lago_cercano(self, charcos):
+        grandes = [c for c in charcos if c.radio >= LAGO_MIN_PESCA]
+        if not grandes:
+            return None
+        c = min(grandes, key=lambda ch: (ch.centro - self.cueva).length_squared())
+        d = self.cueva - c.centro
+        base = d.normalize() if d.length() > 1 else pygame.Vector2(1, 0)
+        return c.centro + base * (c.radio + 10)
+
+    def dibujar(self, pantalla, desplazamiento):
+        if not self.vivo or self.estado == "cueva":
+            return
+        px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        c = self.color
+        s = 1 if self.dir_mira.x >= 0 else -1
+        for lx in (-10, 10):
+            pygame.draw.line(pantalla, (54, 40, 30), (px + lx, py + 4), (px + lx, py + 14), 3)
+        pygame.draw.ellipse(pantalla, c, (px - 16, py - 9, 32, 20))
+        nx = px + s * 15
+        pygame.draw.circle(pantalla, c, (nx, py - 2), 8)
+        pygame.draw.circle(pantalla, (60, 44, 34), (nx + s * 5, py - 1), 3)
+        pygame.draw.circle(pantalla, c, (nx - 4, py - 9), 3)
+        pygame.draw.circle(pantalla, c, (nx + 4, py - 9), 3)
+        ojo = (230, 70, 55) if self.estado == "ataca" else (30, 22, 18)
+        pygame.draw.circle(pantalla, ojo, (nx + s * 2, py - 3), 1)
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 6, 1)
+        if self.vida < self.vida_max:
+            w = 32; fw = int(w * self.vida / self.vida_max)
+            pygame.draw.rect(pantalla, (40, 30, 25), (px - 16, py - 22, w, 4))
+            pygame.draw.rect(pantalla, (210, 110, 70), (px - 16, py - 22, fw, 4))

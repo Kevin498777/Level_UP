@@ -91,7 +91,7 @@ La fauna pasiva huye de la **amenaza más cercana**: el jugador, cualquiera de t
   entra a menos de **160 px**.
 - **Reproducción:** si hay **2 o más** venados en el mundo, cada **60 s** nace
   **+1** junto a otro venado, sin pasar de 50.
-- **Velocidad:** paseo 40, huida 200.
+- **Velocidad:** paseo 40, huida 235.
 
 ---
 
@@ -168,6 +168,30 @@ El zorro tiene **tres pasivas**:
   manada** sacia el hambre. Aunque no tengan hambre, atacan al jugador o a las
   sombras que se acerquen o los ataquen.
 - **Velocidad:** paseo 40, persecución 165, retirada 210.
+
+### Oso (en su cueva, roca gigante)
+- **Tanque territorial:** vida **150**, muy resistente, lento pero demoledor.
+  Hay **8–12 osos** por mundo; cada uno vive en una **roca gigante** que hace de
+  su **cueva**.
+- **Aspecto:** cuerpo grande marrón con orejas redondas y hocico; ojos rojos al
+  atacar.
+- **Zarpazo:** daño **15–25** (físico) **+ empuje fuerte**, y además **resta un
+  30% extra directo al escudo** del jugador.
+- **Territorial:** se enfurece si te acercas mucho a él o a su cueva (~180 px) o
+  lo golpeas, y te **caza a zarpazos** mientras estés en su territorio (~1000 px);
+  si te alejas, **regresa a su cueva**.
+- **Rugido:** al alertarse (y cada 10 s en combate) lanza una **onda de choque**
+  que te **ralentiza** (~30% por 2 s).
+- **Guarida:** vive metido en su cueva — ahí es **intocable** y se **regenera**.
+  Sale si te detecta (**emboscada**) y, además, **cada 1 minuto sale 10 s** a
+  acercarse al **lago más cercano** a "pescar" y vuelve.
+- **Entrada de la cueva:** la roca del oso tiene una **entrada oscura** dibujada
+  que la distingue de una roca normal.
+- **Orbe de la cueva:** solo se puede **entrar a la cueva cuando el oso muere**.
+  Al llegar a la entrada, el **mapa se oscurece** (simula estar dentro de la cueva)
+  y recoges un **orbe que cura +20** de vida (un solo uso; más recompensas más
+  adelante).
+- **Velocidad:** lento (paseo 90, persecución 120).
 
 ---
 

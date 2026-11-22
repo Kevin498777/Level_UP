@@ -828,7 +828,7 @@ def iniciar_mundo(config):
     vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
     rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles)
     vegetacion.registrar_obstaculos(rocas)
-    fauna = SistemaFauna(CENTRO_MUNDO, RADIO_MUNDO, vegetacion, charcos)
+    fauna = SistemaFauna(CENTRO_MUNDO, RADIO_MUNDO, vegetacion, charcos, rocas)
 
     # Maniqui de pruebas en el centro del mapa (recibe dano para probar las invocaciones)
     maniqui = Maniqui(CENTRO_MUNDO)
@@ -873,6 +873,7 @@ def iniciar_mundo(config):
     ejecutando = True
     motivo_salida = "salir"   # "salir" = cerrar juego; "menu" = volver a seleccion
     mostrar_hitboxes = False  # Alternable con la tecla [H]
+    mostrar_brujula = False   # Alternable con la tecla [C]
     botones_stats = {}        # Botones del panel (clave -> Rect), se actualizan cada frame
     info_abierta = None       # Tooltip de ayuda abierto: None, "stats" o "hab"
 
@@ -917,6 +918,8 @@ def iniciar_mundo(config):
                 # [H] Alternar visualización de hitboxes para depuración
                 elif evento.key == pygame.K_h:
                     mostrar_hitboxes = not mostrar_hitboxes
+                elif evento.key == pygame.K_c:
+                    mostrar_brujula = not mostrar_brujula
 
                 # [1] Exclusivo para Herramientas (Espada Ligera sacar/guardar)
                 elif evento.key == pygame.K_1:
@@ -1238,6 +1241,7 @@ def iniciar_mundo(config):
         for roca in rocas:
             if roca.rect.colliderect(vista):
                 roca.dibujar(pantalla, desplazamiento)
+        fauna.dibujar_entradas_cueva(pantalla, vista, desplazamiento)
 
         # Maniqui de pruebas en el centro
         # Arboles (bosques): tronco solido + copa, bajo las entidades
@@ -1258,6 +1262,7 @@ def iniciar_mundo(config):
         fauna.dibujar_jabalies(pantalla, vista, desplazamiento)
         fauna.dibujar_zorros(pantalla, vista, desplazamiento)
         fauna.dibujar_lobos(pantalla, vista, desplazamiento)
+        fauna.dibujar_osos(pantalla, vista, desplazamiento)
 
         # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
         for hab in jugador.habilidades:
@@ -1277,9 +1282,35 @@ def iniciar_mundo(config):
 
         # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
         # se den ambos) y en el arbusto solo tú ves sus orbes
-        if jugador.oculto or jugador.invisible:
+        if jugador.oculto or jugador.invisible or fauna.jugador_en_cueva(jugador):
             pantalla.blit(capa_oscura, (mundo_x, mundo_y))
             vegetacion.dibujar_interior(pantalla, desplazamiento, jugador)
+        fauna.dibujar_orbes_cueva(pantalla, vista, desplazamiento)
+
+        # Brujula [C]: flechas hacia el conejo, lobo, oso y maniqui mas cercanos
+        if mostrar_brujula:
+            ox, oy = desplazamiento
+            cx = round(jugador.posicion.x - ox); cy = round(jugador.posicion.y - oy)
+            objetivos_b = fauna.brujula(jugador.posicion)
+            if maniqui.vivo:
+                objetivos_b.append(("M", (230, 120, 120), pygame.Vector2(maniqui.posicion)))
+            fuente_b = fuentes["mini"]
+            for etiqueta_b, color_b, pos_b in objetivos_b:
+                d_b = pos_b - jugador.posicion
+                dist_b = d_b.length()
+                if dist_b < 1:
+                    continue
+                dn = d_b.normalize()
+                bx = cx + int(dn.x * 58); by = cy + int(dn.y * 58)
+                perp = pygame.Vector2(-dn.y, dn.x)
+                p1 = (bx + int(dn.x * 9), by + int(dn.y * 9))
+                p2 = (bx - int(dn.x * 5) + int(perp.x * 5), by - int(dn.y * 5) + int(perp.y * 5))
+                p3 = (bx - int(dn.x * 5) - int(perp.x * 5), by - int(dn.y * 5) - int(perp.y * 5))
+                pygame.draw.polygon(pantalla, color_b, [p1, p2, p3])
+                txt_b = fuente_b.render("%s %d" % (etiqueta_b, int(dist_b)), True, color_b)
+                pantalla.blit(txt_b, (cx + int(dn.x * 76) - txt_b.get_width() // 2, cy + int(dn.y * 76) - txt_b.get_height() // 2))
+            leyenda = fuente_b.render("[C] Brujula  C=conejo  L=lobo  O=oso  M=maniqui", True, (200, 210, 225))
+            pantalla.blit(leyenda, (mundo_x + 12, mundo_y + 12))
 
         # Dibujar Hitboxes si está activada la visualización [H]
         if mostrar_hitboxes:
