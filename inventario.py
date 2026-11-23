@@ -543,9 +543,9 @@ def _pestana_talismanes(pantalla, jugador, fuentes, botones, raton, tiempo, x0, 
         _texto(pantalla, f_txt, "Aún no tienes talismanes. Se consiguen en el Gacha (próximamente).",
                COLOR_TEXTO_SUAVE, r.center, centro=True)
         return descripcion
-    columnas = 3
+    columnas = 4
     ancho_c = (ancho - (columnas - 1) * 10) // columnas
-    alto_c = 64
+    alto_c = 60
     for idx, id_obj in enumerate(objetos):
         fila, colm = divmod(idx, columnas)
         r = pygame.Rect(x0 + colm * (ancho_c + 10), y + fila * (alto_c + 8), ancho_c, alto_c)
@@ -557,16 +557,16 @@ def _pestana_talismanes(pantalla, jugador, fuentes, botones, raton, tiempo, x0, 
         pygame.draw.rect(pantalla, COLOR_TARJETA_HOVER if hover else COLOR_TARJETA, r, border_radius=8)
         pygame.draw.rect(pantalla, color if (hover or equipado) else COLOR_BORDE, r, width=2 if equipado else 1,
                          border_radius=8)
-        TL.dibujar_objeto(pantalla, (r.x + 26, r.y + r.height // 2), 15, id_obj, tiempo)
+        TL.dibujar_objeto(pantalla, (r.x + 26, r.y + r.height // 2), 14, id_obj, tiempo)
         nombre = TL.nombre_objeto(id_obj).replace("Anillo de ", "")
-        _texto(pantalla, f_txt, nombre[:1].upper() + nombre[1:], (255, 255, 255), (r.x + 50, r.y + 8))
+        _texto(pantalla, f_txt, nombre[:1].upper() + nombre[1:], (255, 255, 255), (r.x + 46, r.y + 6))
         if id_obj == TL.TOTEM:
             sub = f"Tótem · x{col.totems}"
         else:
             d = TL.ANILLOS[id_obj]
             sub = f"{TL.NOMBRE_RAREZA[d['rareza']]} · Nv {col.anillos[id_obj]}/{d['nivel_max']}"
-        _texto(pantalla, f_mini, sub, color, (r.x + 50, r.y + 27))
-        rb = pygame.Rect(r.right - 78, r.bottom - 24, 70, 18)
+        _texto(pantalla, f_mini, sub, color, (r.x + 46, r.y + 24))
+        rb = pygame.Rect(r.right - 72, r.bottom - 21, 64, 17)
         if equipado:
             _boton_texto(pantalla, f_mini, rb, "Equipado", False, botones, "")
         else:

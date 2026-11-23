@@ -15,6 +15,7 @@ import random
 import pygame
 from habilidades import aplicar_desangrado
 from personaje import repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
+from talismanes import marcar_agresor
 
 # Margen extra (px) alrededor de la vista para activar/mantener la fauna.
 MARGEN_CULL = 90
@@ -57,6 +58,7 @@ def bloqueado_por_escudo(atacante, objetivo, dano):
     """Si el objetivo lleva el Escudo desenfundado cubriendo al atacante, bloquea el golpe o
     la mordida entera (igual que con el maniqui): sin dano ni efectos, el portador recibe el
     empuje del escudo y el atacante sale repelido con el empuje del escudo. True si bloqueo."""
+    marcar_agresor(objetivo, atacante)     # las sombras de los anillos defienden al atacado
     bloquear = getattr(objetivo, "bloquear_con_escudo", None)
     if bloquear is None or dano <= 0 or not bloquear(dano, atacante.posicion):
         return False
@@ -446,7 +448,8 @@ class SistemaFauna:
 
         # Amenazas de las que huyen los animales: el jugador y sus sombras (invocaciones).
         amenazas = [jugador] if getattr(jugador, "detectable", True) else []
-        for hab in getattr(jugador, "habilidades", ()):
+        fuentes = jugador.fuentes_criaturas() if hasattr(jugador, "fuentes_criaturas") else getattr(jugador, "habilidades", ())
+        for hab in fuentes:
             for cr in getattr(hab, "criaturas", ()):
                 if getattr(cr, "vivo", True):
                     amenazas.append(cr)

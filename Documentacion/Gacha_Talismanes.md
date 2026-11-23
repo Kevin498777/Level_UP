@@ -38,14 +38,16 @@ Cuando el Gacha da un anillo, primero se sortea la rareza y luego un anillo de e
 
 | Rareza | Probabilidad | Anillo | Color | Por nivel | Nivel máx. | Al máximo |
 |---|---|---|---|---|---|---|
-| Común | 60 % | Viento | Blanco | +0.5 % de velocidad base | 10 | +5 % |
-| Común | | Fuerza | Naranja | +0.5 % de daño del arma | 10 | +5 % |
+| Común | 60 % | Viento | Blanco | +1 % de velocidad base | 10 | +10 % |
+| Común | | Fuerza | Naranja | +1 % de daño del arma | 10 | +10 % |
 | Común | | Energía | Azul marino | +2.5 de energía máxima | 10 | +25 |
-| Especial | 30 % | Vida | Rosa | +2.5 de vida máxima | 7 | +17.5 |
-| Especial | | Cadencia | Amarillo | +0.2 golpes/s | 7 | +1.4 |
-| Épico | 9 % | Defensa mágica | Gris y celeste | +4 de escudo mágico máximo, y +10 % de regeneración del escudo mágico (fijo) | 5 | +20 |
-| Épico | | Defensa física | Café y celeste | +4 de escudo físico máximo, y +10 % de regeneración del escudo físico (fijo) | 5 | +20 |
-| Legendario | 1 % | Regeneración inversa | Rosa, azul marino y dorado | Nv1: +0.3 de vida cada 3 s · Nv2: +0.6 cada 2 s · Nv3: +0.9 cada 1 s (siempre, también en combate) | 3 | +0.9/s |
+| Común | | Sombra conejo | Oscuro | Una sombra de conejo que te defiende (ver abajo) | 10 | daño 7.7, reaparece en 5 s |
+| Especial | 30 % | Defensa mágica | Azul | +20/7 (≈2.86) de escudo mágico máximo, y +10 % de regeneración del escudo mágico (fijo) | 7 | +20 |
+| Especial | | Defensa física | Café | +20/7 (≈2.86) de escudo físico máximo, y +10 % de regeneración del escudo físico (fijo) | 7 | +20 |
+| Épico | 9 % | Vida | Rosa y rojo | +4 de vida máxima | 5 | +20 |
+| Épico | | Cadencia | Amarillo y azul | +0.3 golpes/s | 5 | +1.5 |
+| Épico | | Sombra lobo | Oscuro y morado | Una sombra de lobo que te defiende (ver abajo) | 10 | daño 30, reaparece en 4 s |
+| Legendario | 1 % | Regeneración inversa | Rosa, azul marino y dorado | +0.3 de vida por segundo (siempre, también en combate) | 3 | +0.9/s |
 
 Detalles:
 
@@ -53,6 +55,14 @@ Detalles:
 - **Viento:** se suma a los demás modificadores de velocidad sobre la velocidad base.
 - **Defensas:** el escudo del anillo se suma **aunque tu escudo base sea 0**, y así ya bloquea y absorbe daño.
 - **Vida y energía:** suben el máximo, pero **equiparlos no cura**. Al quitarlos, la vida y la energía se recortan al nuevo máximo.
+
+### Anillos de sombra (conejo y lobo)
+
+- Cada uno da **una** sombra (no se reproduce) que **te sigue** y **no se controla**.
+- **Solo ataca** a quien te haya atacado **a ti o a ella** en los últimos 6 s (animales o el maniquí). Si tú atacas a algo que no te ataca (p. ej. un venado), no te ayuda.
+- Su vida y velocidad son las de la habilidad de invocación al nivel equivalente: anillo 1 – 10 = habilidad 1, 3, 5, 7, 9, 12, 14, 16, 18, 20. El **daño** va en línea recta: conejo **1 → 7.7**, lobo **4 → 30** (el lobo conserva el 33 % de desangrado).
+- Si muere, reaparece a tu lado: conejo **10 s → 5 s**, lobo **8 s → 4 s** según el nivel.
+- Cuenta como una de **tus sombras**: los animales pasivos huyen de ella, lo que mate te da XP y monedas, y desaparece si quitas el anillo, si mueres o si te salva un tótem (después vuelve con su tiempo de reaparición). Es independiente de las habilidades Invocar Conejos e Invocar Lobos.
 
 ### Tótem de vida
 
@@ -74,16 +84,17 @@ Detalles:
 
 Se pierde **todo**: nivel, XP, monedas, talismanes, tótems y lo que hayas sacado del Gacha. Vuelves con la herramienta y las 3 habilidades de la creación, a nivel 1.
 
-### Economía (simulación del 23/11/2026, 10 000 partidas)
+### Economía (simulación del 23/11/2026, 10 000 partidas, anillos v2)
 
 Con las monedas de caza más **+20 por nivel**, un bot que tira en cuanto junta 30 monedas consiguió:
 
 | | Jugador cuidadoso | Con encuentros de lobos y osos |
 |---|---|---|
-| Monedas ganadas por partida (media) | 268 | 563 (muere y vuelve a subir muchas veces) |
-| Tiradas por partida (media / mediana) | 8.2 / 5 | 14.1 / 10 |
-| Partidas que sacaron el anillo legendario | 130 de 5000 | 17 de 5000 conservado al final |
-| Veces que un tótem evitó la muerte | 1768 | 6555 |
+| Monedas ganadas por partida (media) | 290 | 567 (muere y vuelve a subir muchas veces) |
+| Tiradas por partida (media / mediana) | 8.9 / 5 | 14.3 / 10 |
+| Partidas que acabaron con el anillo legendario | 131 de 5000 | 23 de 5000 |
+| Veces que un tótem evitó la muerte | 1908 | 6653 |
+| Llegaron al nivel 20 (de 5000) | 48 | 2 |
 
 ### Prueba
 

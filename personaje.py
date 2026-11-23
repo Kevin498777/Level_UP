@@ -1,7 +1,7 @@
 import pygame
 import math
 from herramientas import EspadaLigera, HERRAMIENTAS_DISPONIBLES, crear_herramienta
-from talismanes import ColeccionTalismanes
+from talismanes import ColeccionTalismanes, GestorSombras
 from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO)
 
@@ -134,6 +134,9 @@ class Personaje:
         self.bono_regen_escudo = 0.0     # +% a la regeneración del escudo físico
         self.bono_regen_escudo_magico = 0.0
         self.regen_vida = None           # (vida, intervalo) del anillo de regeneración inversa
+        self.sombras_anillo = GestorSombras()   # sombras de conejo / lobo de los anillos
+        self.ultimo_agresor = None       # quien te atacó por última vez (lo usan esas sombras)
+        self.t_agresor = 0.0
         self._t_regen_vida = 0.0
         self.habilidades = list(habilidades) if habilidades is not None else []
         # Coleccion (fase 2 del Gacha): todas las habilidades conseguidas; solo las de los 3
@@ -236,6 +239,12 @@ class Personaje:
         self.bono_regen_escudo = b.get("regen_escudo", 0.0)
         self.bono_regen_escudo_magico = b.get("regen_escudo_magico", 0.0)
         self.regen_vida = b.get("regen_vida")
+        niveles_sombra = {}
+        if b.get("sombra_conejo"):
+            niveles_sombra["conejo"] = int(b["sombra_conejo"])
+        if b.get("sombra_lobo"):
+            niveles_sombra["lobo"] = int(b["sombra_lobo"])
+        self.sombras_anillo.configurar(niveles_sombra, self)
         self.escudo = min(self.escudo, self.escudo_max)
         self.escudo_magico = min(self.escudo_magico, self.escudo_magico_max)
         self._bonos_talismanes = b
@@ -420,6 +429,10 @@ class Personaje:
     def habilidades_guardadas(self):
         """Habilidades de la coleccion que no estan en ningun hueco (su recarga sigue corriendo)."""
         return [h for h in self.coleccion_habilidades if h not in self.huecos_habilidades]
+
+    def fuentes_criaturas(self):
+        """Todo lo que tiene 'criaturas' (sombras): las habilidades equipadas y los anillos de sombra."""
+        return list(self.habilidades) + [self.sombras_anillo]
 
     def habilidades_en_efecto(self):
         """Habilidades equipadas más los efectos temporales activos (ej. de Golpe de Suerte)."""

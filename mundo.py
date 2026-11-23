@@ -999,10 +999,11 @@ def iniciar_mundo(config):
         y los escudos llenos y sin efectos; conservas nivel, XP, monedas y objetos. Tus sombras
         desaparecen, como en una muerte normal."""
         objetivos_viejos = [jugador]
-        for hab in jugador.habilidades:
+        for hab in jugador.fuentes_criaturas():
             for cr in getattr(hab, "criaturas", ()):
                 cr.vivo = False
                 objetivos_viejos.append(cr)
+        jugador.sombras_anillo.matar_todas()      # vuelven tras su tiempo de reaparición
         fauna.olvidar_objetivos(objetivos_viejos)
         jugador.posicion = pygame.Vector2(CENTRO_MUNDO)
         jugador.destino = pygame.Vector2(CENTRO_MUNDO)
@@ -1068,7 +1069,7 @@ def iniciar_mundo(config):
         habilidades de la creación a nivel 1, vida y energía llenas). Pierde todo lo conseguido
         (talismanes, herramientas y habilidades extra). Sus sombras desaparecen; el mundo sigue igual."""
         objetivos_viejos = [jugador]
-        for hab in jugador.coleccion_habilidades:
+        for hab in jugador.coleccion_habilidades + [jugador.sombras_anillo]:
             for cr in getattr(hab, "criaturas", ()):
                 cr.vivo = False
                 objetivos_viejos.append(cr)
@@ -1334,7 +1335,7 @@ def iniciar_mundo(config):
                 if not (arma_enemiga and getattr(arma_enemiga, "golpeando", False)):
                     continue
                 objetivos = [jugador]
-                for hab in jugador.habilidades:
+                for hab in jugador.fuentes_criaturas():
                     objetivos.extend(getattr(hab, "criaturas", ()))
                 for obj in objetivos:
                     if id(obj) in arma_enemiga.enemigos_golpeados:
@@ -1346,6 +1347,7 @@ def iniciar_mundo(config):
                     if not toca:
                         continue
                     arma_enemiga.enemigos_golpeados.add(id(obj))
+                    TL.marcar_agresor(obj, enemigo)     # las sombras de los anillos te defienden
                     dano = arma_enemiga.calcular_dano(enemigo)
                     # Escudo desenfundado cubriendo el golpe: como un choque, no hace daño, el
                     # atacante sale repelido con el empuje del escudo y su arma se desgasta 1
@@ -1404,6 +1406,8 @@ def iniciar_mundo(config):
             # Las habilidades guardadas en la colección siguen su recarga
             for hab in jugador.habilidades_guardadas():
                 hab.actualizar(dt, jugador)
+            # Sombras de los anillos (te siguen y te defienden)
+            jugador.sombras_anillo.actualizar(dt, jugador)
 
             # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto
             for hab in jugador.habilidades:
@@ -1470,7 +1474,7 @@ def iniciar_mundo(config):
 
             # Cuerpos solidos: jugador, maniqui e invocaciones no se solapan entre si
             cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
-            for hab in jugador.habilidades:
+            for hab in jugador.fuentes_criaturas():
                 cuerpos.extend(getattr(hab, "criaturas", ()))
             cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
             resolver_solapamientos(cuerpos)
@@ -1562,6 +1566,7 @@ def iniciar_mundo(config):
                 hab.dibujar_cuchillas(pantalla, desplazamiento)
             if hasattr(hab, "dibujar_ondas"):
                 hab.dibujar_ondas(pantalla, desplazamiento)
+        jugador.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
@@ -1569,7 +1574,7 @@ def iniciar_mundo(config):
         # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
         # semitransparentes si hay una entidad debajo: jugador, maniqui, invocaciones o fauna.
         entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
-        for hab in jugador.habilidades:
+        for hab in jugador.fuentes_criaturas():
             entidades.extend(getattr(hab, "criaturas", ()))
         entidades.extend(fauna.cuerpos_solidos(vista))
         vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)

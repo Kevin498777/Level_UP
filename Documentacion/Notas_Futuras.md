@@ -111,37 +111,46 @@ Objetos nuevo
 nuevo archivo llamado talismanes
 Comun (probabilidad de obtener 60%)
     anillos de viento (color blanco,forma de anillo)
-    +0.5% de velocidad de movimiento, nivel maximo 10 aumento de velocidad maxima +5%
+    +1% de velocidad de movimiento, nivel maximo 10 aumento de velocidad maxima +10%
     si consiges uno mas se puede mejorar maximo nivel 10
     anillo de fuerza(color naranja,forma de anillo)
-    +0.5% de daño extra, nivel maximo 5 aumento de daño extra +5%
+    +1% de daño extra, nivel maximo 5 aumento de daño extra +10%
     si consiges uno mas se puede mejorar maximo nivel 10
     anillo de energia(color azul marino,forma de anillo)
     +2.5 de energia extra, nivel maximo 10, aumento de energia maxima 25 puntos
 
-Especial (probabilidad de obtener 30%)
-    anillo de vida (color rosa,forma de anillo)
-    +2.5 de vida, nivel maximo 7 aumento de vida maxima 17.5
-    anillo de cadencia (color amarillo, forma de anillo)
-    +0.2 de cadencia, nivel maximo 7, aumento maximo de cadencia 1.4
-    
+    nuevo
+    anillo sombra conejo (color oscuro)
+    1 sombra de conejo no se reproduce
+    nivel maximo 10 este es como la habilidad sombra de conejos como este el nivel es maximo 20 este solo seran las estadisticas pero dividida para que sea acorde a el nivel 10 del anillo
+    si muere la sombra darda 10s en reaparecer otra, nivel maximo tarda 5s
+    (Esta no se puede controlar solo ataca si atacan al jugador o asi misma)
 
-Epico (probabilidad de obtener 9%)
-    anillo de defensa magica (color gris y azul celeste)
-    +4 de defensa magica, nivel maximo 5, aumeto de defensa maxima +20
+
+Especial (probabilidad de obtener 30%)
+    anillo de defensa magica (color azul)
+    +4 de defensa magica, nivel maximo 7, aumeto de defensa maxima +20
     +10% de velocidad de regeneracion de escudo magico
 
-    anillo de defensa fisica (color cafe y azul celeste)
-    +4 de defensa fisica, nivel maximo 5, aumeto de defensa maxima +20
-    +10% de velocidad de regeneracion de escudo fisico
+    anillo de defensa fisica (color cafe)
+    +4 de defensa fisica, nivel maximo 7, aumeto de defensa maxima +20
+    +10% de velocidad de regeneracion de escudo fisico    
 
+Epico (probabilidad de obtener 9%)
+    anillo de vida (color rosa y rojo,forma de anillo)
+    +4 de vida, nivel maximo 5 aumento de vida maxima 20
 
+    anillo de cadencia (color amarillo y azul, forma de anillo)
+    +0.3 de cadencia, nivel maximo 5, aumento maximo de cadencia 1.5
 
+    anillo sobra lobo(color oscuro y morado)
+    nivel maximo 10 este es como la habilidad sombra de lobo como este el nivel es maximo 20 este solo seran las estadisticas pero dividida para que sea acorde a el nivel 10 del anillo
+    si muere la sombra darda 8s en reaparecer otra, nivel maximo tarda 4s
+    (Esta no se puede controlar solo ataca si atacan al jugador o asi misma)   
 
 Legendario  (probabilidad de obtener 1%)
     anillo de regeneracion inversa (color rosa con azul marino y dorado, forma de anillo)
-    +0.3 de regeneracion de vida por nivel, nivel maximo 3, regenerecion de vida maxima por nivel 0.9
-    cd nv1-3s, nv2-2s, nv3-1s
+    +0.3 de regeneracion de vida por segundo por nivel, nivel maximo 3, regenerecion de vida maxima por nivel 0.9 por segundo
 
 
 
@@ -149,3 +158,6 @@ Legendario  (probabilidad de obtener 1%)
 Sistema nivel 20 al 40
 Al llegar a nivel 20 desbloquea la ruleta de habilidades,
 Esta 
+
+
+
