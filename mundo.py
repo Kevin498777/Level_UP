@@ -590,6 +590,7 @@ SUBIDA_TEXTO_FLOTANTE = 40         # px que sube en ese tiempo
 ALFA_PANTALLA_MUERTE = 170
 DURACION_AVISO_TOTEM = 3.5         # s que se ve "El Tótem de vida te salvó"
 COLOR_TOTEM_AVISO = (120, 240, 150)
+MONEDAS_PRUEBA = 100               # [K] (prueba): monedas para probar el Gacha
 PROB_DEBUG_TOTEM = 0.2             # [T] (prueba): probabilidad de dar un tótem en vez de un anillo
 
 
@@ -1042,22 +1043,42 @@ def iniciar_mundo(config):
         jugador.recalcular_talismanes()
         textos_flotantes.append([texto, TL.color_objeto(id_obj), jugador.posicion - pygame.Vector2(0, 48), 0.0])
 
+    # Equipo de la creación: al morir sin tótem se vuelve a él (se pierde lo del Gacha)
+    equipo_inicial = ([(type(h), h.tecla, h.tecla_str) for h in jugador.habilidades],
+                      type(jugador.herramienta) if jugador.herramienta else None)
+
+    def dar_objeto_prueba():
+        """[Y] (prueba): una herramienta o habilidad que no tengas, a nivel 1."""
+        opciones = ([("herr", n) for n in jugador.herramientas_faltantes()]
+                    + [("hab", n) for n in jugador.habilidades_faltantes()])
+        if not opciones:
+            texto, color = "Ya lo tienes todo", (200, 200, 210)
+        else:
+            tipo, nombre = random.choice(opciones)
+            if tipo == "herr":
+                jugador.agregar_herramienta(nombre)
+                texto, color = f"Herramienta nueva: {nombre}", (255, 200, 120)
+            else:
+                jugador.agregar_habilidad(nombre)
+                texto, color = f"Habilidad nueva: {nombre}", (170, 205, 255)
+        textos_flotantes.append([texto, color, jugador.posicion - pygame.Vector2(0, 48), 0.0])
+
     def reaparecer():
-        """El jugador vuelve al centro desde cero (nivel 1, XP 0, armas y habilidades a
-        nivel 1, vida y energía llenas). Sus sombras desaparecen; el mundo sigue igual."""
-        viejas = list(jugador.habilidades)
+        """El jugador vuelve al centro desde cero (nivel 1, XP 0, la herramienta y las
+        habilidades de la creación a nivel 1, vida y energía llenas). Pierde todo lo conseguido
+        (talismanes, herramientas y habilidades extra). Sus sombras desaparecen; el mundo sigue igual."""
         objetivos_viejos = [jugador]
-        for hab in viejas:
+        for hab in jugador.coleccion_habilidades:
             for cr in getattr(hab, "criaturas", ()):
                 cr.vivo = False
                 objetivos_viejos.append(cr)
         fauna.olvidar_objetivos(objetivos_viejos)
         nuevas = []
-        for hab in viejas:
-            nueva = type(hab)()
-            nueva.asignar_tecla(hab.tecla, hab.tecla_str)
+        for cls, tecla, tecla_str in equipo_inicial[0]:
+            nueva = cls()
+            nueva.asignar_tecla(tecla, tecla_str)
             nuevas.append(nueva)
-        herramienta = type(jugador.herramienta)() if jugador.herramienta else None
+        herramienta = equipo_inicial[1]() if equipo_inicial[1] else None
         # Se reinicia el mismo objeto: quien lo referencia (maniqui, fauna) sigue valiendo
         jugador.__init__(**datos_jugador(nuevas, herramienta))
         camara.update(jugador.posicion)
@@ -1124,6 +1145,16 @@ def iniciar_mundo(config):
                 elif evento.key == pygame.K_1:
                     if jugador.herramienta:
                         jugador.herramienta.toggle()
+
+                # [K] (prueba) +100 monedas para probar el Gacha
+                elif evento.key == pygame.K_k:
+                    jugador.monedas += MONEDAS_PRUEBA
+                    textos_flotantes.append([f"+{MONEDAS_PRUEBA} monedas (prueba)", COLOR_MONEDAS,
+                                             jugador.posicion - pygame.Vector2(0, 48), 0.0])
+
+                # [Y] (prueba) Conseguir una herramienta o habilidad nueva al azar
+                elif evento.key == pygame.K_y:
+                    dar_objeto_prueba()
 
                 # [T] (prueba) Conseguir un talismán al azar (hasta que exista el Gacha)
                 elif evento.key == pygame.K_t:
@@ -1369,6 +1400,9 @@ def iniciar_mundo(config):
 
             # Actualizar todas las habilidades equipadas
             for hab in jugador.habilidades:
+                hab.actualizar(dt, jugador)
+            # Las habilidades guardadas en la colección siguen su recarga
+            for hab in jugador.habilidades_guardadas():
                 hab.actualizar(dt, jugador)
 
             # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto

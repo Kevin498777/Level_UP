@@ -17,7 +17,8 @@ MARGEN_INVENTARIO = 20          # separación mínima con el borde del área del
 ALFA_VELO_INVENTARIO = 110      # oscurecido del mundo detrás (sigue viéndose)
 VIDA_BAJA_AVISO = 0.30          # por debajo de este % de vida el borde parpadea en rojo
 DURACION_MENSAJE = 2.5          # s que se ve un aviso (p. ej. "no puedes equipar...")
-PESTANAS = (("personaje", "Personaje"), ("talismanes", "Talismanes"))
+PESTANAS = (("personaje", "Personaje"), ("equipo", "Equipo"), ("talismanes", "Talismanes"), ("gacha", "Gacha"))
+HISTORIAL_GACHA = 8             # tiradas que recuerda el historial
 
 COLOR_FONDO = (18, 21, 29)
 COLOR_TARJETA = (27, 31, 42)
@@ -126,6 +127,18 @@ def manejar_clic_inventario(clave, jugador, estado, tiempo):
     arg = partes[3] if len(partes) > 3 else ""
     if accion == "tab":
         estado["pestana"] = arg
+    elif accion == "tirar":
+        import gacha as G
+        if G.ruleta_girando(estado.get("ruleta"), tiempo):
+            return True
+        res = G.tirar(jugador)
+        if res is None:
+            estado["mensaje"] = (f"Necesitas {G.COSTO_TIRADA} monedas para tirar", tiempo, True)
+        else:
+            estado["ruleta"] = G.nueva_ruleta(res, tiempo)
+            estado["tiradas"] = estado.get("tiradas", 0) + 1
+            estado.setdefault("historial", []).insert(0, res)
+            del estado["historial"][HISTORIAL_GACHA:]
     elif accion == "equipar":
         ok, motivo = jugador.talismanes.equipar(arg)
         if ok:
@@ -133,6 +146,15 @@ def manejar_clic_inventario(clave, jugador, estado, tiempo):
             estado["mensaje"] = (f"{TL.nombre_objeto(arg)} equipado", tiempo, False)
         else:
             estado["mensaje"] = (motivo, tiempo, True)
+    elif accion == "herr":
+        herr = jugador.coleccion_herramientas[int(arg)]
+        if jugador.equipar_herramienta(herr):
+            estado["mensaje"] = (f"Ahora llevas {herr.nombre} (guardada: sácala con [1])", tiempo, False)
+    elif accion == "hab":
+        hab = jugador.coleccion_habilidades[int(arg)]
+        hueco = int(partes[4])
+        if jugador.equipar_habilidad(hab, hueco):
+            estado["mensaje"] = (f"{hab.nombre} va ahora en [{hueco + 2}]", tiempo, False)
     elif accion == "quitar":
         hueco = int(arg)
         id_obj = jugador.talismanes.huecos[hueco]
@@ -192,7 +214,7 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
         pantalla.blit(sup, sup.get_rect(center=r_tab.center))
         botones[f"__inv__tab__{clave_p}"] = r_tab
         tx = r_tab.right + 8
-    aviso = "¡VIDA BAJA! El mundo sigue en marcha" if vida_baja else "El mundo sigue en marcha"
+    aviso = "¡VIDA BAJA!" if vida_baja else "El mundo sigue en marcha"
     _texto(pantalla, f_mini, aviso, (255, 110, 110) if vida_baja else (130, 140, 160),
            (caja.right - 64, y0 + 9), derecha=True)
     rect_x = pygame.Rect(caja.right - 46, y0 - 2, 30, 30)
@@ -205,6 +227,24 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
     botones["__cerrar_inv__"] = rect_x
 
     alto_desc = 62
+    if estado["pestana"] == "gacha":
+        descripcion = _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y0 + 44,
+                                     ancho_util, caja.bottom - 14 - alto_desc - 10, estado)
+        _caja_descripcion(pantalla, f_txt, pygame.Rect(x0, caja.bottom - 14 - alto_desc, ancho_util, alto_desc),
+                          descripcion, estado, tiempo,
+                          "Gacha: pulsa TIRAR para gastar 30 monedas. Lo que consigas va a las pestañas Equipo y "
+                          "Talismanes. Cuidado: el mundo sigue en marcha.")
+        botones["__inv_fondo__"] = caja
+        return botones
+    if estado["pestana"] == "equipo":
+        descripcion = _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y0 + 44,
+                                      ancho_util, caja.bottom - 14 - alto_desc - 10)
+        _caja_descripcion(pantalla, f_txt, pygame.Rect(x0, caja.bottom - 14 - alto_desc, ancho_util, alto_desc),
+                          descripcion, estado, tiempo,
+                          "Elige qué herramienta llevar y qué habilidades van en [2] [3] [4]. "
+                          "Cuidado: el mundo sigue en marcha mientras cambias.")
+        botones["__inv_fondo__"] = caja
+        return botones
     if estado["pestana"] == "talismanes":
         descripcion = _pestana_talismanes(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y0 + 44,
                                           ancho_util, caja.bottom - 14 - alto_desc - 10)
@@ -533,4 +573,282 @@ def _pestana_talismanes(pantalla, jugador, fuentes, botones, raton, tiempo, x0, 
             _boton_texto(pantalla, f_mini, rb, "Equipar", True, botones, f"__inv__equipar__{id_obj}")
         if hover:
             descripcion = _descripcion_talisman(jugador, id_obj)
+    return descripcion
+
+
+_DESCRIPCIONES_HAB = {}
+
+
+def _descripcion_habilidad_clase(nombre):
+    """Descripción de una habilidad que aún no tienes (se crea una vez y se guarda)."""
+    if nombre not in _DESCRIPCIONES_HAB:
+        from habilidades import crear_habilidad
+        h = crear_habilidad(nombre)
+        _DESCRIPCIONES_HAB[nombre] = h.descripcion if h else ""
+    return _DESCRIPCIONES_HAB[nombre]
+
+
+def _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, ancho, y_fin):
+    """Herramientas (izquierda) y habilidades (derecha): las conseguidas se pueden equipar,
+    las que faltan se ven bloqueadas. Devuelve la descripción bajo el ratón."""
+    from herramientas import HERRAMIENTAS_DISPONIBLES
+    from habilidades import HABILIDADES_DISPONIBLES
+    f_sub = fuentes["hab_nom"]
+    f_txt = fuentes["hab_det"]
+    f_mini = fuentes["hab_mini"]
+    descripcion = None
+
+    # ---- Herramientas
+    ancho_izq = int(ancho * 0.32)
+    _texto(pantalla, f_sub, "Herramientas", COLOR_TEXTO, (x0, y))
+    _texto(pantalla, f_mini, f"{len(jugador.coleccion_herramientas)}/{len(HERRAMIENTAS_DISPONIBLES)}",
+           COLOR_TEXTO_SUAVE, (x0 + ancho_izq, y + 4), derecha=True)
+    yh = y + 26
+    n = len(HERRAMIENTAS_DISPONIBLES)
+    alto_h = min(58, (y_fin - yh - (n - 1) * 6) // n)
+    for nombre in HERRAMIENTAS_DISPONIBLES:
+        r = pygame.Rect(x0, yh, ancho_izq, alto_h)
+        hover = r.collidepoint(raton)
+        herr = next((h for h in jugador.coleccion_herramientas if h.nombre == nombre), None)
+        equipada = herr is not None and herr is jugador.herramienta
+        if herr is None:
+            pygame.draw.rect(pantalla, (22, 25, 33), r, border_radius=8)
+            pygame.draw.rect(pantalla, (44, 50, 64), r, width=1, border_radius=8)
+            _texto(pantalla, f_txt, nombre, (95, 102, 118), (r.x + 12, r.y + 8))
+            _texto(pantalla, f_mini, "Bloqueada · se consigue en el Gacha", (85, 92, 108), (r.x + 12, r.y + 28))
+            if hover:
+                descripcion = f"{nombre}: aún no la tienes. Se consigue en el Gacha (a nivel 1)."
+        else:
+            _tarjeta(pantalla, r, hover, borde=(255, 215, 0) if equipada else None)
+            _texto(pantalla, f_txt, nombre, (255, 255, 255), (r.x + 12, r.y + 7))
+            estado = "ROTA" if herr.roto else f"Nv {herr.nivel}/{herr.nivel_max}"
+            _texto(pantalla, f_mini, f"{estado} · Dur. {herr.durabilidad:g}/{herr.durabilidad_max}",
+                   (255, 90, 80) if herr.roto else (170, 205, 255), (r.x + 12, r.y + 27))
+            rb = pygame.Rect(r.right - 78, r.y + (r.height - 20) // 2, 68, 20)
+            if equipada:
+                _boton_texto(pantalla, f_mini, rb, "Equipada", False, botones, "")
+            else:
+                idx = jugador.coleccion_herramientas.index(herr)
+                _boton_texto(pantalla, f_mini, rb, "Equipar", True, botones, f"__inv__herr__{idx}")
+            if hover:
+                descripcion = (f"{nombre} (Nv {herr.nivel}/{herr.nivel_max}): "
+                               + ("la llevas equipada. Sácala o guárdala con [1]." if equipada else
+                                  "pulsa Equipar para llevarla. Conserva su nivel y su durabilidad; empieza guardada."))
+        yh += alto_h + 6
+
+    # ---- Habilidades
+    xh = x0 + ancho_izq + 16
+    ancho_der = x0 + ancho - xh
+    _texto(pantalla, f_sub, "Habilidades", COLOR_TEXTO, (xh, y))
+    equipadas = " · ".join(f"[{i + 2}] {h.nombre if h else '—'}" for i, h in enumerate(jugador.huecos_habilidades))
+    _texto(pantalla, f_mini, equipadas, (255, 220, 80), (xh + 104, y + 4))
+    yk = y + 26
+    nombres = list(HABILIDADES_DISPONIBLES)
+    columnas = 3
+    filas = (len(nombres) + columnas - 1) // columnas
+    ancho_c = (ancho_der - (columnas - 1) * 8) // columnas
+    alto_c = min(76, (y_fin - yk - (filas - 1) * 6) // filas)
+    for k, nombre in enumerate(nombres):
+        fila, col = divmod(k, columnas)
+        r = pygame.Rect(xh + col * (ancho_c + 8), yk + fila * (alto_c + 6), ancho_c, alto_c)
+        hover = r.collidepoint(raton)
+        hab = next((h for h in jugador.coleccion_habilidades if h.nombre == nombre), None)
+        if hab is None:
+            pygame.draw.rect(pantalla, (22, 25, 33), r, border_radius=8)
+            pygame.draw.rect(pantalla, (44, 50, 64), r, width=1, border_radius=8)
+            _texto(pantalla, f_mini, nombre, (95, 102, 118), (r.x + 10, r.y + 8))
+            _texto(pantalla, f_mini, "Bloqueada · Gacha", (85, 92, 108), (r.x + 10, r.y + 26))
+            if hover:
+                descripcion = f"{nombre} (aún no la tienes, se consigue en el Gacha): {_descripcion_habilidad_clase(nombre)}"
+            continue
+        hueco = jugador.huecos_habilidades.index(hab) if hab in jugador.huecos_habilidades else None
+        _tarjeta(pantalla, r, hover, borde=(255, 215, 0) if hueco is not None else None)
+        _texto(pantalla, f_mini, nombre, (255, 255, 255), (r.x + 10, r.y + 6))
+        if hab.estado == "COOLDOWN":
+            est, col_est = f"Recarga {max(0.0, hab.tiempo_restante_cooldown):.0f}s", (255, 165, 80)
+        elif hab.estado in ("ACTIVA", "INVOCADO"):
+            est, col_est = "Activa", (0, 220, 255)
+        else:
+            est, col_est = "Lista", (120, 255, 160)
+        nivel_txt = f"Nv {hab.nivel}/{hab.nivel_max}" if hab.escalable else "Nv —"
+        _texto(pantalla, f_mini, f"{nivel_txt} · ", (170, 205, 255), (r.x + 10, r.y + 22))
+        _texto(pantalla, f_mini, est, col_est, (r.x + 10 + f_mini.size(f"{nivel_txt} · ")[0], r.y + 22))
+        # Botones de hueco [2] [3] [4]: el actual va en dorado
+        idx = jugador.coleccion_habilidades.index(hab)
+        bx = r.x + 10
+        by = r.bottom - 24
+        for i in range(len(jugador.huecos_habilidades)):
+            rb = pygame.Rect(bx + i * 30, by, 26, 18)
+            if hueco == i:
+                pygame.draw.rect(pantalla, (90, 74, 20), rb, border_radius=4)
+                pygame.draw.rect(pantalla, (255, 215, 0), rb, width=1, border_radius=4)
+                _texto(pantalla, f_mini, str(i + 2), (255, 230, 120), rb.center, centro=True)
+            else:
+                _boton_texto(pantalla, f_mini, rb, str(i + 2), True, botones, f"__inv__hab__{idx}__{i}",
+                             color=(120, 160, 230))
+        if hover:
+            lugar = f"va en [{hueco + 2}]" if hueco is not None else "guardada (no está en ningún hueco)"
+            descripcion = (f"{nombre} ({lugar}): {hab.descripcion} Pulsa [2], [3] o [4] para ponerla en ese hueco; "
+                           f"si ya estaba en otro, se intercambian.")
+    return descripcion
+
+
+def _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, ancho, y_fin, estado):
+    """Monedas y botón de tirar, la ruleta, el premio, las probabilidades y el historial."""
+    import gacha as G
+    f_titulo = fuentes["hab_contador"]
+    f_sub = fuentes["hab_nom"]
+    f_txt = fuentes["hab_det"]
+    f_mini = fuentes["hab_mini"]
+    descripcion = None
+    ruleta = estado.get("ruleta")
+    girando = G.ruleta_girando(ruleta, tiempo)
+
+    # ---- Fila 1: monedas | botón tirar | tiradas
+    alto1 = 62
+    r_mon = pygame.Rect(x0, y, 200, alto1)
+    _tarjeta(pantalla, r_mon, r_mon.collidepoint(raton))
+    _texto(pantalla, f_mini, "TUS MONEDAS", COLOR_TEXTO_SUAVE, (r_mon.x + 14, r_mon.y + 8))
+    _moneda(pantalla, (r_mon.x + 26, r_mon.y + 40), 11)
+    _texto(pantalla, f_titulo, jugador.monedas, COLOR_MONEDA, (r_mon.x + 44, r_mon.y + 26))
+    if r_mon.collidepoint(raton):
+        descripcion = "Monedas: se consiguen cazando animales y se pierden al morir (salvo con un Tótem de vida)."
+
+    r_tirar = pygame.Rect(r_mon.right + 14, y, ancho - 200 - 14 - 170 - 14, alto1)
+    puede = jugador.monedas >= G.COSTO_TIRADA and not girando
+    hover = r_tirar.collidepoint(raton)
+    if puede:
+        pulso = 0.5 + 0.5 * math.sin(tiempo * 4)
+        fondo = (120, 84, 20) if hover else (int(86 + 20 * pulso), int(62 + 14 * pulso), 18)
+        borde = (255, 215, 0)
+    else:
+        fondo, borde = (40, 42, 50), (80, 86, 100)
+    pygame.draw.rect(pantalla, fondo, r_tirar, border_radius=10)
+    pygame.draw.rect(pantalla, borde, r_tirar, width=2, border_radius=10)
+    if girando:
+        texto_boton = "Girando..."
+    elif jugador.monedas < G.COSTO_TIRADA:
+        texto_boton = f"Te faltan {G.COSTO_TIRADA - jugador.monedas} monedas"
+    else:
+        texto_boton = f"TIRAR  ·  {G.COSTO_TIRADA} monedas"
+    _texto(pantalla, f_titulo if puede else f_sub, texto_boton, (255, 240, 200) if puede else (130, 136, 150),
+           r_tirar.center, centro=True)
+    if puede:
+        botones["__inv__tirar"] = r_tirar
+    if hover:
+        descripcion = (f"Una tirada cuesta {G.COSTO_TIRADA} monedas. El premio se aplica al instante; "
+                       "la ruleta solo lo muestra. El mundo sigue en marcha mientras giras.")
+
+    r_tot = pygame.Rect(r_tirar.right + 14, y, 170, alto1)
+    _tarjeta(pantalla, r_tot, False)
+    _texto(pantalla, f_mini, "TIRADAS", COLOR_TEXTO_SUAVE, (r_tot.x + 14, r_tot.y + 8))
+    _texto(pantalla, f_titulo, estado.get("tiradas", 0), COLOR_TEXTO, (r_tot.x + 14, r_tot.y + 26))
+
+    # ---- Fila 2: ruleta
+    y2 = y + alto1 + 10
+    alto2 = 118
+    r_rul = pygame.Rect(x0, y2, ancho, alto2)
+    pygame.draw.rect(pantalla, (14, 16, 22), r_rul, border_radius=10)
+    if ruleta is None:
+        if "ruleta_quieta" not in estado:
+            estado["ruleta_quieta"] = [G.casilla_aleatoria() for _ in range(ancho // G.ANCHO_CASILLA + 3)]
+        casillas, desplazado = estado["ruleta_quieta"], (tiempo * 12) % G.ANCHO_CASILLA
+        primera = -1
+    else:
+        casillas = ruleta["casillas"]
+        prog = G.progreso_ruleta(ruleta, tiempo)
+        distancia = (ruleta["indice"] + 0.5 + ruleta["desfase"] * 0.5) * G.ANCHO_CASILLA - ancho / 2
+        desplazado = distancia * prog
+        primera = 0
+    clip_previo = pantalla.get_clip()
+    pantalla.set_clip(r_rul.clip(clip_previo) if clip_previo else r_rul)
+    for i, cas in enumerate(casillas):
+        cx = r_rul.x + i * G.ANCHO_CASILLA - desplazado + (0 if primera == 0 else -G.ANCHO_CASILLA)
+        if cx + G.ANCHO_CASILLA < r_rul.x or cx > r_rul.right:
+            continue
+        rc = pygame.Rect(int(cx) + 4, r_rul.y + 10, G.ANCHO_CASILLA - 8, alto2 - 20)
+        es_premio = ruleta is not None and not girando and i == ruleta["indice"]
+        pygame.draw.rect(pantalla, (30, 34, 46) if not es_premio else (52, 46, 24), rc, border_radius=8)
+        pygame.draw.rect(pantalla, cas["color"], rc, width=2 if not es_premio else 3, border_radius=8)
+        G.dibujar_icono(pantalla, cas, (rc.centerx, rc.centery - 8), 22, tiempo)
+        etiqueta = (TL.NOMBRE_RAREZA[cas["rareza"]] if cas.get("rareza") else G.NOMBRE_CATEGORIA[cas["categoria"]])
+        if cas["categoria"] == G.TOTEM:
+            etiqueta = "Tótem"
+        _texto(pantalla, f_mini, etiqueta, cas["color"], (rc.centerx, rc.bottom - 12), centro=True)
+    pantalla.set_clip(clip_previo)
+    # marcador central y bordes
+    cxm = r_rul.centerx
+    pygame.draw.polygon(pantalla, (255, 215, 0), [(cxm - 9, r_rul.y), (cxm + 9, r_rul.y), (cxm, r_rul.y + 12)])
+    pygame.draw.polygon(pantalla, (255, 215, 0), [(cxm - 9, r_rul.bottom), (cxm + 9, r_rul.bottom), (cxm, r_rul.bottom - 12)])
+    pygame.draw.rect(pantalla, (90, 100, 130), r_rul, width=2, border_radius=10)
+
+    # ---- Fila 3: premio
+    y3 = y2 + alto2 + 10
+    alto3 = 58
+    r_pre = pygame.Rect(x0, y3, ancho, alto3)
+    if ruleta is None:
+        pygame.draw.rect(pantalla, (22, 25, 33), r_pre, border_radius=10)
+        _texto(pantalla, f_txt, "Pulsa TIRAR para girar la ruleta.", COLOR_TEXTO_SUAVE, r_pre.center, centro=True)
+    elif girando:
+        pygame.draw.rect(pantalla, (22, 25, 33), r_pre, border_radius=10)
+        puntos = "." * (1 + int(tiempo * 3) % 3)
+        _texto(pantalla, f_sub, "Girando" + puntos, COLOR_TEXTO_SUAVE, r_pre.center, centro=True)
+    else:
+        res = ruleta["resultado"]
+        brillo = res.get("rareza") in (TL.EPICO, TL.LEGENDARIO)
+        pulso = 0.5 + 0.5 * math.sin(tiempo * 6)
+        fondo = (40, 34, 18) if brillo else (26, 30, 40)
+        pygame.draw.rect(pantalla, fondo, r_pre, border_radius=10)
+        ancho_borde = 2 + (int(2 * pulso) if brillo else 0)
+        pygame.draw.rect(pantalla, res["color"], r_pre, width=ancho_borde, border_radius=10)
+        G.dibujar_icono(pantalla, res, (r_pre.x + 34, r_pre.centery), 18, tiempo)
+        titulo = "¡Nada!" if res["categoria"] == G.NADA else ("¡LEGENDARIO!" if res.get("rareza") == TL.LEGENDARIO
+                                                                else ("¡Épico!" if res.get("rareza") == TL.EPICO
+                                                                      else "¡Conseguiste!"))
+        _texto(pantalla, f_sub, titulo, res["color"], (r_pre.x + 64, r_pre.y + 8))
+        _texto(pantalla, f_txt, res["texto"], COLOR_TEXTO, (r_pre.x + 64, r_pre.y + 31))
+
+    # ---- Fila 4: probabilidades | historial
+    y4 = y3 + alto3 + 10
+    alto4 = y_fin - y4
+    ancho_p = int(ancho * 0.56)
+    r_prob = pygame.Rect(x0, y4, ancho_p, alto4)
+    _tarjeta(pantalla, r_prob, False)
+    _texto(pantalla, f_mini, "PROBABILIDADES", COLOR_TEXTO_SUAVE, (r_prob.x + 12, r_prob.y + 8))
+    faltan_h = len(jugador.herramientas_faltantes())
+    faltan_a = len(jugador.habilidades_faltantes())
+    filas = [
+        (G.HERRAMIENTA, f"Herramienta  25%", f"te faltan {faltan_h}" if faltan_h else "tienes todas: +25 monedas",
+         "Una herramienta que no tengas, a nivel 1. Si ya tienes las 6, te devuelve 25 monedas."),
+        (G.HABILIDAD, f"Habilidad  15%", f"te faltan {faltan_a}" if faltan_a else "tienes todas: +25 monedas",
+         "Una habilidad que no tengas, a nivel 1 (se equipa sola si hay hueco libre). Si ya las tienes todas, +25 monedas."),
+        (G.ANILLO, f"Anillo  45%", "Común 60 · Especial 30 · Épico 9 · Legendario 1",
+         "Primero se sortea la rareza y luego un anillo de esa rareza. Repetido: sube de nivel; si ya está al máximo, +25 monedas."),
+        (G.TOTEM, f"Tótem de vida  10%", f"tienes {jugador.talismanes.totems}/{TL.TOTEM_MAX}",
+         "Se acumula hasta 5. Equipado, te salva de una muerte. Si ya tienes 5, +25 monedas."),
+        (G.NADA, f"Nada  5%", "", "No te toca nada."),
+    ]
+    paso = max(18, (alto4 - 30) // len(filas))
+    color_cat = {G.HERRAMIENTA: G.COLOR_HERRAMIENTA, G.HABILIDAD: G.COLOR_HABILIDAD, G.ANILLO: TL.COLOR_RAREZA[TL.EPICO],
+                 G.TOTEM: TL.COLOR_TOTEM, G.NADA: G.COLOR_NADA}
+    for k, (cat, titulo, detalle, desc) in enumerate(filas):
+        fy = r_prob.y + 28 + k * paso
+        r_fila = pygame.Rect(r_prob.x + 4, fy - 2, r_prob.width - 8, paso)
+        if r_fila.collidepoint(raton):
+            pygame.draw.rect(pantalla, COLOR_TARJETA_HOVER, r_fila, border_radius=5)
+            descripcion = desc
+        pygame.draw.circle(pantalla, color_cat[cat], (r_prob.x + 18, fy + 8), 5)
+        _texto(pantalla, f_txt, titulo, COLOR_TEXTO, (r_prob.x + 30, fy))
+        _texto(pantalla, f_mini, detalle, COLOR_TEXTO_SUAVE, (r_prob.right - 12, fy + 2), derecha=True)
+
+    r_his = pygame.Rect(r_prob.right + 12, y4, ancho - ancho_p - 12, alto4)
+    _tarjeta(pantalla, r_his, False)
+    _texto(pantalla, f_mini, "ÚLTIMAS TIRADAS", COLOR_TEXTO_SUAVE, (r_his.x + 12, r_his.y + 8))
+    historial = estado.get("historial", [])
+    if girando:
+        historial = historial[1:]          # la que gira aún no se muestra
+    if not historial:
+        _texto(pantalla, f_mini, "Todavía no has tirado.", COLOR_TEXTO_SUAVE, (r_his.x + 12, r_his.y + 30))
+    for k, res in enumerate(historial[:max(1, (alto4 - 30) // 18)]):
+        _texto(pantalla, f_mini, "• " + res["texto"], res["color"], (r_his.x + 12, r_his.y + 28 + k * 18))
     return descripcion

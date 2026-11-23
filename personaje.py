@@ -1,6 +1,6 @@
 import pygame
 import math
-from herramientas import EspadaLigera
+from herramientas import EspadaLigera, HERRAMIENTAS_DISPONIBLES, crear_herramienta
 from talismanes import ColeccionTalismanes
 from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO)
@@ -8,6 +8,9 @@ from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMP
 # Masa del personaje frente a otros cuerpos (conejo 1, lobo 3): apenas lo desplazan sus
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
 MASA_PERSONAJE = 100.0
+
+# Huecos de habilidades: tecla de pygame y texto de cada uno ([2] [3] [4])
+TECLAS_HUECOS = ((pygame.K_2, "2"), (pygame.K_3, "3"), (pygame.K_4, "4"))
 
 # Experiencia (Documentacion/sistema_xp.md). XP_POR_NIVEL[n - 1] = XP para pasar del nivel n
 # al n + 1. Total 1048 XP: pensado para llegar al nivel 20 en unas 2 horas de caza.
@@ -131,10 +134,21 @@ class Personaje:
         self.bono_regen_escudo_magico = 0.0
         self.regen_vida = None           # (vida, intervalo) del anillo de regeneración inversa
         self._t_regen_vida = 0.0
-        self.habilidades = habilidades if habilidades is not None else []
+        self.habilidades = list(habilidades) if habilidades is not None else []
+        # Coleccion (fase 2 del Gacha): todas las habilidades conseguidas; solo las de los 3
+        # huecos ([2] [3] [4]) estan equipadas (self.habilidades, en orden de hueco).
+        self.huecos_habilidades = [None] * len(TECLAS_HUECOS)
+        for h in self.habilidades:
+            i = next((k for k, (_, t) in enumerate(TECLAS_HUECOS) if t == getattr(h, "tecla_str", None)), None)
+            if i is None or self.huecos_habilidades[i] is not None:
+                i = self.huecos_habilidades.index(None)
+            self.huecos_habilidades[i] = h
+            h.asignar_tecla(*TECLAS_HUECOS[i])
+        self.coleccion_habilidades = list(self.habilidades)
         # Efectos temporales de habilidades no equipadas (ej. los que otorga Golpe de Suerte)
         self.efectos_extra = []
         self.herramienta = herramienta if herramienta is not None else EspadaLigera()
+        self.coleccion_herramientas = [self.herramienta]   # herramientas conseguidas (1 equipada)
         # Empieza con los escudos llenos incluyendo el bonus de la herramienta Escudo
         self.escudo = self.escudo_max
         self.escudo_magico = self.escudo_magico_max
@@ -297,6 +311,114 @@ class Personaje:
             self.objetivo_apuntado = None
             return
         self._mirar_a(obj.posicion)
+
+    # ---------------------------------------------------------------- Coleccion (fase 2)
+    def _sincronizar_habilidades(self):
+        """self.habilidades = las equipadas en orden de hueco, cada una con la tecla de su hueco."""
+        for i, h in enumerate(self.huecos_habilidades):
+            if h is not None:
+                h.asignar_tecla(*TECLAS_HUECOS[i])
+        self.habilidades[:] = [h for h in self.huecos_habilidades if h is not None]
+
+    def tiene_herramienta(self, nombre):
+        return any(h.nombre == nombre for h in self.coleccion_herramientas)
+
+    def tiene_habilidad(self, nombre):
+        return any(h.nombre == nombre for h in self.coleccion_habilidades)
+
+    def herramientas_faltantes(self):
+        return [n for n in HERRAMIENTAS_DISPONIBLES if not self.tiene_herramienta(n)]
+
+    def habilidades_faltantes(self):
+        from habilidades import HABILIDADES_DISPONIBLES
+        return [n for n in HABILIDADES_DISPONIBLES if not self.tiene_habilidad(n)]
+
+    def agregar_herramienta(self, nombre):
+        """Añade una herramienta nueva a nivel 1 (sin equiparla). None si ya la tenías."""
+        if self.tiene_herramienta(nombre):
+            return None
+        h = crear_herramienta(nombre)
+        self.coleccion_herramientas.append(h)
+        return h
+
+    def agregar_habilidad(self, nombre):
+        """Añade una habilidad nueva a nivel 1. Si hay un hueco libre se equipa ahí; si no,
+        queda guardada en la coleccion. None si ya la tenías."""
+        from habilidades import crear_habilidad
+        if self.tiene_habilidad(nombre):
+            return None
+        h = crear_habilidad(nombre)
+        if h is None:
+            return None
+        self.coleccion_habilidades.append(h)
+        if None in self.huecos_habilidades:
+            self.huecos_habilidades[self.huecos_habilidades.index(None)] = h
+            self._sincronizar_habilidades()
+        return h
+
+    def equipar_herramienta(self, herramienta):
+        """Cambia la herramienta equipada por otra de la coleccion. La anterior conserva su
+        nivel y durabilidad; la nueva empieza guardada (se saca con [1])."""
+        if herramienta is self.herramienta or herramienta not in self.coleccion_herramientas:
+            return False
+        vieja = self.herramienta
+        vieja.activa = False
+        vieja.hitbox = None
+        if getattr(vieja, "cargando", False):
+            vieja.cargando = False
+            vieja.tiempo_carga = 0.0
+        herramienta.activa = False
+        self.herramienta = herramienta
+        self.escudo = min(self.escudo, self.escudo_max)                 # la pasiva del Escudo cambia
+        self.escudo_magico = min(self.escudo_magico, self.escudo_magico_max)
+        return True
+
+    def _retirar_habilidad(self, h):
+        """Al quitar una habilidad del hueco: terminan sus efectos (invocaciones, telarañas,
+        cuchillas, ondas, cargas, curación mantenida y lo que estuviera activo) y pasa a su
+        recarga. Conserva nivel y recarga (no se puede 'resetear' cambiándola)."""
+        for lista in ("lobos", "conejos", "aranas"):
+            if hasattr(h, lista):
+                for c in getattr(h, lista):
+                    c.vivo = False
+                setattr(h, lista, [])
+        for lista in ("telaranas", "cuchillas", "emisiones"):
+            if hasattr(h, lista):
+                setattr(h, lista, [])
+        if getattr(h, "cargando", False):
+            h.cargando = False
+            if hasattr(h, "tiempo_carga"):
+                h.tiempo_carga = 0.0
+        if getattr(h, "canalizando", False):
+            h.canalizando = False
+        if hasattr(h, "modo_combate"):
+            h.modo_combate = False
+        if h.estado == "ACTIVA":
+            h.tiempo_restante_activo = 0.0
+        h.actualizar(0.0, self)          # procesa el paso a recarga y el fin del efecto
+
+    def equipar_habilidad(self, habilidad, hueco):
+        """Pone una habilidad de la coleccion en el hueco 0-2 ([2] [3] [4]). Si ya estaba en
+        otro hueco, intercambian sitio; si el hueco tenia otra, esa se guarda (y terminan sus
+        efectos)."""
+        if habilidad not in self.coleccion_habilidades or not 0 <= hueco < len(self.huecos_habilidades):
+            return False
+        actual = self.huecos_habilidades[hueco]
+        if actual is habilidad:
+            return False
+        if habilidad in self.huecos_habilidades:
+            otro = self.huecos_habilidades.index(habilidad)
+            self.huecos_habilidades[otro], self.huecos_habilidades[hueco] = actual, habilidad
+        else:
+            if actual is not None:
+                self._retirar_habilidad(actual)
+            self.huecos_habilidades[hueco] = habilidad
+        self._sincronizar_habilidades()
+        return True
+
+    def habilidades_guardadas(self):
+        """Habilidades de la coleccion que no estan en ningun hueco (su recarga sigue corriendo)."""
+        return [h for h in self.coleccion_habilidades if h not in self.huecos_habilidades]
 
     def habilidades_en_efecto(self):
         """Habilidades equipadas más los efectos temporales activos (ej. de Golpe de Suerte)."""
