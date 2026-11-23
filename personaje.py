@@ -231,7 +231,8 @@ class Personaje:
         obj = self.objetivo_apuntado
         if obj is None:
             return
-        if not getattr(obj, "vivo", True) or (obj.posicion - self.posicion).length() > AUTOAPUNTADO_RANGO:
+        if (not getattr(obj, "vivo", True) or not getattr(obj, "apuntable", True)
+                or (obj.posicion - self.posicion).length() > AUTOAPUNTADO_RANGO):
             self.objetivo_apuntado = None
             return
         self._mirar_a(obj.posicion)

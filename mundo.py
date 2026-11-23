@@ -8,6 +8,7 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
                          aplicar_veneno, enemigo_en, COLOR_VENENO)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
+from fauna import SistemaFauna
 
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
@@ -103,6 +104,7 @@ class Charco:
                                (round(centro_local.x), round(centro_local.y)), round(self.radio_peligro))
 
         # Flora acuatica: nenufares sobre el agua y juncos/espadanas en las orillas
+        self.nenufares = []  # posiciones (mundo) de los nenufares, para la fauna
         for _ in range(max(2, int(radio / 45))):
             c, r = random.choice(locales)
             pr = random.randint(5, 9)
@@ -110,6 +112,7 @@ class Charco:
             d = random.uniform(0, max(0.0, r - pr - 3))
             lx = c.x + math.cos(ang) * d
             ly = c.y + math.sin(ang) * d
+            self.nenufares.append((pygame.Vector2(origen.x + lx, origen.y + ly), pr))
             pygame.draw.circle(self.superficie, COLOR_NENUFAR_BORDE, (round(lx), round(ly)), pr + 1)
             pygame.draw.circle(self.superficie, COLOR_NENUFAR, (round(lx), round(ly)), pr)
             na = random.uniform(0, math.tau)
@@ -853,6 +856,7 @@ def iniciar_mundo(config):
     vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
     rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles)
     vegetacion.registrar_obstaculos(rocas)
+    fauna = SistemaFauna(CENTRO_MUNDO, RADIO_MUNDO, vegetacion, charcos, rocas)
 
     # Maniqui de pruebas en el centro del mapa (recibe dano para probar las invocaciones)
     maniqui = Maniqui(CENTRO_MUNDO)
@@ -897,6 +901,7 @@ def iniciar_mundo(config):
     ejecutando = True
     motivo_salida = "salir"   # "salir" = cerrar juego; "menu" = volver a seleccion
     mostrar_hitboxes = False  # Alternable con la tecla [H]
+    mostrar_brujula = False   # Alternable con la tecla [C]
     botones_stats = {}        # Botones del panel (clave -> Rect), se actualizan cada frame
     info_abierta = None       # Tooltip de ayuda abierto: None, "stats" o "hab"
 
@@ -923,7 +928,7 @@ def iniciar_mundo(config):
                 hab.modo_combate = (hab.estado == "INVOCADO" and teclas_estado[hab.tecla])
 
         # Enemigos actuales (por ahora solo el maniqui de pruebas)
-        enemigos = [maniqui] if maniqui.vivo else []
+        enemigos = ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
 
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -941,6 +946,8 @@ def iniciar_mundo(config):
                 # [H] Alternar visualización de hitboxes para depuración
                 elif evento.key == pygame.K_h:
                     mostrar_hitboxes = not mostrar_hitboxes
+                elif evento.key == pygame.K_c:
+                    mostrar_brujula = not mostrar_brujula
 
                 # [1] Exclusivo para Herramientas (Espada Ligera sacar/guardar)
                 elif evento.key == pygame.K_1:
@@ -1243,6 +1250,7 @@ def iniciar_mundo(config):
         cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
         for hab in jugador.habilidades:
             cuerpos.extend(getattr(hab, "criaturas", ()))
+        cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
         resolver_solapamientos(cuerpos)
         jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
         jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)
@@ -1259,6 +1267,7 @@ def iniciar_mundo(config):
         # 1. Dibujar el mundo (solo lo visible), recortado al área central entre paneles
         vista = vista_camara()
         desplazamiento = (vista.x - mundo_x, vista.y - mundo_y)  # mundo -> pantalla
+        fauna.actualizar(dt, jugador, vista)
         pantalla.set_clip(area_mundo_pantalla)
 
         dibujar_suelo(pantalla, vista, desplazamiento)
@@ -1267,12 +1276,18 @@ def iniciar_mundo(config):
             if charco.rect.colliderect(vista):
                 charco.dibujar(pantalla, desplazamiento)
 
+        # Peces (sombras bajo el agua), por debajo de todo lo demas
+        fauna.dibujar_peces(pantalla, vista, desplazamiento)
+        fauna.dibujar_ranas(pantalla, vista, desplazamiento)
+
         for roca in rocas:
             if roca.rect.colliderect(vista):
                 roca.dibujar(pantalla, desplazamiento)
+        fauna.dibujar_entradas_cueva(pantalla, vista, desplazamiento)
 
         # Pasto y flores (cobertura de suelo, bajo las entidades)
         vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
+        fauna.dibujar_madrigueras(pantalla, vista, desplazamiento)
         # Arboles (bosques): sombra + tronco solido bajo las entidades; la copa va al final
         vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
         # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
@@ -1284,6 +1299,13 @@ def iniciar_mundo(config):
 
         # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
+        fauna.dibujar_conejos(pantalla, vista, desplazamiento)
+        fauna.dibujar_venados(pantalla, vista, desplazamiento)
+        fauna.dibujar_jabalies(pantalla, vista, desplazamiento)
+        fauna.dibujar_zorros(pantalla, vista, desplazamiento)
+        fauna.dibujar_lobos(pantalla, vista, desplazamiento)
+        fauna.dibujar_osos(pantalla, vista, desplazamiento)
+        fauna.dibujar_cocodrilos(pantalla, vista, desplazamiento)
 
         # Mira roja sobre el enemigo autoapuntado
         if jugador.objetivo_apuntado is not None:
@@ -1300,18 +1322,48 @@ def iniciar_mundo(config):
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
+        fauna.dibujar_mariposas(pantalla, vista, desplazamiento)
         # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
-        # semitransparentes si hay una entidad debajo: jugador, maniqui o invocaciones.
+        # semitransparentes si hay una entidad debajo: jugador, maniqui, invocaciones o fauna.
         entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
         for hab in jugador.habilidades:
             entidades.extend(getattr(hab, "criaturas", ()))
+        entidades.extend(fauna.cuerpos_solidos(vista))
         vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
+        # Pajaros: vuelan por encima de las copas
+        fauna.dibujar_pajaros(pantalla, vista, desplazamiento)
 
         # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
         # se den ambos) y en el arbusto solo tú ves sus orbes
-        if jugador.oculto or jugador.invisible:
+        if jugador.oculto or jugador.invisible or fauna.jugador_en_cueva(jugador):
             pantalla.blit(capa_oscura, (mundo_x, mundo_y))
             vegetacion.dibujar_interior(pantalla, desplazamiento, jugador)
+        fauna.dibujar_orbes_cueva(pantalla, vista, desplazamiento)
+
+        # Brujula [C]: flechas hacia el conejo, lobo, oso y maniqui mas cercanos
+        if mostrar_brujula:
+            ox, oy = desplazamiento
+            cx = round(jugador.posicion.x - ox); cy = round(jugador.posicion.y - oy)
+            objetivos_b = fauna.brujula(jugador.posicion)
+            if maniqui.vivo:
+                objetivos_b.append(("M", (230, 120, 120), pygame.Vector2(maniqui.posicion)))
+            fuente_b = fuentes["mini"]
+            for etiqueta_b, color_b, pos_b in objetivos_b:
+                d_b = pos_b - jugador.posicion
+                dist_b = d_b.length()
+                if dist_b < 1:
+                    continue
+                dn = d_b.normalize()
+                bx = cx + int(dn.x * 58); by = cy + int(dn.y * 58)
+                perp = pygame.Vector2(-dn.y, dn.x)
+                p1 = (bx + int(dn.x * 9), by + int(dn.y * 9))
+                p2 = (bx - int(dn.x * 5) + int(perp.x * 5), by - int(dn.y * 5) + int(perp.y * 5))
+                p3 = (bx - int(dn.x * 5) - int(perp.x * 5), by - int(dn.y * 5) - int(perp.y * 5))
+                pygame.draw.polygon(pantalla, color_b, [p1, p2, p3])
+                txt_b = fuente_b.render("%s %d" % (etiqueta_b, int(dist_b)), True, color_b)
+                pantalla.blit(txt_b, (cx + int(dn.x * 76) - txt_b.get_width() // 2, cy + int(dn.y * 76) - txt_b.get_height() // 2))
+            leyenda = fuente_b.render("[C] Brujula  C=conejo  L=lobo  O=oso  M=maniqui", True, (200, 210, 225))
+            pantalla.blit(leyenda, (mundo_x + 12, mundo_y + 12))
 
         # Dibujar Hitboxes si está activada la visualización [H]
         if mostrar_hitboxes:

@@ -344,6 +344,14 @@ PASTO_ALTURA_MIN = 12             # altura media (no tapa al personaje: va bajo 
 PASTO_ALTURA_MAX = 22
 PASTO_ESCALA_MIN = 0.8
 PASTO_ESCALA_MAX = 1.4
+# Bioma de pasto alto: zonas visuales de hierba mas alta (bajo las entidades, no tapan al jugador)
+NUM_PASTIZALES_MIN = 8
+NUM_PASTIZALES_MAX = 12
+PASTIZAL_RADIO_MIN = 300
+PASTIZAL_RADIO_MAX = 700
+PASTO_ALTO_ESCALA_MIN = 1.8
+PASTO_ALTO_ESCALA_MAX = 2.8
+DENSIDAD_PASTIZAL = 0.45
 COLORES_PASTO = [(70, 138, 66), (86, 156, 74), (58, 120, 56)]
 
 FLORES_POR_PRADERA = (20, 60)
@@ -413,6 +421,7 @@ class SistemaVegetacion:
         self.arboles = []
         self.bosques = []               # (centro, radio) de cada bosque/bioma
         self.praderas = []              # (centro, radio) de cada pradera (pasto/flores)
+        self.pastizales = []            # (centro, radio) de cada zona de pasto alto (visual)
         self.pasto = []
         self.flores = []
         self.reapariciones_frutal = []  # temporizadores (segundos restantes)
@@ -424,8 +433,10 @@ class SistemaVegetacion:
         # Biomas: bosques (arboles) y praderas (pasto/flores), luego arbustos
         self._generar_bosques()
         self._generar_praderas()
+        self._generar_pastizales()
         self._generar_arboles()
         self._generar_pasto()
+        self._generar_pasto_alto()
         self._generar_flores()
 
         for tipo, (minimo, maximo) in CANTIDADES.items():
@@ -618,6 +629,24 @@ class SistemaVegetacion:
             n = int(math.pi * radio * radio / (PASTO_ESPACIADO ** 2) * DENSIDAD_BOSQUE_PASTO)
             for _ in range(n):
                 self._soltar_pasto((centro, radio))
+
+    def _generar_pastizales(self):
+        n = random.randint(NUM_PASTIZALES_MIN, NUM_PASTIZALES_MAX)
+        for _ in range(n):
+            ang = random.uniform(0, math.tau)
+            dist = math.sqrt(random.random()) * (self.radio_mundo * 0.9)
+            cx = self.centro_mundo.x + math.cos(ang) * dist
+            cy = self.centro_mundo.y + math.sin(ang) * dist
+            radio = random.randint(PASTIZAL_RADIO_MIN, PASTIZAL_RADIO_MAX)
+            self.pastizales.append((pygame.Vector2(cx, cy), radio))
+
+    def _generar_pasto_alto(self):
+        for centro, radio in self.pastizales:
+            n = int(math.pi * radio * radio / (PASTO_ESPACIADO ** 2) * DENSIDAD_PASTIZAL)
+            for _ in range(n):
+                x, y = self._punto_en_bosque((centro, radio))
+                if self._dentro_del_mapa(x, y, 4) and not self._en_agua(x, y, MARGEN_COBERTURA_AGUA):
+                    self.pasto.append(Pasto(x, y, random.uniform(PASTO_ALTO_ESCALA_MIN, PASTO_ALTO_ESCALA_MAX)))
 
     def _generar_flores(self):
         for centro, radio in self.praderas:
