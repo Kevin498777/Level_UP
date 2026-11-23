@@ -1323,6 +1323,8 @@ def iniciar_mundo(config):
             jugador.actualizar_veneno(dt)
             # Ralentizacion recibida (ej. Onda Sonora de un enemigo)
             jugador.actualizar_ralentizacion(dt)
+            # Fundido visual de Paso 0 (desvanecerse / volver a verse)
+            jugador.actualizar_desvanecimiento(dt)
 
             # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
             jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)

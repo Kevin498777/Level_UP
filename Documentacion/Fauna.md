@@ -79,6 +79,8 @@ La fauna pasiva huye de la **amenaza más cercana**: el jugador, cualquiera de t
   salir. Si dejan de perseguirlos, retoman el deambular sin volver obligados.
 - **Reproducción:** si una madriguera tiene **2 o más** conejos vivos, cada **30 s**
   nace **+1**, sin superar el máximo de la madriguera (10).
+- **Madriguera vacía:** si se queda sin conejos, **desaparece** y aparece otra en
+  otro pastizal (fuera de tu vista) con **2 a 10** conejos nuevos.
 - **Velocidad:** paseo 45, huida 160.
 
 ### Venado / ciervo
@@ -143,7 +145,12 @@ El zorro tiene **tres pasivas**:
    sombra), hace **un tiro del 30%**: si sale, se vuelve **completamente invisible
    durante 5 s** — no se dibuja y **nada puede detectarlo ni tocarlo** (ni el
    conejo huye de él, ni el jugador puede golpearlo). Si el tiro falla, reinicia la
-   recarga de 10 s. Puede activarlo también mientras corre.
+   recarga de 10 s. Puede activarlo también mientras corre. Al activarlo **se
+   desvanece en 0.4 s** (y reaparece con el mismo fundido), pero deja de poder
+   tocarse desde el primer instante.
+- **Reaparición:** cada **3 min** aparece un zorro nuevo en el mundo (fuera de tu
+  vista) y cada **2 min** nace **+1** junto a otro si quedan 2 o más, sin pasar
+  de 15.
 - **Velocidad:** paseo 42, correr 150 (×1.3 mientras roba velocidad).
 
 ---
@@ -167,6 +174,12 @@ El zorro tiene **tres pasivas**:
   **caza conejos y venados**; con que **un** lobo mate a una presa, **toda la
   manada** sacia el hambre. Aunque no tengan hambre, atacan al jugador o a las
   sombras que se acerquen o los ataquen.
+- **Crecimiento:** cada **1 min**, si no está en combate, la manada gana **+1
+  lobo** (hasta 4). Al llegar a 4 sin alfa, **uno evoluciona a alfa** (gana su
+  vida, daño, desangrado y aspecto).
+- **Manada nueva:** si la exterminas, al minuto **se inicia otra con 2 lobos en
+  otro bosque** (a más de 1500 px y fuera de tu vista), que crece igual. Siempre
+  hay como máximo **7 manadas**.
 - **Velocidad:** paseo 40, persecución 165, retirada 210.
 
 ### Oso (en su cueva, roca gigante)
@@ -189,8 +202,12 @@ El zorro tiene **tres pasivas**:
   que la distingue de una roca normal.
 - **Orbe de la cueva:** solo se puede **entrar a la cueva cuando el oso muere**.
   Al llegar a la entrada, el **mapa se oscurece** (simula estar dentro de la cueva)
-  y recoges un **orbe que cura +20** de vida (un solo uso; más recompensas más
-  adelante).
+  y recoges un **orbe que cura +20** de vida y da **+2 XP** (un solo uso; más
+  recompensas más adelante). El orbe aparece también si el oso muere por un
+  efecto (desangrado, quemadura, veneno).
+- **Reaparición:** **3 min** después de morir aparece un **oso nuevo en su
+  cueva** (si no estás dentro y la roca sigue en pie; si Cortar la destruyó, ya no
+  vuelve). El orbe que no recogiste se pierde.
 - **Velocidad:** lento (paseo 90, persecución 120).
 
 ### Cocodrilo (zona profunda del lago)
@@ -214,9 +231,12 @@ El zorro tiene **tres pasivas**:
 
 ## Notas de diseño
 
-- Las poblaciones globales (venado, jabalí, zorro) **no reaparecen por teletransporte**
-  al morir: se recuperan por **reproducción** (venado y jabalí). Los conejos se
-  recuperan por reproducción dentro de cada madriguera.
+- **Reaparición:** venados y jabalíes se recuperan por **reproducción**; zorros,
+  lobos y osos además **reaparecen** con el tiempo, y las madrigueras vacías se
+  mudan (ver cada animal y `sistema_xp.md`). Nada pasa nunca del máximo de su
+  especie. El cocodrilo no vuelve.
+- **Experiencia:** cada animal muerto a manos del jugador o de sus sombras da XP
+  (tabla en `sistema_xp.md`); lo que cazan zorros y lobos salvajes no cuenta.
 - Mientras un zorro está **invisible** (Paso 0) queda fuera de la lista de objetivos
   y de las colisiones: es intencional, para mostrar la característica estrella de
   Paso 0.

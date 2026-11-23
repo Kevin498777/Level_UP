@@ -1,56 +1,93 @@
-> Okey tengo pensado lo siguiente que el nivel maximo por ahora sea el nivel 20
-para subir de nivel ocuparan los sigueintes puntos
-1-2 (1 punto de experiencia)
-2-3 (2 puntos de experiencia)
-3-4 (4 puntos de experiencia)
-4-5 (8 puntos de experiencia)
-5-6 (14 puntos de experiencia)
-6-7 (22 puntos de experiencia)
-7-8 (32 puntos de experiencia) (+10)
-8-9 (44 puntos de experiencia) (+12)
-9-10 (58 puntos de experiencia) (+14)
-10-11 (74 puntos de experiencia) (+16)
-11-12 (92 puntos de experiencia) (+18)
-12-13 (112 puntos de experiencia) (+20)
-13-14 (134 puntos de experiencia) (+22)
-14-15 (158 puntos de experiencia) (+24)
-15-16 (184 puntos de experiencia) (+26)
-16-17 (212 puntos de experiencia) (+28)
-17-18 (242 puntos de experiencia) (+30)
-18-19 (274 puntos de experiencia) (+32)
-19-20 (310 puntos de experiencia) (+36)
+# LEVEL_UP — Sistema de experiencia y muerte
 
-Cada que sube un nivel la experiencia vuelve a 0 para pasar al sigueinte nivel
+> Documento de información (no técnico) sobre cómo se sube de nivel y qué pasa al morir.
+> Nace de la propuesta del equipo (ver el anexo) y refleja lo que ya está en el juego.
+> Actualizado: 23 de noviembre de 2026.
 
+---
 
+## 1. Niveles
 
+- Nivel máximo del personaje: **20**.
+- Cada nivel da **3 puntos de mejora** (ver la sección 7 de `Level_UP_Especificaciones.md`).
+- Al subir, la experiencia **vuelve a 0 más lo que sobró**: si te faltaba 1 XP y ganas 4, subes y empiezas el siguiente nivel con 3. Con mucha XP de golpe se pueden subir varios niveles.
+- En el nivel 20 la experiencia ya no se acumula y la barra muestra **MÁX**.
+- La tecla de prueba **[L]** sigue subiendo un nivel (también se detiene en el 20).
 
-Conejo salvaje 
-0.1 de experiencia 
+| Salto | XP | Salto | XP | Salto | XP |
+|---|---|---|---|---|---|
+| 1 → 2 | 1 | 8 → 9 | 25 | 15 → 16 | 95 |
+| 2 → 3 | 2 | 9 → 10 | 30 | 16 → 17 | 110 |
+| 3 → 4 | 4 | 10 → 11 | 40 | 17 → 18 | 125 |
+| 4 → 5 | 8 | 11 → 12 | 50 | 18 → 19 | 140 |
+| 5 → 6 | 12 | 12 → 13 | 60 | 19 → 20 | 160 |
+| 6 → 7 | 16 | 13 → 14 | 70 | | |
+| 7 → 8 | 20 | 14 → 15 | 80 | **Total** | **1048** |
 
-Venado
-1 de experiencia
+La tabla está pensada para llegar al nivel 20 en **unas 2 horas** de caza. Es una estimación (unos 8 – 10 XP por minuto alternando una cueva de oso, una manada y lo que haya por el camino); falta medirla jugando.
 
-Zorro
-1.5 de experiencia
+---
 
-Jabalí
-3 de experecia
+## 2. Experiencia por animal
 
-Cocodrilo
-4 de experiencia
+| Animal | XP |
+|---|---|
+| Conejo salvaje | 0.1 |
+| Venado | 1 |
+| Zorro | 1.5 |
+| Jabalí | 3 |
+| Cocodrilo | 4 |
+| Oso | 6 |
+| Orbe de curación de la cueva del oso | +2 |
+| Lobo | 2 |
+| Lobo alfa | 4 |
+| Manada completa (bono) | +3 |
 
-Oso
-6 de experiencia
-+2 de xp al obtener el orbe de curacion en la cueva
+- **Quién da XP:** solo los animales que matas **tú o tus sombras** (invocaciones), incluidos los que mueren por un efecto que causaste (desangrado, quemadura, veneno, telaraña). Lo que cazan los **depredadores salvajes** (zorros y lobos que se comen conejos o venados) **no da XP**.
+- **Bono de manada:** se da al acabar con **todos** los lobos de la manada y **solo si entre ellos estaba el alfa** (por eso es "completa"). Así no se puede farmear matando a los 2 lobos de una manada que se está formando.
+- **El maniquí no da XP.**
+- En pantalla aparece **"+X XP"** sobre el personaje y **"NIVEL N"** al subir. El panel izquierdo muestra la XP actual y la necesaria con una barra.
 
-Manada de lobos completa + 3 de experienca
-Lobo + 2 de experiencia
-Lobo alfa 4 de experiencia 
+---
 
-El maniqui no da xp
+## 3. Reaparición de la fauna
 
+Para que el mundo no se agote, los animales vuelven sin pasar nunca el máximo de su especie:
 
-Sistema de muerte
-si tu vida llega a 0 reapareces en el spawn comenzando desde el inicio a nivel 1
-Se muestra un pequeño mensaje de has muerto, reaparecer o volver al menu prinicpal 
+| Animal | Cómo vuelve |
+|---|---|
+| Conejo | Cada 30 s nace +1 en su madriguera si quedan 2 o más (máx. 10). Si una madriguera **se queda sin conejos, desaparece** y aparece otra en otro pastizal con 2 – 10 conejos. |
+| Venado | Cada 60 s nace +1 si quedan 2 o más (máx. 50). |
+| Jabalí | Cada 60 s nace +1 si quedan 2 o más (máx. 20). |
+| Zorro | Cada **3 min** aparece uno nuevo en el mundo (fuera de tu vista) y cada **2 min** nace +1 si quedan 2 o más (máx. 15). |
+| Lobos | Cada **1 min** la manada crece **+1** (hasta 4) si no está en combate. Al llegar a 4 sin alfa, **uno evoluciona a alfa**. Si exterminas una manada, al minuto **se inicia otra con 2 lobos en otro bosque** (a más de 1500 px y fuera de tu vista). Siempre hay **7 manadas** como máximo. |
+| Oso | **3 min** después de morir aparece un oso nuevo **en su misma cueva**, salvo que estés dentro de ella o que la roca se haya destruido con Cortar. |
+| Cocodrilo | No reaparece. |
+
+---
+
+## 4. Muerte del jugador
+
+- Si tu vida llega a **0**, el mundo se congela detrás de un aviso **"HAS MUERTO"** con dos opciones:
+  - **Reaparecer [R]** (o Enter): vuelves al **centro del mapa** desde cero.
+  - **Volver al menú principal [M]**: regresa a la pantalla de creación.
+- **Al reaparecer se reinicia:** nivel 1, XP 0, 3 puntos de mejora, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas. Tus **sombras desaparecen** y los animales que te perseguían te olvidan.
+- **El mundo sigue igual:** los animales muertos siguen muertos y lo que se regeneró sigue ahí. Solo se genera un mundo nuevo al **crear otra partida** con un personaje nuevo.
+
+---
+
+## Anexo: propuesta original
+
+La primera propuesta del equipo usaba esta tabla (**1977 XP** en total), que se cambió por la de la sección 1 para acercarse a las 2 horas de juego:
+
+| Salto | XP | Salto | XP | Salto | XP |
+|---|---|---|---|---|---|
+| 1 → 2 | 1 | 8 → 9 | 44 | 15 → 16 | 184 |
+| 2 → 3 | 2 | 9 → 10 | 58 | 16 → 17 | 212 |
+| 3 → 4 | 4 | 10 → 11 | 74 | 17 → 18 | 242 |
+| 4 → 5 | 8 | 11 → 12 | 92 | 18 → 19 | 274 |
+| 5 → 6 | 14 | 12 → 13 | 112 | 19 → 20 | 310 |
+| 6 → 7 | 22 | 13 → 14 | 134 | | |
+| 7 → 8 | 32 | 14 → 15 | 158 | | |
+
+Los valores de XP por animal y las reglas de muerte de la propuesta se mantuvieron tal cual.

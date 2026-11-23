@@ -18,6 +18,10 @@ PUNTOS_MEJORA_POR_NIVEL = 3
 ALFA_INVISIBLE_RELLENO = 25
 ALFA_INVISIBLE_CONTORNO = 90
 ALFA_INVISIBLE_OJOS = 140
+# Paso 0: segundos que tarda el personaje en desvanecerse (y en volver a verse). Solo visual:
+# la invisibilidad empieza y termina al instante para los enemigos.
+DURACION_DESVANECER = 0.4
+MARGEN_CAPA_DESVANECER = 190   # px alrededor del personaje que cubre la capa del fundido (arma y nombre)
 
 # Autoapuntado (clic derecho sobre un enemigo, sin mantener la tecla de una invocación):
 # el personaje mira siempre al objetivo. Se cancela si se aleja más de AUTOAPUNTADO_RANGO,
@@ -151,7 +155,8 @@ class Personaje:
 
         # Autoapuntado: enemigo fijado (None si no está activo)
         self.objetivo_apuntado = None
-        self.mensaje_apuntado = ""         # aviso breve (ej. no se puede activar cargando)
+        self.mensaje_apuntado = ""
+        self.visibilidad = 1.0           # 1 = se ve normal, 0 = silueta de Paso 0 (fundido visual)         # aviso breve (ej. no se puede activar cargando)
         self.tiempo_mensaje_apuntado = 0.0
 
         # Radio visual base escalado por el tamaño
@@ -253,6 +258,15 @@ class Personaje:
         """True mientras haya una habilidad de invisibilidad activa (Paso 0, equipada u otorgada)."""
         return any(getattr(h, "da_invisibilidad", False) and h.estado == "ACTIVA"
                    for h in self.habilidades_en_efecto())
+
+    def actualizar_desvanecimiento(self, dt):
+        """Lleva 'visibilidad' hacia 0 (invisible) o 1 (visible) en DURACION_DESVANECER."""
+        objetivo = 0.0 if self.invisible else 1.0
+        paso = dt / DURACION_DESVANECER
+        if self.visibilidad < objetivo:
+            self.visibilidad = min(objetivo, self.visibilidad + paso)
+        else:
+            self.visibilidad = max(objetivo, self.visibilidad - paso)
 
     @property
     def detectable(self):
@@ -669,13 +683,32 @@ class Personaje:
 
         # Invisible (Paso 0): solo un contorno tenue con los ojos para saber dónde está.
         # Se ocultan nombre, arma (salvo durante el golpe), auras y destino; los ataques sí se ven.
-        if self.invisible:
+        if self.invisible and self.visibilidad <= 0:
             self._dibujar_invisible(pantalla, pos_x, pos_y)
             if self.herramienta and getattr(self.herramienta, "golpeando", False):
                 self.herramienta.dibujar(pantalla, self, desplazamiento)
             for p in self.proyectiles:
                 p.dibujar(pantalla, desplazamiento)
             return
+
+        # Fundido de Paso 0 (al activarse o al terminar): la silueta debajo y el personaje
+        # normal encima, cada vez más (o menos) transparente.
+        if self.visibilidad < 1:
+            self._dibujar_invisible(pantalla, pos_x, pos_y)
+            m = MARGEN_CAPA_DESVANECER
+            capa = pygame.Surface((m * 2, m * 2), pygame.SRCALPHA)
+            self._dibujar_visible(capa, fuente_nombre, (ox + pos_x - m, oy + pos_y - m), m, m, False)
+            capa.set_alpha(round(255 * self.visibilidad))
+            pantalla.blit(capa, (pos_x - m, pos_y - m))
+            for p in self.proyectiles:
+                p.dibujar(pantalla, desplazamiento)
+            return
+
+        self._dibujar_visible(pantalla, fuente_nombre, desplazamiento, pos_x, pos_y, True)
+
+    def _dibujar_visible(self, pantalla, fuente_nombre, desplazamiento, pos_x, pos_y, con_proyectiles):
+        """Personaje normal: destino, auras, cuerpo, ojos, arma, proyectiles y nombre."""
+        ox, oy = desplazamiento
 
         # Destino visual suave cuando se mueve
         if self.esta_en_movimiento():
@@ -724,8 +757,9 @@ class Personaje:
             self.herramienta.dibujar(pantalla, self, desplazamiento)
 
         # Dibujar proyectiles activos
-        for p in self.proyectiles:
-            p.dibujar(pantalla, desplazamiento)
+        if con_proyectiles:
+            for p in self.proyectiles:
+                p.dibujar(pantalla, desplazamiento)
 
         # Etiqueta con el nombre flotando sobre el personaje (oculta si está dentro de un arbusto;
         # invisible ya salió antes)

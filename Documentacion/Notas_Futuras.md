@@ -74,3 +74,21 @@ Pasivas
 -Velocidad infinita
     Aumenta su velocidad base x 2.99 despues de lanzar vacio purpura
 -Salir de la expancion de dominio inabilita todas las pasivas 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sistema nivel 20 al 40
+Al llegar a nivel 20 

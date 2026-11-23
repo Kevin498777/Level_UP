@@ -12,6 +12,7 @@
 - Para las armas se compara el **daño por segundo** (daño × cadencia) con Fuerza 2, la velocidad y la durabilidad.
 - **Enemigo de referencia:** el maniquí, con 100 de vida, escudos físico y mágico de 50 y una Espada Larga de nivel 1 (6.8 de daño por golpe cada 2 s, alcance 150). Las mediciones de este documento se hicieron contra él.
 - **Fauna (desde el 23/11/2026):** ya hay enemigos reales que rodean y persiguen (lobos en manada, osos, cocodrilos, jabalíes y zorros; ver `Fauna.md`). Todavía no se ha medido el balance contra ellos.
+- **Experiencia (desde el 23/11/2026):** cazar animales da XP y se sube de nivel sin teclas de prueba (`sistema_xp.md`); morir devuelve al nivel 1. La tabla de XP está pensada para llegar al nivel 20 en unas 2 horas: hay que medirlo en partida.
 - El escudo mágico absorbe el 90 % del daño mágico, así que el daño mágico rinde mucho menos contra objetivos con escudo mágico, salvo si se anula con Cortar.
 
 ---

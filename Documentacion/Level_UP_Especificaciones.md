@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y quince habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). En el centro del mapa hay un **maniquí de pruebas** (versión beta de enemigo): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). Además, el mundo tiene **fauna** (ver 10.2): animales ambientales, pasivos que huyen, neutrales que reaccionan si los provocas y **hostiles que te cazan** (lobos en manada, osos y cocodrilos), que son los primeros enemigos reales con IA propia. El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y quince habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). En el centro del mapa hay un **maniquí de pruebas** (versión beta de enemigo): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). Además, el mundo tiene **fauna** (ver 10.2): animales ambientales, pasivos que huyen, neutrales que reaccionan si los provocas y **hostiles que te cazan** (lobos en manada, osos y cocodrilos), que son los primeros enemigos reales con IA propia. Cazar animales da **experiencia** para subir de nivel (hasta el **20**) y, si mueres, **reapareces desde el nivel 1** en el mismo mundo (ver 7 y 7.1). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
 
 ---
 
@@ -162,7 +162,20 @@ Con el **clic derecho sobre un enemigo** (sin mantener la tecla de una invocaci�
 El personaje empieza con **3 puntos de mejora** y gana **3 por cada nivel**. Son un **recurso compartido** para mejorar estadísticas, arma o habilidades con los botones **[+]** verdes.
 
 - **Coste:** una estadística cuesta **1 punto**, una habilidad **1 punto** y el arma **2 puntos** por nivel.
-- **Subir de nivel:** por ahora con una tecla de prueba (ver controles); en el futuro vendrá del combate.
+- **Subir de nivel:** con **experiencia (XP)** al cazar animales (tú o tus sombras). Nivel máximo **20**; llegar a él cuesta **1048 XP**, pensado para unas **2 horas** de juego. Al subir, la XP vuelve a 0 más lo que sobró. La tecla de prueba **[L]** sigue subiendo un nivel. Tablas de XP por nivel y por animal en `sistema_xp.md`.
+
+| Animal | XP | Animal | XP |
+|---|---|---|---|
+| Conejo salvaje | 0.1 | Cocodrilo | 4 |
+| Venado | 1 | Oso (+2 al recoger el orbe de su cueva) | 6 |
+| Zorro | 1.5 | Lobo / lobo alfa | 2 / 4 |
+| Jabalí | 3 | Manada completa, alfa incluido (bono) | +3 |
+
+Lo que cazan los depredadores salvajes no da XP, y el maniquí tampoco.
+
+### 7.1 Muerte
+
+Si la vida llega a **0**, el mundo se congela tras un aviso **"HAS MUERTO"** con **Reaparecer [R]** y **Volver al menú principal [M]**. Al reaparecer vuelves al **centro** desde cero: nivel 1, XP 0, 3 puntos, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas; tus **sombras desaparecen**. El **mundo sigue igual** (solo se genera uno nuevo al crear otra partida).
 
 ---
 
@@ -445,7 +458,7 @@ Habilidad **mágica** de la categoría **Potenciadores**. Vuelve **invisible** a
 
 - **Enemigos:** mientras eres invisible **no te detectan**: no te miran ni inician ataques contra ti. Pero **sí puedes recibir daño** de lo que te toque igualmente: un golpe que ya estaba en marcha, el agua profunda, los arbustos venenosos, etc.
 - **Duración:** sigues invisible **hasta que se acaba el tiempo**, aunque ataques o recibas daño. La **recarga** empieza al terminar.
-- **Cómo se ve:** tú te ves como una **silueta casi transparente** (contorno tenue y ojos) para saber dónde estás. Se ocultan el **nombre**, el **arma** (cualquiera, también el arco o el escudo), las **auras** de habilidades (Destello, Burst, Aura Eléctrica, Reforzamiento, Regeneración) y el **círculo de destino**. Siguen viéndose las **invocaciones**, los **ataques** (Carga de Fuego, Disparo Veloz, Cortar, flechas, Onda Sonora, telarañas) y la **animación del golpe** del arma.
+- **Cómo se ve:** al activarse **te desvaneces en 0.4 s** (y al terminar vuelves a verte con el mismo fundido); es solo visual, para los enemigos la invisibilidad empieza y acaba al instante. Invisible te ves como una **silueta casi transparente** (contorno tenue y ojos) para saber dónde estás. Se ocultan el **nombre**, el **arma** (cualquiera, también el arco o el escudo), las **auras** de habilidades (Destello, Burst, Aura Eléctrica, Reforzamiento, Regeneración) y el **círculo de destino**. Siguen viéndose las **invocaciones**, los **ataques** (Carga de Fuego, Disparo Veloz, Cortar, flechas, Onda Sonora, telarañas) y la **animación del golpe** del arma.
 - **Pantalla:** el mapa se **oscurece** igual que dentro de un arbusto; si estás invisible y en un arbusto a la vez **no se oscurece el doble**.
 - **Combo:** lanzarla con otra habilidad activa cuesta el **+5 %** de la energía actual (ver 9.10). También puede salir en **Golpe de Suerte** (ver 9.9).
 
@@ -494,8 +507,8 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 El mundo tiene animales en cuatro grupos (detalle y valores en `Fauna.md`). Solo se actualizan y dibujan **cerca de la cámara**, por rendimiento.
 
 - **Ambiental (sin colisión):** mariposas y luciérnagas sobre las praderas, pájaros posados en las copas que alzan el vuelo si te acercas, peces (sombras bajo el agua) y ranas en orillas y nenúfares que saltan al agua.
-- **Pasiva (huye):** **conejos salvajes** (10 madrigueras en el pasto alto, se esconden 60 s y se reproducen) y **venados** (50 en el mundo, se regeneran y se reproducen). Huyen del jugador, de sus sombras y de los zorros hambrientos.
-- **Neutral (reacciona si la provocas):** **jabalí** (rabia de 6 s al recibir un golpe: embiste con 10 – 18 de daño y 40 de empuje) y **zorro** (muerde si lo acorralas o golpeas, roba un 30 % de velocidad a su objetivo, caza conejos cuando tiene hambre y tiene su propio **Paso 0**).
+- **Pasiva (huye):** **conejos salvajes** (10 madrigueras en el pasto alto, se esconden 60 s y se reproducen; una madriguera vacía se muda a otro pastizal) y **venados** (50 en el mundo, se regeneran y se reproducen). Huyen del jugador, de sus sombras y de los zorros hambrientos.
+- **Neutral (reacciona si la provocas):** **jabalí** (rabia de 6 s al recibir un golpe: embiste con 10 – 18 de daño y 40 de empuje) y **zorro** (muerde si lo acorralas o golpeas, roba un 30 % de velocidad a su objetivo, caza conejos cuando tiene hambre y tiene su propio **Paso 0**, con el mismo fundido de 0.4 s).
 - **Hostil (te caza):** **lobos en manada** (7 manadas de 4 con un alfa; desangran, se retiran si queda uno y cazan presas con hambre compartida), **osos** (150 de vida, viven en una roca gigante que hace de cueva; zarpazo de 15 – 25 que resta un 30 % extra al escudo y rugido que ralentiza; al morir se puede entrar a la cueva, que oscurece el mapa, y recoger un orbe que cura +20) y **cocodrilos** (uno en la zona profunda de cada lago grande, intocables sumergidos, con escudo físico de 30).
 
 Reglas comunes:
@@ -503,17 +516,21 @@ Reglas comunes:
 - Los animales con vida **reciben daño de todo** (armas, proyectiles, habilidades, efectos e invocaciones), los inmoviliza la telaraña y los empuja el arma. Cuentan como **enemigos** para el modo combate de las sombras y para el **Autoapuntado** (ver 6.4).
 - **Sigilo:** oculto en un arbusto o invisible (Paso 0), **ningún animal** te detecta.
 - **Escudo:** sus golpes y mordidas consultan al Escudo igual que la espada del maniquí: de frente con el Escudo desenfundado se bloquean enteros y el animal sale repelido con 40 de empuje (ver 8.2).
+- **Experiencia:** al morir a tus manos dan XP (ver 7).
+- **Reaparición:** sin pasar el máximo de cada especie, los **zorros** vuelven (uno nuevo cada 3 min y +1 cada 2 min si quedan 2), las **manadas** crecen +1 lobo por minuto hasta 4 (al llegar a 4 sin alfa, uno evoluciona) y una manada exterminada se **reinicia con 2 lobos en otro bosque**, y cada **oso** muerto es sustituido por otro en su cueva a los **3 min**. Conejos, venados y jabalíes se reproducen; el cocodrilo no vuelve. Detalle en `sistema_xp.md`.
 
 ---
 
 ## 11. Interfaz
 
 - **Pantalla de creación (a pantalla completa y adaptable):** se escala al tamaño de la pantalla (diseño base 1600x900, factor 0.6–1.6) y se reorganiza al ancho disponible: en pantallas anchas va en **dos columnas** (personaje, herramienta y estadísticas a la izquierda; habilidades a la derecha) y en estrechas en **una**. Las tarjetas se reparten en filas según quepan, los nombres largos reducen su fuente para no cortarse y, si el contenido no cabe en alto, aparece una **barra de desplazamiento** (rueda del ratón). El botón **Comenzar mundo** queda **fijo abajo**, siempre visible. [ESC] sale de pantalla completa y la interfaz se reacomoda sola. Contiene nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Las habilidades se agrupan **por categorías en columnas** (Artes de las Sombras, Potenciadores, Ataque Mágico, Defensa y Soporte, Especiales), pensado para escalar al añadir más. Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro; el texto de cada habilidad vive **solo** en ese **[?]**.
-- **Panel izquierdo (en juego):** nivel y puntos, tarjeta del arma (nombre, nivel, daño y cadencia real "Daño X · Cad Y/s", debuff/buff y barra de durabilidad; con el **Arco**: flechas en el carcaj, carga actual con su barra y botón de compra de flechas) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), **Cadencia** (la real con el arma desenfundada; si no, el bonus del personaje), Energía, **Escudo** y **Escudo M.** (actual / máximo). Abajo, el botón **Volver a selección [M]**.
+- **Panel izquierdo (en juego):** nivel y puntos, **barra de experiencia** (XP actual / necesaria, o MÁX en el nivel 20), tarjeta del arma (nombre, nivel, daño y cadencia real "Daño X · Cad Y/s", debuff/buff y barra de durabilidad; con el **Arco**: flechas en el carcaj, carga actual con su barra y botón de compra de flechas) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), **Cadencia** (la real con el arma desenfundada; si no, el bonus del personaje), Energía, **Escudo** y **Escudo M.** (actual / máximo). Abajo, el botón **Volver a selección [M]**.
 - **Panel derecho (en juego):** más ancho y con letra más grande y de alto contraste. Una tarjeta por habilidad con tecla, nivel, coste, estado, recarga, resumen del efecto según el nivel y botón **[+]**.
 - **Volver a selección:** el botón del panel izquierdo o **[M]** cierran el mundo y reabren la pantalla de creación para probar otro personaje sin salir del juego.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
 - **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto, **invisible** (Paso 0) o en **autoapuntado**. Dentro de la cueva de un oso muerto el mapa se oscurece como en un arbusto.
+- **Textos flotantes:** **"+X XP"** sobre el personaje al cazar y **"NIVEL N"** al subir.
+- **Pantalla de muerte:** velo oscuro sobre el mundo con **Reaparecer [R]** y **Volver al menú principal [M]** (ver 7.1).
 - **Brújula [C]:** flechas alrededor del personaje hacia el **conejo (C)**, **lobo (L)** y **oso (O)** más cercanos y hacia el **maniquí (M)**, con la distancia a cada uno y una leyenda arriba a la izquierda.
 
 ---
@@ -534,7 +551,8 @@ Reglas comunes:
 | Clic derecho sobre un enemigo (sin modo combate) | **Autoapuntado**: el personaje mira siempre a ese enemigo (−40 % Vel, rango 500). En terreno libre o sobre el mismo objetivo lo quita (ver 6.4) |
 | [H] | Mostrar / ocultar las hitboxes |
 | [C] | Mostrar / ocultar la **brújula** a los animales más cercanos (conejo, lobo, oso) y al maniquí |
-| [L] | (Prueba) Subir de nivel al personaje (+3 puntos) |
+| [L] | (Prueba) Subir de nivel al personaje (+3 puntos, hasta el 20) |
+| [R] / [M] (al morir) | Reaparecer desde el nivel 1 / volver al menú principal |
 | [J] | (Prueba) Simular un golpe del arma (desgasta durabilidad) |
 | [M] | Volver a la pantalla de selección (también con el botón del panel izquierdo) |
 | [ESC] | Salir del juego |
@@ -543,5 +561,5 @@ Reglas comunes:
 
 ## 13. Pendiente (a futuro)
 
-- **Enemigos reales:** la fauna hostil (lobos, osos, cocodrilos) ya da los primeros enemigos con IA propia; falta una **fuente de experiencia** (p. ej. al cazar animales) para subir de nivel sin teclas de prueba, y más recompensas en las cuevas de los osos.
+- **Enemigos reales:** la fauna hostil (lobos, osos, cocodrilos) ya da enemigos con IA propia y experiencia; faltan más recompensas en las cuevas de los osos y **medir en partida** que el nivel 20 se alcance en unas 2 horas.
 - Mecánica adicional prevista a partir del **nivel 20** del personaje.

@@ -1358,6 +1358,8 @@ ZORRO_PASO0_CD = 10.0            # recarga de Paso 0
 ZORRO_VISTA = 500.0             # a esta distancia dejas de ser su objetivo (sales de su pantalla)
 ZORRO_MORDIDA_CD = 1.2
 ZORRO_COLORES = [(192, 110, 55), (172, 96, 46), (206, 126, 66)]
+ZORRO_DESVANECER = 0.4           # s que tarda en desvanecerse con su Paso 0 (solo visual)
+ZORRO_CAPA = 40                  # lado de la capa con la que se dibuja el fundido
 
 
 class Zorro(AnimalCombatible):
@@ -1379,6 +1381,7 @@ class Zorro(AnimalCombatible):
         self.hambriento = False
         self.presa = None
         self.invisible = False
+        self.visibilidad = 1.0           # fundido visual de su Paso 0 (1 visible, 0 invisible)
         self._paso0_t = 0.0
         self._paso0_cd = 0.0
         self._presa_es_conejo = False
@@ -1431,6 +1434,13 @@ class Zorro(AnimalCombatible):
             return
         if amenazas is None:
             amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
+
+        # Fundido visual del Paso 0 (la invisibilidad en si es instantanea)
+        paso = dt / ZORRO_DESVANECER
+        if self.invisible:
+            self.visibilidad = max(0.0, self.visibilidad - paso)
+        else:
+            self.visibilidad = min(1.0, self.visibilidad + paso)
 
         # Paso 0: invisibilidad activa y recarga (CD de 10 s).
         if self.invisible:
@@ -1545,9 +1555,20 @@ class Zorro(AnimalCombatible):
                 self.dir_mira = d.normalize()
 
     def dibujar(self, pantalla, desplazamiento):
-        if not self.vivo or self.invisible:     # Paso 0: completamente invisible
+        if not self.vivo or self.visibilidad <= 0:     # Paso 0: completamente invisible
             return
         px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        if self.visibilidad < 1:
+            # Desvaneciendose (o reapareciendo): se dibuja en una capa con transparencia
+            m = ZORRO_CAPA // 2
+            capa = pygame.Surface((ZORRO_CAPA, ZORRO_CAPA), pygame.SRCALPHA)
+            self._dibujar_cuerpo(capa, m, m)
+            capa.set_alpha(round(255 * self.visibilidad))
+            pantalla.blit(capa, (px - m, py - m))
+            return
+        self._dibujar_cuerpo(pantalla, px, py)
+
+    def _dibujar_cuerpo(self, pantalla, px, py):
         c = self.color
         s = 1 if self.dir_mira.x >= 0 else -1
         for lx in (-5, 5):
