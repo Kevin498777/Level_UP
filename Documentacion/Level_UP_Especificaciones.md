@@ -159,7 +159,7 @@ Con el **clic derecho sobre un enemigo** (sin mantener la tecla de una invocaci�
 
 ## 7. Progresión y puntos de mejora
 
-El personaje empieza con **3 puntos de mejora** y gana **3 por cada nivel**. Son un **recurso compartido** para mejorar estadísticas, arma o habilidades con los botones **[+]** verdes.
+El personaje empieza con **3 puntos de mejora** y gana **3 por cada nivel** (además de **+20 monedas** por nivel). Son un **recurso compartido** para mejorar estadísticas, arma o habilidades con los botones **[+]** verdes.
 
 - **Coste:** una estadística cuesta **1 punto**, una habilidad **1 punto** y el arma **2 puntos** por nivel.
 - **Subir de nivel:** con **experiencia (XP)** al cazar animales (tú o tus sombras). Nivel máximo **20**; llegar a él cuesta **1048 XP**, pensado para unas **2 horas** de juego. Al subir, la XP vuelve a 0 más lo que sobró. La tecla de prueba **[L]** sigue subiendo un nivel. Tablas de XP por nivel y por animal en `sistema_xp.md`.
@@ -175,7 +175,7 @@ El personaje empieza con **3 puntos de mejora** y gana **3 por cada nivel**. Son
 | Oso | 15 (+2 al recoger el orbe de su cueva) | 8 – 12 (100 %) |
 | Manada completa, alfa incluido (bono) | +3 | — |
 
-- **Monedas:** al matar un animal puede soltar monedas según la tabla; se suman al momento ("+X monedas"). **Por ahora no se gastan** y se pierden al morir.
+- **Monedas:** al matar un animal puede soltar monedas según la tabla; se suman al momento ("+X monedas"). Cada subida de nivel da **+20 monedas**. Se gastan en el **Gacha** y se pierden al morir (salvo con un Tótem de vida).
 - Lo que cazan los depredadores salvajes no da XP ni monedas, y el maniquí tampoco.
 
 ### 7.1 Muerte

@@ -17,6 +17,7 @@ TECLAS_HUECOS = ((pygame.K_2, "2"), (pygame.K_3, "3"), (pygame.K_4, "4"))
 NIVEL_MAXIMO = 20
 XP_POR_NIVEL = (1, 2, 4, 8, 12, 16, 20, 25, 30, 40, 50, 60, 70, 80, 95, 110, 125, 140, 160)
 PUNTOS_MEJORA_POR_NIVEL = 3
+MONEDAS_POR_NIVEL = 20           # monedas que da cada subida de nivel
 
 # Silueta del personaje invisible (Paso 0): transparencias 0-255 de relleno, contorno y ojos
 ALFA_INVISIBLE_RELLENO = 25
@@ -532,11 +533,12 @@ class Personaje:
         return True
 
     def subir_nivel(self):
-        """Sube un nivel (hasta NIVEL_MAXIMO) y otorga 3 puntos de mejora. Tambien la usa [L]."""
+        """Sube un nivel (hasta NIVEL_MAXIMO): +3 puntos de mejora y +20 monedas. Tambien la usa [L]."""
         if self.nivel >= NIVEL_MAXIMO:
             return self.nivel
         self.nivel += 1
         self.puntos_mejora += PUNTOS_MEJORA_POR_NIVEL
+        self.monedas += MONEDAS_POR_NIVEL
         if self.nivel >= NIVEL_MAXIMO:
             self.xp = 0.0
         return self.nivel

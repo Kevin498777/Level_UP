@@ -2,7 +2,7 @@ import math
 import random
 import pygame
 from personaje import (Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO,
-                       AUTOAPUNTADO_MARGEN_CLIC)
+                       AUTOAPUNTADO_MARGEN_CLIC, MONEDAS_POR_NIVEL)
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
                          aplicar_veneno, enemigo_en, COLOR_VENENO)
@@ -1497,7 +1497,7 @@ def iniciar_mundo(config):
                 niveles = jugador.ganar_xp(xp)
                 textos_flotantes.append([f"+{xp:g} XP", COLOR_XP, pygame.Vector2(jugador.posicion), 0.0])
                 if niveles:
-                    textos_flotantes.append([f"NIVEL {jugador.nivel}", COLOR_XP_MAX,
+                    textos_flotantes.append([f"NIVEL {jugador.nivel}  +{niveles * MONEDAS_POR_NIVEL} monedas", COLOR_XP_MAX,
                                              jugador.posicion - pygame.Vector2(0, 32), 0.0])
             # Monedas de la caza
             monedas = fauna.tomar_monedas()

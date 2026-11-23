@@ -74,6 +74,17 @@ Detalles:
 
 Se pierde **todo**: nivel, XP, monedas, talismanes, tótems y lo que hayas sacado del Gacha. Vuelves con la herramienta y las 3 habilidades de la creación, a nivel 1.
 
+### Economía (simulación del 23/11/2026, 10 000 partidas)
+
+Con las monedas de caza más **+20 por nivel**, un bot que tira en cuanto junta 30 monedas consiguió:
+
+| | Jugador cuidadoso | Con encuentros de lobos y osos |
+|---|---|---|
+| Monedas ganadas por partida (media) | 268 | 563 (muere y vuelve a subir muchas veces) |
+| Tiradas por partida (media / mediana) | 8.2 / 5 | 14.1 / 10 |
+| Partidas que sacaron el anillo legendario | 130 de 5000 | 17 de 5000 conservado al final |
+| Veces que un tótem evitó la muerte | 1768 | 6555 |
+
 ### Prueba
 
 Teclas de prueba: **[K]** da 100 monedas para probar el Gacha, **[T]** da un talismán al azar (un anillo con las probabilidades de rareza de arriba o, 1 de cada 5 veces, un tótem) y **[Y]** da una herramienta o habilidad que no tengas.
