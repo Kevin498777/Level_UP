@@ -362,30 +362,30 @@ Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Deste
 
 ### 2.10 Invocar Lobos
 
-Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Segunda de las 10 Artes de las Sombras. Cada golpe tiene un **33 %** de causar **desangrado** (5 golpes de 1 vida, uno cada 2 s; activo hasta el último golpe, no acumulable, y -50 % a toda curación). Las estadísticas son por lobo.
+Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar hasta que mueran todos; al morir el último hay **30 s de recarga**. Segunda de las 10 Artes de las Sombras. Cada golpe tiene un **33 %** de causar **desangrado** (5 golpes de 1 vida, uno cada 2 s; activo hasta el último golpe, no acumulable, y -50 % a toda curación). Las estadísticas son por lobo. **Ordenar el ataque** a un enemigo en modo combate (clic derecho sobre él) cuesta energía: **5 → 10** (lineal, redondeado); sin energía suficiente la orden no se da.
 
-| Nivel | Vida | Velocidad | Daño | Coste En. |
-|---|---|---|---|---|
-| 1 | 10 | 10 | 8 | 90 |
-| 2 | 13 | 10 | 9.16 | 90 |
-| 3 | 16 | 10 | 10.32 | 90 |
-| 4 | 19 | 10 | 11.47 | 90 |
-| 5 | 22 | 12 | 12.63 | 90 |
-| 6 | 25 | 12 | 13.79 | 90 |
-| 7 | 28 | 12 | 14.95 | 90 |
-| 8 | 31 | 12 | 16.11 | 90 |
-| 9 | 34 | 12 | 17.26 | 90 |
-| 10 | 37 | 14 | 18.42 | 90 |
-| 11 | 40 | 14 | 19.58 | 90 |
-| 12 | 43 | 14 | 20.74 | 90 |
-| 13 | 46 | 14 | 21.89 | 90 |
-| 14 | 49 | 14 | 23.05 | 90 |
-| 15 | 52 | 16 | 24.21 | 90 |
-| 16 | 55 | 16 | 25.37 | 90 |
-| 17 | 58 | 16 | 26.53 | 90 |
-| 18 | 61 | 16 | 27.68 | 90 |
-| 19 | 64 | 16 | 28.84 | 90 |
-| 20 | 67 | 18 | 30 | 90 |
+| Nivel | Vida | Velocidad | Daño | Coste En. | Orden ataque (En.) |
+|---|---|---|---|---|---|
+| 1 | 10 | 10 | 8 | 90 | 5 |
+| 2 | 13 | 10 | 9.16 | 90 | 5 |
+| 3 | 16 | 10 | 10.32 | 90 | 6 |
+| 4 | 19 | 10 | 11.47 | 90 | 6 |
+| 5 | 22 | 12 | 12.63 | 90 | 6 |
+| 6 | 25 | 12 | 13.79 | 90 | 6 |
+| 7 | 28 | 12 | 14.95 | 90 | 7 |
+| 8 | 31 | 12 | 16.11 | 90 | 7 |
+| 9 | 34 | 12 | 17.26 | 90 | 7 |
+| 10 | 37 | 14 | 18.42 | 90 | 7 |
+| 11 | 40 | 14 | 19.58 | 90 | 8 |
+| 12 | 43 | 14 | 20.74 | 90 | 8 |
+| 13 | 46 | 14 | 21.89 | 90 | 8 |
+| 14 | 49 | 14 | 23.05 | 90 | 8 |
+| 15 | 52 | 16 | 24.21 | 90 | 9 |
+| 16 | 55 | 16 | 25.37 | 90 | 9 |
+| 17 | 58 | 16 | 26.53 | 90 | 9 |
+| 18 | 61 | 16 | 27.68 | 90 | 9 |
+| 19 | 64 | 16 | 28.84 | 90 | 10 |
+| 20 | 67 | 18 | 30 | 90 | 10 |
 
 ### 2.11 Cortar
 

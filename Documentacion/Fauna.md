@@ -2,7 +2,7 @@
 
 > Documento de información (no técnico) sobre los animales del mundo.
 > Pensado como contexto de referencia para la IA y para el equipo.
-> Actualizado: 21 de noviembre de 2026.
+> Actualizado: 23 de noviembre de 2026.
 
 ---
 

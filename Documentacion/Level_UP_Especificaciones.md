@@ -2,7 +2,7 @@
 
 > Documento de información (no técnico) sobre el estado actual del juego.
 > Pensado como contexto de referencia para la IA y para el equipo.
-> Actualizado: 20 de noviembre de 2026.
+> Actualizado: 23 de noviembre de 2026.
 
 ---
 
@@ -10,7 +10,7 @@
 
 Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
-Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y quince habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). **Todavía no hay enemigos reales**, pero sí un **maniquí de pruebas** en el centro del mapa que hace de primer enemigo (versión beta): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
+Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y quince habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). En el centro del mapa hay un **maniquí de pruebas** (versión beta de enemigo): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). Además, el mundo tiene **fauna** (ver 10.2): animales ambientales, pasivos que huyen, neutrales que reaccionan si los provocas y **hostiles que te cazan** (lobos en manada, osos y cocodrilos), que son los primeros enemigos reales con IA propia. El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
 
 ---
 
@@ -18,7 +18,7 @@ Actualmente el juego cuenta con la generación completa del mundo, el sistema de
 
 - **Forma y tamaño:** mapa circular de radio **10000**, rodeado por una franja oscura exterior que marca el límite.
 - **Escalado con el tamaño:** las cantidades de **rocas y lagos** se calculan a partir del área del mundo. Su densidad se define para un mundo de referencia de radio 5000 y se multiplica por (radio / 5000)²; con radio 10000 el factor es **×4**. Si el mundo vuelve a cambiar de tamaño, se ajustan solas.
-- **Biomas:** **bosques** (árboles densos, arbustos y pasto de sotobosque) y **praderas** (pasto y flores), repartidos por todo el mapa (ver 5).
+- **Biomas:** **bosques** (árboles densos, arbustos y pasto de sotobosque), **praderas** (pasto y flores) y **pastizales de pasto alto** (donde están las madrigueras de los conejos), repartidos por todo el mapa (ver 5).
 - **Aparición:** el personaje aparece en el centro del mapa, dentro de una zona segura de 140 px sin obstáculos.
 - **Cámara:** sigue al personaje con un movimiento suave, manteniéndolo centrado en el área de juego.
 - **Fondo:** cuadrícula sutil recortada al círculo, con el borde y el centro del mundo marcados.
@@ -85,15 +85,16 @@ Cada mundo tiene **10 – 16 bosques** (zonas circulares de radio 500 – 1600) 
 - **Tamaño:** escala 1.0 – 1.9; copa de radio 34 – 65 y tronco de radio 7 – 13.
 - **Tronco sólido:** el personaje y las criaturas chocan con él. La **copa** es solo visual y puede solaparse con la de otros árboles (bosque tupido).
 - **Profundidad:** la sombra y el tronco se dibujan **debajo** de las entidades; las copas, **encima de todo**, incluidos los arbustos (los arbustos quedan bajo los árboles).
-- **Copa transparente:** si **cualquier entidad** (personaje, maniquí o invocaciones) está bajo una copa, aunque sea en parte, esa copa se vuelve **semitransparente** para que se vea. Bajo un árbol **no te escondes**: para ocultarse están los arbustos.
+- **Copa transparente:** si **cualquier entidad** (personaje, maniquí, invocaciones o animales con cuerpo sólido) está bajo una copa, aunque sea en parte, esa copa se vuelve **semitransparente** para que se vea. Bajo un árbol **no te escondes**: para ocultarse están los arbustos.
 - **Cortar** destruye un árbol al tocar **cualquier parte** (la copa), a cualquier nivel (ver 9.14).
 
 ### 5.5 Praderas: pasto y flores
 
 Cada mundo tiene **8 – 14 praderas** (zonas de radio 600 – 1800) cubiertas de **pasto** (hierba de altura media) y **flores** de varios colores (20 – 60 por pradera). En los bosques también crece pasto, más ralo (sotobosque).
 
+- **Pasto alto:** además hay **8 – 12 pastizales** (zonas de radio 300 – 700) de hierba más alta (×1.8 – ×2.8 del tamaño normal). Es el bioma de las **madrigueras de conejos** (ver 10.2).
 - Son **decorativos**: sin colisión y dibujados **bajo las entidades**, así que nunca tapan al personaje.
-- **No crecen en los lagos** ni en su orilla (ahí solo hay flora acuática, ver 3), ni debajo de las rocas.
+- **No crecen en los lagos** ni en su orilla (ahí solo hay flora acuática, ver 3), ni debajo de las rocas. Esto vale también para el pasto alto.
 
 ---
 
@@ -151,7 +152,7 @@ Con el **clic derecho sobre un enemigo** (sin mantener la tecla de una invocaci�
 
 - **Activación:** solo sobre un enemigo a **500 o menos** de distancia. **No se puede activar mientras se mantiene una carga**: Carga de Fuego cargando o el Arco tensando (aviso "No puedes autoapuntar mientras cargas"). Con una invocación en modo combate (su tecla mantenida) el clic derecho da órdenes a las sombras, no autoapunta. La curación mantenida (Regeneración Inversa) no lo impide. **Una vez activo sí se puede cargar.**
 - **Debuff:** **−40 % de velocidad** mientras está activo; se suma a los demás modificadores (arma, agua…), con el mínimo de velocidad de siempre.
-- **Se desactiva:** con otro clic derecho en **terreno libre** o sobre **el mismo objetivo**, si el objetivo **muere** o si te alejas **más de 500**. Un clic derecho sobre **otro enemigo** cambia de objetivo.
+- **Se desactiva:** con otro clic derecho en **terreno libre** o sobre **el mismo objetivo**, si el objetivo **muere**, si te alejas **más de 500** o si el objetivo **deja de estar al alcance** (animales: zorro invisible por su Paso 0, oso dentro de su cueva, cocodrilo sumergido o conejo escondido en la madriguera). Un clic derecho sobre **otro enemigo** cambia de objetivo.
 - **Cómo se ve:** **mira roja** sobre el objetivo y el aviso **"AUTOAPUNTADO: -40% Vel"** en la barra inferior. No se muestra la distancia: la calcula el jugador.
 - **Con el Escudo:** el arco de bloqueo mira siempre al objetivo, así que bloquea sus golpes de frente (la espalda sigue expuesta).
 ---
@@ -186,7 +187,7 @@ Se saca o guarda con la tecla **[1]** y se golpea con **[Espacio]** (ver 8.5; el
 
 - **Dagas Simples:** son **dos** hojas (una por flanco), más pequeñas; a **nivel máximo** su debuff se convierte en un **buff de +10 %** de velocidad. Las dos comparten la misma durabilidad.
 - **Escudo:** no inflige daño, **protege**.
-  - **Bloqueo (desenfundado):** su hitbox es un **arco frontal de 120°** (60° a cada lado de hacia donde mira el portador) y el escudo **se dibuja como una banda curva que ocupa exactamente ese arco**, así se ve dónde bloquea. Lo que llega por ese arco se **bloquea entero**: golpes de arma, proyectiles y mordidas, físicos o mágicos. El portador no recibe daño ni efectos (un ataque bloqueado no aplica efectos). Solo bloquea desenfundado, que es cuando aplica su debuff de velocidad. Con [H] se marca el arco sobre el dibujo.
+  - **Bloqueo (desenfundado):** su hitbox es un **arco frontal de 120°** (60° a cada lado de hacia donde mira el portador) y el escudo **se dibuja como una banda curva que ocupa exactamente ese arco**, así se ve dónde bloquea. Lo que llega por ese arco se **bloquea entero**: golpes de arma, proyectiles y mordidas, físicos o mágicos, incluidos los ataques de la **fauna** (embestida del jabalí, mordidas de zorro, lobo y cocodrilo y zarpazo del oso, que entonces tampoco desangra ni resta el 30 % extra al escudo). El portador no recibe daño ni efectos (un ataque bloqueado no aplica efectos). Solo bloquea desenfundado, que es cuando aplica su debuff de velocidad. Con [H] se marca el arco sobre el dibujo.
   - **Desgaste:** pierde de durabilidad el daño bloqueado **menos su reducción**: **20 %** a nivel 1 → **70 %** a nivel 5 (lineal). Ej.: a nivel 5, un golpe de 100 le quita 30 de durabilidad. Cada bloqueo **empuja al portador** 2 puntos.
   - **Empuje al bloquear:** cada vez que recibe un golpe, el escudo **repele al atacante con 40 puntos de empuje**, más que cualquier arma (el mayor es el Arco con 25). Contra una espada funciona como un choque: el golpe no hace daño y el arma atacante pierde 1 de durabilidad.
   - **No bloquea:** la Onda Sonora, el Aura Eléctrica, el daño de terreno, el autodaño (Aura Eléctrica, autoveneno de Golpe de Suerte) ni los efectos ya aplicados (quemadura, veneno, desangrado), que siguen haciendo daño.
@@ -346,7 +347,9 @@ Invocación **mágica** (segunda de las 10 Artes de las Sombras): la habilidad g
 | 15 | 52 | 16 | 24.2 | 90 |
 | 20 | 67 | 18 | 30 | 90 |
 
-La vida sube **+3 por nivel**, la velocidad **+2 cada 5 niveles** y el daño escala de forma lineal de **8 a 30** (nivel 1 a 20). Coste fijo **90 En.** Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.10).
+La vida sube **+3 por nivel**, la velocidad **+2 cada 5 niveles** y el daño escala de forma lineal de **8 a 30** (nivel 1 a 20). Coste fijo **90 En.** Nivel máximo **20**. **Ordenar el ataque** a un enemigo en modo combate (clic derecho sobre él) cuesta **5 En.** (nivel 1) → **10 En.** (nivel 20); sin energía suficiente la orden no se da (ir a un punto o llamarlos es gratis). Tabla completa en `Tablas_Escalado.md` (2.10).
+
+No confundir con los **lobos salvajes** de la fauna (ver 10.2), que son enemigos.
 
 ### 9.12 Modo combate (invocaciones sombrías)
 
@@ -362,7 +365,7 @@ Los conejos tienen la cara `:3` con los **ojos rojos**, que en modo combate bril
 
 ### 9.13 Cuerpos sólidos (sin solapamientos)
 
-El personaje, el maniquí y las invocaciones tienen **hitbox circular** (su radio): pueden **recibir daño** y **no se solapan** entre sí. Al chocar se separan según su **masa**: araña 0.6, conejo 1, lobo 3, personaje 100 (sus invocaciones apenas lo desplazan) y maniquí fijo (nada lo mueve, salvo su propio retroceso). Con [H] se ven las hitboxes del maniquí y de las invocaciones (círculos magenta).
+El personaje, el maniquí, las invocaciones y los **animales con cuerpo** de la fauna (conejos fuera de la madriguera, venados, jabalíes, zorros visibles, lobos, osos fuera de la cueva y cocodrilos emergidos) tienen **hitbox circular** (su radio): pueden **recibir daño** y **no se solapan** entre sí. Al chocar se separan según su **masa**: araña 0.6, conejo 1, lobo 3, personaje 100 (sus invocaciones apenas lo desplazan) y maniquí fijo (nada lo mueve, salvo su propio retroceso). Con [H] se ven las hitboxes del maniquí y de las invocaciones (círculos magenta).
 
 ### 9.14 Cortar
 
@@ -486,6 +489,21 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 - **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. **No detecta** al personaje **oculto en un arbusto** ni **invisible** (Paso 0): deja de girarse hacia él y no inicia golpes, aunque un golpe que ya estaba en marcha termina y puede dañarlo. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Si el personaje lleva el **Escudo** desenfundado y el golpe le llega por el frente, lo **bloquea** (ver 8.2). Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
 - **Daño recibido:** le afectan el arma del personaje y **todas las habilidades con daño**: Disparo Veloz, Carga de Fuego (con quemadura), Disparo Venenoso (veneno, anillo verde), Cortar, Onda Sonora, Aura Eléctrica, las invocaciones (con el desangrado de los lobos) y la telaraña de la Sombra Araña (inmovilización). Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); mientras está **inmovilizado** no retrocede ni vuelve. Si lo destruyen, **reaparece a los 5 s** con la vida y los escudos llenos y una espada nueva.
 
+### 10.2 Fauna
+
+El mundo tiene animales en cuatro grupos (detalle y valores en `Fauna.md`). Solo se actualizan y dibujan **cerca de la cámara**, por rendimiento.
+
+- **Ambiental (sin colisión):** mariposas y luciérnagas sobre las praderas, pájaros posados en las copas que alzan el vuelo si te acercas, peces (sombras bajo el agua) y ranas en orillas y nenúfares que saltan al agua.
+- **Pasiva (huye):** **conejos salvajes** (10 madrigueras en el pasto alto, se esconden 60 s y se reproducen) y **venados** (50 en el mundo, se regeneran y se reproducen). Huyen del jugador, de sus sombras y de los zorros hambrientos.
+- **Neutral (reacciona si la provocas):** **jabalí** (rabia de 6 s al recibir un golpe: embiste con 10 – 18 de daño y 40 de empuje) y **zorro** (muerde si lo acorralas o golpeas, roba un 30 % de velocidad a su objetivo, caza conejos cuando tiene hambre y tiene su propio **Paso 0**).
+- **Hostil (te caza):** **lobos en manada** (7 manadas de 4 con un alfa; desangran, se retiran si queda uno y cazan presas con hambre compartida), **osos** (150 de vida, viven en una roca gigante que hace de cueva; zarpazo de 15 – 25 que resta un 30 % extra al escudo y rugido que ralentiza; al morir se puede entrar a la cueva, que oscurece el mapa, y recoger un orbe que cura +20) y **cocodrilos** (uno en la zona profunda de cada lago grande, intocables sumergidos, con escudo físico de 30).
+
+Reglas comunes:
+
+- Los animales con vida **reciben daño de todo** (armas, proyectiles, habilidades, efectos e invocaciones), los inmoviliza la telaraña y los empuja el arma. Cuentan como **enemigos** para el modo combate de las sombras y para el **Autoapuntado** (ver 6.4).
+- **Sigilo:** oculto en un arbusto o invisible (Paso 0), **ningún animal** te detecta.
+- **Escudo:** sus golpes y mordidas consultan al Escudo igual que la espada del maniquí: de frente con el Escudo desenfundado se bloquean enteros y el animal sale repelido con 40 de empuje (ver 8.2).
+
 ---
 
 ## 11. Interfaz
@@ -495,7 +513,8 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 - **Panel derecho (en juego):** más ancho y con letra más grande y de alto contraste. Una tarjeta por habilidad con tecla, nivel, coste, estado, recarga, resumen del efecto según el nivel y botón **[+]**.
 - **Volver a selección:** el botón del panel izquierdo o **[M]** cierran el mundo y reabren la pantalla de creación para probar otro personaje sin salir del juego.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
-- **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto, **invisible** (Paso 0) o en **autoapuntado**.
+- **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto, **invisible** (Paso 0) o en **autoapuntado**. Dentro de la cueva de un oso muerto el mapa se oscurece como en un arbusto.
+- **Brújula [C]:** flechas alrededor del personaje hacia el **conejo (C)**, **lobo (L)** y **oso (O)** más cercanos y hacia el **maniquí (M)**, con la distancia a cada uno y una leyenda arriba a la izquierda.
 
 ---
 
@@ -514,6 +533,7 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 | Clic derecho junto a ti | Llamar de vuelta a las sombras (vuelven a seguirte) |
 | Clic derecho sobre un enemigo (sin modo combate) | **Autoapuntado**: el personaje mira siempre a ese enemigo (−40 % Vel, rango 500). En terreno libre o sobre el mismo objetivo lo quita (ver 6.4) |
 | [H] | Mostrar / ocultar las hitboxes |
+| [C] | Mostrar / ocultar la **brújula** a los animales más cercanos (conejo, lobo, oso) y al maniquí |
 | [L] | (Prueba) Subir de nivel al personaje (+3 puntos) |
 | [J] | (Prueba) Simular un golpe del arma (desgasta durabilidad) |
 | [M] | Volver a la pantalla de selección (también con el botón del panel izquierdo) |
@@ -523,5 +543,5 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 
 ## 13. Pendiente (a futuro)
 
-- **Enemigos reales:** generalizar el maniquí (beta) a varios enemigos con IA propia, y añadir una fuente de experiencia para subir de nivel sin teclas de prueba.
+- **Enemigos reales:** la fauna hostil (lobos, osos, cocodrilos) ya da los primeros enemigos con IA propia; falta una **fuente de experiencia** (p. ej. al cazar animales) para subir de nivel sin teclas de prueba, y más recompensas en las cuevas de los osos.
 - Mecánica adicional prevista a partir del **nivel 20** del personaje.

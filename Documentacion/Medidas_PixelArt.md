@@ -27,6 +27,17 @@
 | Conejo (invocación) | círculo radio 8 | Ø 16 (+orejas) | **16 × 20** | 8 × 10 | Orejas hacia arriba fuera del círculo. Variante "modo combate" con ojos brillantes. |
 | Lobo (invocación) | círculo radio 11 | Ø 22 (+orejas) | **24 × 28** | 12 × 14 | Orejas sobresalen ~4 px arriba. Variante modo combate. |
 | Araña (Sombra Araña) | círculo radio 5 | Ø 10 cuerpo, patas hasta Ø 22 | **22 × 22** | 11 × 11 | Variante modo combate (ojos rojos más vivos). |
+| Conejo salvaje (fauna) | círculo radio 7 | Ø 14 | **14 × 14** | 7 × 7 | Orejas largas y cola blanca fuera del círculo; gris/café. |
+| Venado (fauna) | círculo radio 12 | Ø 24 | **24 × 24** | 12 × 12 | Cuerpo con patas, cuello y cabeza; variante con cornamenta. |
+| Jabalí (fauna) | círculo radio 14 | Ø 28 | **28 × 28** | 14 × 14 | Con colmillo; variante con ojos rojos (rabia). |
+| Zorro (fauna) | círculo radio 9 | Ø 18 | **18 × 18** | 9 × 9 | Orejas puntiagudas, hocico y cola de punta blanca fuera del círculo. |
+| Lobo salvaje (fauna) | círculo radio 10 | Ø 20 | **20 × 20** | 10 × 10 | Orejas y cola fuera del círculo. |
+| Lobo alfa (fauna) | círculo radio 12 | Ø 24 | **24 × 24** | 12 × 12 | Más oscuro, ojos amarillos y marca sobre la cabeza. |
+| Oso (fauna) | círculo radio 16 | Ø 32 | **32 × 32** | 16 × 16 | Orejas redondas y hocico; variante con ojos rojos (ataque). |
+| Cocodrilo (fauna) | círculo radio 13 | Ø 26 | **26 × 26** | 13 × 13 | Variante sumergida: solo sombra y ojos sobre el agua. |
+| Orbe de la cueva del oso | círculo radio 9 | Ø 18 | **18 × 18** | 9 × 9 | Se recoge al entrar en la cueva de un oso muerto. |
+
+La fauna ambiental (mariposas, luciérnagas, pájaros, peces y ranas) no tiene hitbox y hoy se dibuja por código; sus medidas se fijarán cuando se haga su pixel art. Detalle de la fauna en `Fauna.md`. Las medidas de la fauna son la hitbox (cuerpo); orejas, colas y patas pueden sobresalir del lienzo indicado.
 
 ---
 
@@ -40,7 +51,7 @@ El largo depende del tamaño del personaje: `largo = max(24, radio × 1.35) × f
 | Espada Larga | 48 | 5–7 | **8 × 48** | 4 × 24 | También la usa el maniquí. |
 | Mandoble | 72 | 6–8 | **10 × 72** | 5 × 36 | |
 | Dagas Simples (×2) | 22 | 4–5 | **6 × 22** | 3 × 11 | Un sprite; el juego lo pone en ambos flancos (espejo). |
-| Escudo | 72 de alto | 30 | **30 × 72** | 15 × 36 | Forma de escudo alargado; umbo al centro. |
+| Escudo | banda curva de 120° (radio 27 al centro del personaje, grosor 6) | 52 de cuerda | **52 × 18** | 26 × 9 | Ya no es un escudo alargado: es una banda curva delante del personaje que ocupa justo su arco de bloqueo, con el umbo en el centro del frente. Dibujarla con la curva hacia arriba (hacia donde mira). |
 | Arco | 36 de ancho | 10 de curva | **36 × 12** | 18 × 6 | Dibujar el arco **sin cuerda** (la cuerda se tensa por código según la carga). Va delante del personaje, perpendicular a la mirada. |
 | Versión nivel máximo (todas) | — | — | igual | igual | Opcional: variante dorada. Si no, el juego tiñe de dorado. |
 

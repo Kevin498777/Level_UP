@@ -1,7 +1,7 @@
 # LEVEL_UP — Estado del balance
 
 > Documento de trabajo para retomar el balance más adelante.
-> Actualizado: 20 de noviembre de 2026.
+> Actualizado: 23 de noviembre de 2026.
 > Los valores de detalle están en `Tablas_Escalado.md` y en `Level_UP_Especificaciones.md`.
 
 ---
@@ -10,7 +10,8 @@
 
 - **La energía es el recurso clave.** Hay 100 de energía máxima y se recupera **+1 cada 3 s** quieto y **+1 cada 6 s** en movimiento (unos 0.33/s como mucho). Llenar la barra tarda unos 5 minutos, así que la métrica principal es el **daño por punto de energía** (dmg/En).
 - Para las armas se compara el **daño por segundo** (daño × cadencia) con Fuerza 2, la velocidad y la durabilidad.
-- **Enemigo de referencia:** el maniquí, con 100 de vida, escudos físico y mágico de 50 y una Espada Larga de nivel 1 (6.8 de daño por golpe cada 2 s, alcance 150).
+- **Enemigo de referencia:** el maniquí, con 100 de vida, escudos físico y mágico de 50 y una Espada Larga de nivel 1 (6.8 de daño por golpe cada 2 s, alcance 150). Las mediciones de este documento se hicieron contra él.
+- **Fauna (desde el 23/11/2026):** ya hay enemigos reales que rodean y persiguen (lobos en manada, osos, cocodrilos, jabalíes y zorros; ver `Fauna.md`). Todavía no se ha medido el balance contra ellos.
 - El escudo mágico absorbe el 90 % del daño mágico, así que el daño mágico rinde mucho menos contra objetivos con escudo mágico, salvo si se anula con Cortar.
 
 ---
@@ -27,7 +28,7 @@
 
 Además se eliminó `Personaje.calcular_dano_total()`, que ya no usaba nada.
 
-Gancho para enemigos futuros: `Personaje.bloquear_con_escudo(daño, origen)`. Los ataques bloqueables (proyectiles, mordidas) deben consultarlo **antes** de aplicar daño y efectos.
+Gancho para enemigos: `Personaje.bloquear_con_escudo(daño, origen)`. Los ataques bloqueables (proyectiles, mordidas) deben consultarlo **antes** de aplicar daño y efectos. Ya lo usan la espada del maniquí y los ataques de la fauna (`fauna.bloqueado_por_escudo`: jabalí, zorro, lobo, oso y cocodrilo).
 
 ---
 
@@ -74,8 +75,9 @@ Gancho para enemigos futuros: `Personaje.bloquear_con_escudo(daño, origen)`. Lo
 4. **Paso 0 (débil):** darle un plus que el arbusto no tenga (p. ej. +50 % de daño en el primer ataque desde la invisibilidad) o bajar el coste de nv1 a 20.
 5. **Espada Ligera (sin papel):** darle un rasgo propio, como más cadencia o no desgastarse en los choques de armas.
 6. **Disparo Veloz (algo débil al principio):** coste de nv1 de 10 de energía o daño inicial de 10.
-7. **Escudo (vigilar):** con el maniquí siempre te da de frente. Cuando haya enemigos que rodeen o disparen, revisar que el bloqueo total sin coste para el jugador más el empuje de 40 no lo haga intocable.
-8. **Autoapuntado (vigilar):** −40 % de velocidad a cambio de apuntar siempre. Con el Escudo, el arco de bloqueo mira siempre al objetivo; junto al −34 % del escudo, la velocidad baja al mínimo (0.4). Revisar cuando haya enemigos reales que rodeen.
+7. **Escudo (vigilar, ya se puede medir):** con el maniquí siempre te da de frente. La manada de lobos ya rodea al jugador: revisar que el bloqueo total sin coste para el jugador más el empuje de 40 no lo haga intocable, y que contra el oso (que además resta un 30 % extra al escudo cuando no se bloquea) no sea obligatorio.
+8. **Autoapuntado (vigilar, ya se puede medir):** −40 % de velocidad a cambio de apuntar siempre. Con el Escudo, el arco de bloqueo mira siempre al objetivo; junto al −34 % del escudo, la velocidad baja al mínimo (0.4). Revisarlo contra la manada de lobos y el jabalí en rabia.
+9. **Invocar Lobos y la fauna:** ordenar el ataque ahora cuesta 5 → 10 de energía (rama de fauna). Tenerlo en cuenta al bajar su daño (punto 1).
 
 Orden sugerido para la próxima sesión: **Lobos → Regeneración Inversa → Aura Eléctrica**, y después el resto.
 
@@ -83,4 +85,4 @@ Orden sugerido para la próxima sesión: **Lobos → Regeneración Inversa → A
 
 ## 5. Pendientes de documentación
 
-- `Tablas_Escalado.xlsx` **no** está actualizado con los cambios de la sección 2 (sí lo están `Tablas_Escalado.md` y `Level_UP_Especificaciones.md`).
+- Ninguno: `Tablas_Escalado.xlsx` ya está al día con `Tablas_Escalado.md` (23/11/2026), incluidos los cambios de la sección 2 y el coste de la orden de ataque de Invocar Lobos.
