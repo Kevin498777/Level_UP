@@ -12,6 +12,7 @@ Las reglas de desarrollo se mantienen en la raíz: `../reglas.md`.
 | `Balance_Estado.md` | Estado del balance: criterio de medida, cambios ya aplicados, tier list actual de herramientas y habilidades, y propuestas pendientes para las siguientes fases. |
 | `Fauna.md` | Fauna del mundo por fases: ambiental, pasiva, neutral y hostil (conejos, venados, jabalíes, zorros, lobos, osos, cocodrilos), con sus valores y notas de diseño. |
 | `sistema_xp.md` | Sistema de experiencia (XP por nivel hasta el 20 y por animal), monedas por animal, reaparición de la fauna y muerte del jugador. |
+| `Gacha_Talismanes.md` | Gacha (por fases) y talismanes: anillos por rareza con sus efectos y niveles, Tótem de vida, huecos de equipo. |
 | `Notas_Futuras.md` | Ideas y notas sueltas para el diseño futuro (aún no implementadas). |
 | `Medidas_PixelArt.md` | Medidas (tamaño en juego y lienzo recomendado) de cada objeto que puede llevar un dibujo en pixel art: personajes, armas, proyectiles, auras, terreno e interfaz. |
 

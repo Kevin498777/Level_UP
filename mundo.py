@@ -9,6 +9,8 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
 from fauna import SistemaFauna
+from inventario import dibujar_inventario, rect_inventario, nuevo_estado_inventario, manejar_clic_inventario
+import talismanes as TL
 
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
@@ -519,7 +521,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
     botones["__menu__"] = rect_menu
 
     # Pie de página con indicadores
-    txt_lvl = fuente_mini.render("[Espacio] golpe · [L] nivel · [J] debug", True, (150, 200, 255))
+    txt_lvl = fuente_mini.render("[Espacio] golpe · [I] inventario · [L] nivel", True, (150, 200, 255))
     pantalla.blit(txt_lvl, (x + 14, alto - 68))
 
     color_hb = (100, 255, 140) if mostrar_hitboxes else (120, 130, 150)
@@ -586,6 +588,9 @@ COLOR_MONEDAS = (245, 200, 70)
 DURACION_TEXTO_FLOTANTE = 1.4      # s que dura un "+2 XP" / "NIVEL 5" sobre el personaje
 SUBIDA_TEXTO_FLOTANTE = 40         # px que sube en ese tiempo
 ALFA_PANTALLA_MUERTE = 170
+DURACION_AVISO_TOTEM = 3.5         # s que se ve "El Tótem de vida te salvó"
+COLOR_TOTEM_AVISO = (120, 240, 150)
+PROB_DEBUG_TOTEM = 0.2             # [T] (prueba): probabilidad de dar un tótem en vez de un anillo
 
 
 def dibujar_mira(pantalla, objetivo, desplazamiento):
@@ -965,6 +970,9 @@ def iniciar_mundo(config):
     reloj = pygame.time.Clock()
     ejecutando = True
     muerto = False            # Vida a 0: el mundo se congela y sale la pantalla de muerte
+    inventario_abierto = False  # [I]: inventario superpuesto (NO pausa el mundo)
+    estado_inv = nuevo_estado_inventario()
+    aviso_totem = None          # [texto, segundos transcurridos] tras salvarte un tótem
     botones_muerte = {}
     textos_flotantes = []     # [texto, color, posicion en el mundo, segundos transcurridos]
     motivo_salida = "salir"   # "salir" = cerrar juego; "menu" = volver a seleccion
@@ -984,6 +992,55 @@ def iniciar_mundo(config):
             mundo_w,
             mundo_h
         )
+
+    def salvar_con_totem():
+        """Un Tótem de vida equipado evita la muerte: vuelves al centro con la vida, la energía
+        y los escudos llenos y sin efectos; conservas nivel, XP, monedas y objetos. Tus sombras
+        desaparecen, como en una muerte normal."""
+        objetivos_viejos = [jugador]
+        for hab in jugador.habilidades:
+            for cr in getattr(hab, "criaturas", ()):
+                cr.vivo = False
+                objetivos_viejos.append(cr)
+        fauna.olvidar_objetivos(objetivos_viejos)
+        jugador.posicion = pygame.Vector2(CENTRO_MUNDO)
+        jugador.destino = pygame.Vector2(CENTRO_MUNDO)
+        jugador.empuje.update(0, 0)
+        jugador.vida = jugador.vida_max
+        jugador.energia = jugador.energia_max
+        jugador.escudo = jugador.escudo_max
+        jugador.escudo_magico = jugador.escudo_magico_max
+        jugador.desangrado = None
+        jugador.veneno = None
+        jugador.ralentizacion = 0.0
+        jugador.tiempo_ralentizacion = 0.0
+        jugador.tiempo_dano_lago = 0.0
+        jugador.objetivo_apuntado = None
+        camara.update(jugador.posicion)
+
+    def dar_talisman_prueba():
+        """[T] (prueba): un anillo al azar con las probabilidades de rareza del Gacha, o un tótem."""
+        col = jugador.talismanes
+        if random.random() < PROB_DEBUG_TOTEM:
+            res, id_obj = col.agregar_totem(), TL.TOTEM
+        else:
+            r, acum, rareza = random.random(), 0.0, TL.COMUN
+            for rz, prob in TL.PROB_RAREZA.items():
+                acum += prob
+                if r < acum:
+                    rareza = rz
+                    break
+            id_obj = random.choice(TL.anillos_de_rareza(rareza))
+            res = col.agregar_anillo(id_obj)
+        if res == "maximo":
+            jugador.monedas += TL.DEVOLUCION_REPETIDO
+            texto = f"{TL.nombre_objeto(id_obj)} al máximo: +{TL.DEVOLUCION_REPETIDO} monedas"
+        elif id_obj == TL.TOTEM:
+            texto = f"+1 Tótem de vida (x{col.totems})"
+        else:
+            texto = f"{TL.nombre_objeto(id_obj)} Nv {col.anillos[id_obj]}"
+        jugador.recalcular_talismanes()
+        textos_flotantes.append([texto, TL.color_objeto(id_obj), jugador.posicion - pygame.Vector2(0, 48), 0.0])
 
     def reaparecer():
         """El jugador vuelve al centro desde cero (nivel 1, XP 0, armas y habilidades a
@@ -1053,6 +1110,10 @@ def iniciar_mundo(config):
                     motivo_salida = "menu"
                     ejecutando = False
 
+                # [I] Abrir / cerrar el inventario (el mundo sigue en marcha)
+                elif evento.key == pygame.K_i:
+                    inventario_abierto = not inventario_abierto
+
                 # [H] Alternar visualización de hitboxes para depuración
                 elif evento.key == pygame.K_h:
                     mostrar_hitboxes = not mostrar_hitboxes
@@ -1063,6 +1124,10 @@ def iniciar_mundo(config):
                 elif evento.key == pygame.K_1:
                     if jugador.herramienta:
                         jugador.herramienta.toggle()
+
+                # [T] (prueba) Conseguir un talismán al azar (hasta que exista el Gacha)
+                elif evento.key == pygame.K_t:
+                    dar_talisman_prueba()
 
                 # [L] (debug) Subir de nivel: otorga 3 puntos de mejora
                 elif evento.key == pygame.K_l:
@@ -1148,6 +1213,12 @@ def iniciar_mundo(config):
                         info_abierta = None
                         motivo_salida = "menu"
                         ejecutando = False
+                    elif click_btn == "__cerrar_inv__":
+                        inventario_abierto = False
+                    elif click_btn == "__inv_fondo__":
+                        pass                      # clic dentro del inventario: no mueve al personaje
+                    elif click_btn and click_btn.startswith("__inv__"):
+                        manejar_clic_inventario(click_btn, jugador, estado_inv, pygame.time.get_ticks() / 1000.0)
                     elif click_btn:
                         info_abierta = None
                         jugador.subir_stat(click_btn)
@@ -1169,7 +1240,8 @@ def iniciar_mundo(config):
                     # Sin ninguna invocacion en modo combate, el clic derecho es el Autoapuntado:
                     # sobre un enemigo lo fija; en terreno libre o sobre el mismo objetivo lo quita.
                     mouse_x, mouse_y = evento.pos
-                    if mundo_x <= mouse_x <= (mundo_x + mundo_w):
+                    sobre_inventario = inventario_abierto and rect_inventario(area_mundo_pantalla).collidepoint(mouse_x, mouse_y)
+                    if mundo_x <= mouse_x <= (mundo_x + mundo_w) and not sobre_inventario:
                         vista = vista_camara()
                         punto = pygame.Vector2(
                             vista.x + (mouse_x - mundo_x),
@@ -1328,6 +1400,8 @@ def iniciar_mundo(config):
             jugador.actualizar_ralentizacion(dt)
             # Fundido visual de Paso 0 (desvanecerse / volver a verse)
             jugador.actualizar_desvanecimiento(dt)
+            # Anillo de regeneración inversa (cura cada cierto tiempo)
+            jugador.actualizar_talismanes(dt)
 
             # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
             jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
@@ -1397,8 +1471,12 @@ def iniciar_mundo(config):
                 jugador.monedas += monedas
                 textos_flotantes.append([f"+{monedas} monedas", COLOR_MONEDAS,
                                          jugador.posicion - pygame.Vector2(0, 16), 0.0])
-            if jugador.vida <= 0:
+            if jugador.vida <= 0 and jugador.talismanes.usar_totem():
+                salvar_con_totem()
+                aviso_totem = [f"El Tótem de vida te salvó (quedan {jugador.talismanes.totems})", 0.0]
+            elif jugador.vida <= 0:
                 muerto = True
+                inventario_abierto = False   # la pantalla de muerte manda
         pantalla.set_clip(area_mundo_pantalla)
 
         dibujar_suelo(pantalla, vista, desplazamiento)
@@ -1470,6 +1548,21 @@ def iniciar_mundo(config):
             pantalla.blit(capa_oscura, (mundo_x, mundo_y))
             vegetacion.dibujar_interior(pantalla, desplazamiento, jugador)
         fauna.dibujar_orbes_cueva(pantalla, vista, desplazamiento)
+
+        # Aviso del Tótem de vida (arriba, en el centro del mundo)
+        if aviso_totem is not None:
+            aviso_totem[1] += dt
+            if aviso_totem[1] >= DURACION_AVISO_TOTEM:
+                aviso_totem = None
+            else:
+                sup_t = fuentes["hab_contador"].render(aviso_totem[0], True, COLOR_TOTEM_AVISO)
+                alfa_t = 255 if aviso_totem[1] < DURACION_AVISO_TOTEM - 0.8 else int(255 * (DURACION_AVISO_TOTEM - aviso_totem[1]) / 0.8)
+                fondo_t = pygame.Surface((sup_t.get_width() + 40, sup_t.get_height() + 16), pygame.SRCALPHA)
+                pygame.draw.rect(fondo_t, (10, 30, 16, 200), fondo_t.get_rect(), border_radius=10)
+                pygame.draw.rect(fondo_t, (*COLOR_TOTEM_AVISO, 255), fondo_t.get_rect(), width=2, border_radius=10)
+                fondo_t.blit(sup_t, (20, 8))
+                fondo_t.set_alpha(alfa_t)
+                pantalla.blit(fondo_t, fondo_t.get_rect(center=(area_mundo_pantalla.centerx, area_mundo_pantalla.y + 70)))
 
         # Textos flotantes de XP y subida de nivel
         for tf in textos_flotantes:
@@ -1592,6 +1685,11 @@ def iniciar_mundo(config):
         botones_hab = dibujar_panel_habilidades(pantalla, ancho_pantalla - ancho_panel_der, 0, ancho_panel_der, alto_pantalla, jugador.habilidades, jugador, fuentes, info_abierta)
         if botones_hab:
             botones_stats.update(botones_hab)
+
+        # Inventario [I]: encima del mundo, que sigue en marcha detrás
+        if inventario_abierto and not muerto:
+            botones_stats.update(dibujar_inventario(pantalla, area_mundo_pantalla, jugador, fuentes,
+                                                    pygame.time.get_ticks() / 1000.0, estado_inv))
 
         botones_muerte = dibujar_pantalla_muerte(pantalla, area_mundo_pantalla, fuentes) if muerto else {}
 

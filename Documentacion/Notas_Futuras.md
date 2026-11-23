@@ -89,7 +89,60 @@ Pasivas
 
 
 Sistema de inventario
-Al precionar la tecla I este abre un ninventario donde se muestran las estadisticas, las herramientas (selecionadas), y habilidades selecionadas(solo las selecionadas no todas las existentes)
+Al precionar la tecla I este abre un ninventario donde se muestran las estadisticas, las herramientas (selecionadas), y habilidades selecionadas(solo las selecionadas no todas las existentes), El nivel con la xp, las monedas , que sea un interfaz bonita interactiva, y hay que tener cuidado porque activar la interfaz no pausa el mundo solo sobremone una pantalla, asi que si puedo morir dentro del inventario, para salir de el que exista una x o precionando la I igualnmente sales de el
+
+
+
+Sistema nuevo
+Gacha de Level_UP
+Esta es un sistema de ruleta que 1 tirada que cuesta 30 monedas
+Y tienes las sigueines probabilidades
+Herramienta(30%)(si ya no hay Herramientas esta de devuelve 25 monedas)
+Habilidad(15%)(si ya no hay habilidaes esta te devuelve 25 monedas)
+Anillo(50%)(si ya no hay anillos esta te devuelve 25 monedas)
+Si te toca un anillo ahi entran las probabilidades internas de los objetos anillos
+Nada(5%)
+
+
+
+
+
+Objetos nuevo 
+nuevo archivo llamado talismanes
+Comun (probabilidad de obtener 60%)
+    anillos de viento (color blanco,forma de anillo)
+    +0.5% de velocidad de movimiento, nivel maximo 10 aumento de velocidad maxima +5%
+    si consiges uno mas se puede mejorar maximo nivel 10
+    anillo de fuerza(color naranja,forma de anillo)
+    +0.5% de daño extra, nivel maximo 5 aumento de daño extra +5%
+    si consiges uno mas se puede mejorar maximo nivel 10
+    anillo de energia(color azul marino,forma de anillo)
+    +2.5 de energia extra, nivel maximo 10, aumento de energia maxima 25 puntos
+
+Especial (probabilidad de obtener 30%)
+    anillo de vida (color rosa,forma de anillo)
+    +2.5 de vida, nivel maximo 7 aumento de vida maxima 17.5
+    anillo de cadencia (color amarillo, forma de anillo)
+    +0.2 de cadencia, nivel maximo 7, aumento maximo de cadencia 1.4
+    
+
+Epico (probabilidad de obtener 9%)
+    anillo de defensa magica (color gris y azul celeste)
+    +4 de defensa magica, nivel maximo 5, aumeto de defensa maxima +20
+    +10% de velocidad de regeneracion de escudo magico
+
+    anillo de defensa fisica (color cafe y azul celeste)
+    +4 de defensa fisica, nivel maximo 5, aumeto de defensa maxima +20
+    +10% de velocidad de regeneracion de escudo fisico
+
+
+
+
+Legendario  (probabilidad de obtener 1%)
+    anillo de regeneracion inversa (color rosa con azul marino y dorado, forma de anillo)
+    +0.3 de regeneracion de vida por nivel, nivel maximo 3, regenerecion de vida maxima por nivel 0.9
+    cd nv1-3s, nv2-2s, nv3-1s
+
 
 
 

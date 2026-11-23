@@ -168,7 +168,8 @@ class HerramientaBase:
         """Daño proporcional a la fuerza actual del personaje por el multiplicador del nivel."""
         if self.roto:
             return 0.0
-        return round(jugador.fuerza * self.multiplicador_dano, 2)
+        # Anillo de fuerza: +% al daño del arma del personaje
+        return round(jugador.fuerza * self.multiplicador_dano * (1.0 + getattr(jugador, "bono_dano", 0.0)), 2)
 
     def cadencia_efectiva(self, jugador=None):
         """Cadencia real (golpes/seg): la del arma por nivel mas el bonus del personaje."""

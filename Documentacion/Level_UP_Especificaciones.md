@@ -535,7 +535,8 @@ Reglas comunes:
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
 - **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto, **invisible** (Paso 0) o en **autoapuntado**. Dentro de la cueva de un oso muerto el mapa se oscurece como en un arbusto.
 - **Textos flotantes:** **"+X XP"** y **"+X monedas"** sobre el personaje al cazar y **"NIVEL N"** al subir.
-- **Pantalla de muerte:** velo oscuro sobre el mundo con **Reaparecer [R]** y **Volver al menú principal [M]** (ver 7.1).
+- **Pantalla de muerte:** velo oscuro sobre el mundo con **Reaparecer [R]** y **Volver al menú principal [M]** (ver 7.1). Si tienes un **Tótem de vida** equipado no sale: vuelves al centro sin perder nada y aparece "El Tótem de vida te salvó (quedan N)".
+- **Inventario [I]:** ventana sobre el mundo con el **nivel y la XP** (cuánto falta para el siguiente), las **monedas**, los **puntos de mejora**, las **estadísticas** (con barras de vida, energía y escudos), la **herramienta** elegida (nivel, daño, cadencia, velocidad, estado y durabilidad) y **solo las 3 habilidades equipadas** (tecla, nivel, coste, estado o recarga y resumen). Tiene dos pestañas: **Personaje** (lo anterior) y **Talismanes** (los 3 huecos equipados y la colección de anillos y tótems, con botones Equipar y Quitar; ver `Gacha_Talismanes.md`). Es **interactivo**: las tarjetas se iluminan al pasar el ratón y abajo se muestra su descripción, y sus botones **[+]** gastan puntos igual que los paneles. **No pausa el juego**: el mundo sigue detrás (se puede morir con él abierto; con poca vida el borde parpadea en rojo). Se cierra con **[I]** o con la **X**; al morir se cierra solo. Un clic dentro no mueve al personaje.
 - **Brújula [C]:** flechas alrededor del personaje hacia el **conejo (C)**, **lobo (L)** y **oso (O)** más cercanos y hacia el **maniquí (M)**, con la distancia a cada uno y una leyenda arriba a la izquierda.
 
 ---
@@ -556,6 +557,8 @@ Reglas comunes:
 | Clic derecho sobre un enemigo (sin modo combate) | **Autoapuntado**: el personaje mira siempre a ese enemigo (−40 % Vel, rango 500). En terreno libre o sobre el mismo objetivo lo quita (ver 6.4) |
 | [H] | Mostrar / ocultar las hitboxes |
 | [C] | Mostrar / ocultar la **brújula** a los animales más cercanos (conejo, lobo, oso) y al maniquí |
+| [I] | Abrir / cerrar el **inventario** (no pausa el juego; también se cierra con la X) |
+| [T] | (Prueba) Conseguir un talismán al azar (anillo o Tótem de vida) hasta que exista el Gacha |
 | [L] | (Prueba) Subir de nivel al personaje (+3 puntos, hasta el 20) |
 | [R] / [M] (al morir) | Reaparecer desde el nivel 1 / volver al menú principal |
 | [J] | (Prueba) Simular un golpe del arma (desgasta durabilidad) |

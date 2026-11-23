@@ -963,6 +963,46 @@ def dibujar_tooltip(pantalla, x, y, titulo, lineas, fuente_titulo, fuente_texto,
 # Habilidades cuya tarjeta activa se pinta en tono frío (cian) en lugar de rojizo
 HABILIDADES_TONO_FRIO = ("Destello", "Aura Electrica", "Reforzamiento Mágico", "Paso 0")
 
+def resumen_habilidad(hab):
+    """Resumen corto del efecto de una habilidad con sus valores reales segun el nivel
+    (lo usan el panel derecho y el inventario)."""
+    if hab.nombre == "Destello":
+        detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) | CD {hab.duracion_cooldown:.0f}s"
+    elif hab.nombre == "Burst de Fuerza":
+        detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:.0f}s"
+    elif hab.nombre == "Disparo Veloz":
+        detalles = f"Daño {hab.dano:g} mág. · Vel {hab.velocidad_proyectil:g} | CD {hab.duracion_cooldown:.1f}s"
+    elif hasattr(hab, "conejos"):
+        detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
+    elif hasattr(hab, "lobos"):
+        detalles = f"Lobo: Vida {hab.vida_lobo} · Vel {hab.velocidad_lobo} · Daño {hab.dano_lobo:.1f} (33% desangrado)"
+    elif hab.nombre == "Carga de Fuego":
+        detalles = (f"Daño {round(hab.dano_base * hab.MULT_CARGA[0], 1):g}-{round(hab.dano_base * hab.MULT_CARGA[5], 1):g}"
+                    f" · CD {hab.RECARGA_BASE:g}-{hab.RECARGA_BASE + hab.RECARGA_POR_SEGUNDO * 5:g}s")
+    elif hab.nombre == "Cortar":
+        detalles = f"Daño {hab.dano} mág. · Vel {hab.velocidad_cuchilla} | CD {hab.duracion_cooldown:.0f}s"
+    elif hab.nombre == "Onda Sonora":
+        detalles = f"{len(hab.danos_ondas)} onda(s) · R{hab.radio:.0f} | CD {hab.duracion_cooldown:.0f}s"
+    elif hab.nombre == "Aura Electrica":
+        detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
+    elif hab.nombre == "Golpe de Suerte":
+        detalles = f"Azar nv{hab.nivel_efecto} · {hab.ultimo_resultado}"
+    elif hab.nombre == "Regeneración Inversa":
+        detalles = f"+{hab.curacion} vida / -{hab.costo_energia} En. cada {hab.intervalo:.0f}s (mantén)"
+    elif hab.nombre == "Reforzamiento Mágico":
+        dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
+        detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
+    elif hab.nombre == "Disparo Venenoso":
+        detalles = f"Veneno {hab.veneno_total:g} en {hab.veneno_duracion:g}s | CD {hab.duracion_cooldown:g}s"
+    elif hab.nombre == "Paso 0":
+        detalles = f"Invisible {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
+    elif hab.nombre == "Sombra Araña":
+        detalles = f"Inmoviliza {hab.inmovilizacion:.0f}s · Telarañas {len(hab.telaranas)}/{hab.MAX_TELARANAS}"
+    else:
+        detalles = hab.descripcion[:52]
+    return detalles
+
+
 def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador, fuentes, info_abierta=None):
     """
     Renderiza la interfaz lateral derecha para las habilidades equipadas (teclas 2, 3, 4)
@@ -1136,40 +1176,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
                 pygame.draw.rect(pantalla, (90, 220, 120), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         # Resumen del efecto (valores reales segun el nivel)
-        if hab.nombre == "Destello":
-            detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) | CD {hab.duracion_cooldown:.0f}s"
-        elif hab.nombre == "Burst de Fuerza":
-            detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:.0f}s"
-        elif hab.nombre == "Disparo Veloz":
-            detalles = f"Daño {hab.dano:g} mág. · Vel {hab.velocidad_proyectil:g} | CD {hab.duracion_cooldown:.1f}s"
-        elif hasattr(hab, "conejos"):
-            detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
-        elif hasattr(hab, "lobos"):
-            detalles = f"Lobo: Vida {hab.vida_lobo} · Vel {hab.velocidad_lobo} · Daño {hab.dano_lobo:.1f} (33% desangrado)"
-        elif hab.nombre == "Carga de Fuego":
-            detalles = (f"Daño {round(hab.dano_base * hab.MULT_CARGA[0], 1):g}-{round(hab.dano_base * hab.MULT_CARGA[5], 1):g}"
-                        f" · CD {hab.RECARGA_BASE:g}-{hab.RECARGA_BASE + hab.RECARGA_POR_SEGUNDO * 5:g}s")
-        elif hab.nombre == "Cortar":
-            detalles = f"Daño {hab.dano} mág. · Vel {hab.velocidad_cuchilla} | CD {hab.duracion_cooldown:.0f}s"
-        elif hab.nombre == "Onda Sonora":
-            detalles = f"{len(hab.danos_ondas)} onda(s) · R{hab.radio:.0f} | CD {hab.duracion_cooldown:.0f}s"
-        elif hab.nombre == "Aura Electrica":
-            detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
-        elif hab.nombre == "Golpe de Suerte":
-            detalles = f"Azar nv{hab.nivel_efecto} · {hab.ultimo_resultado}"
-        elif hab.nombre == "Regeneración Inversa":
-            detalles = f"+{hab.curacion} vida / -{hab.costo_energia} En. cada {hab.intervalo:.0f}s (mantén)"
-        elif hab.nombre == "Reforzamiento Mágico":
-            dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
-            detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
-        elif hab.nombre == "Disparo Venenoso":
-            detalles = f"Veneno {hab.veneno_total:g} en {hab.veneno_duracion:g}s | CD {hab.duracion_cooldown:g}s"
-        elif hab.nombre == "Paso 0":
-            detalles = f"Invisible {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
-        elif hab.nombre == "Sombra Araña":
-            detalles = f"Inmoviliza {hab.inmovilizacion:.0f}s · Telarañas {len(hab.telaranas)}/{hab.MAX_TELARANAS}"
-        else:
-            detalles = hab.descripcion[:52]
+        detalles = resumen_habilidad(hab)
 
         txt_det = fuente_det.render(detalles, True, (206, 214, 230))
         pantalla.blit(txt_det, (tarjeta_x + pad, cur_y + 92))

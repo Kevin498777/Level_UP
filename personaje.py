@@ -1,6 +1,7 @@
 import pygame
 import math
 from herramientas import EspadaLigera
+from talismanes import ColeccionTalismanes
 from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO)
 
@@ -119,6 +120,17 @@ class Personaje:
         self.puntos_mejora = 3
         self.xp = 0.0                    # XP acumulada hacia el siguiente nivel
         self.monedas = 0                 # monedas de la caza (por ahora no se gastan; se pierden al morir)
+        # Talismanes (anillos y Tótem de vida): solo dan efecto los equipados en los 3 huecos.
+        self.talismanes = ColeccionTalismanes()
+        self._bonos_talismanes = {}      # bonos aditivos ya sumados a las stats (para poder quitarlos)
+        self.bono_velocidad = 0.0        # +% sobre la velocidad base (anillo de viento)
+        self.bono_dano = 0.0             # +% al daño del arma (anillo de fuerza)
+        self.bono_escudo = 0.0           # escudo físico máximo extra (anillo de defensa física)
+        self.bono_escudo_magico = 0.0    # escudo mágico máximo extra (anillo de defensa mágica)
+        self.bono_regen_escudo = 0.0     # +% a la regeneración del escudo físico
+        self.bono_regen_escudo_magico = 0.0
+        self.regen_vida = None           # (vida, intervalo) del anillo de regeneración inversa
+        self._t_regen_vida = 0.0
         self.habilidades = habilidades if habilidades is not None else []
         # Efectos temporales de habilidades no equipadas (ej. los que otorga Golpe de Suerte)
         self.efectos_extra = []
@@ -181,13 +193,49 @@ class Personaje:
 
     @property
     def escudo_max(self):
-        """Máximo efectivo del escudo físico: la base de los puntos más el bonus del Escudo."""
-        return round(self.escudo_max_base * (1.0 + self.bonus_escudos), 2)
+        """Máximo efectivo del escudo físico: la base de los puntos más el bonus del Escudo, más
+        lo que da el anillo de defensa física (se suma aunque la base sea 0)."""
+        return round(self.escudo_max_base * (1.0 + self.bonus_escudos) + getattr(self, "bono_escudo", 0.0), 2)
 
     @property
     def escudo_magico_max(self):
-        """Máximo efectivo del escudo mágico: la base de los puntos más el bonus del Escudo."""
-        return round(self.escudo_magico_max_base * (1.0 + self.bonus_escudos), 2)
+        """Máximo efectivo del escudo mágico: la base de los puntos más el bonus del Escudo, más
+        lo que da el anillo de defensa mágica."""
+        return round(self.escudo_magico_max_base * (1.0 + self.bonus_escudos) + getattr(self, "bono_escudo_magico", 0.0), 2)
+
+    def recalcular_talismanes(self):
+        """Aplica los efectos de los talismanes equipados. Los aditivos (vida, energía y
+        cadencia máximas) se suman a la stat y se recuerdan para poder quitarlos; al quitar un
+        anillo la vida/energía actuales se recortan al nuevo máximo (equiparlo no cura)."""
+        b = self.talismanes.bonos()
+        for clave, attr in (("vida_max", "vida_max"), ("energia_max", "energia_max"), ("cadencia", "cadencia")):
+            delta = b.get(clave, 0) - self._bonos_talismanes.get(clave, 0)
+            if delta:
+                setattr(self, attr, round(getattr(self, attr) + delta, 2))
+        self.vida = min(self.vida, self.vida_max)
+        self.energia = min(self.energia, self.energia_max)
+        self.bono_velocidad = b.get("velocidad_pct", 0.0)
+        self.bono_dano = b.get("dano_pct", 0.0)
+        self.bono_escudo = b.get("escudo", 0.0)
+        self.bono_escudo_magico = b.get("escudo_magico", 0.0)
+        self.bono_regen_escudo = b.get("regen_escudo", 0.0)
+        self.bono_regen_escudo_magico = b.get("regen_escudo_magico", 0.0)
+        self.regen_vida = b.get("regen_vida")
+        self.escudo = min(self.escudo, self.escudo_max)
+        self.escudo_magico = min(self.escudo_magico, self.escudo_magico_max)
+        self._bonos_talismanes = b
+
+    def actualizar_talismanes(self, dt):
+        """Anillo de regeneración inversa: cura su cantidad cada intervalo, en todo momento."""
+        if not self.regen_vida:
+            self._t_regen_vida = 0.0
+            return
+        cantidad, intervalo = self.regen_vida
+        self._t_regen_vida += dt
+        while self._t_regen_vida >= intervalo:
+            self._t_regen_vida -= intervalo
+            if self.vida < self.vida_max:
+                self.curar(cantidad)
 
     def bloquear_con_escudo(self, cantidad, origen):
         """
@@ -417,7 +465,7 @@ class Personaje:
             return
         self.tiempo_sin_dano_escudo += dt
         if self.tiempo_sin_dano_escudo >= REGEN_ESCUDO_RETRASO:
-            self.escudo = min(self.escudo_max, round(self.escudo + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
+            self.escudo = min(self.escudo_max, round(self.escudo + REGEN_ESCUDO_POR_SEGUNDO * (1.0 + self.bono_regen_escudo) * dt, 2))
 
     def actualizar_regeneracion_escudo_magico(self, dt):
         """
@@ -432,7 +480,7 @@ class Personaje:
             return
         self.tiempo_sin_dano_escudo_magico += dt
         if self.tiempo_sin_dano_escudo_magico >= REGEN_ESCUDO_RETRASO:
-            self.escudo_magico = min(self.escudo_magico_max, round(self.escudo_magico + REGEN_ESCUDO_POR_SEGUNDO * dt, 2))
+            self.escudo_magico = min(self.escudo_magico_max, round(self.escudo_magico + REGEN_ESCUDO_POR_SEGUNDO * (1.0 + self.bono_regen_escudo_magico) * dt, 2))
 
     def actualizar_velocidad(self):
         """
@@ -464,6 +512,9 @@ class Personaje:
             modificador -= self.herramienta.debuff_velocidad
             # Arco tensando la cuerda: ralentizacion extra mientras carga
             modificador -= getattr(self.herramienta, "ralentizacion_carga", 0.0)
+
+        # Anillo de viento: +% sobre la velocidad base
+        modificador += self.bono_velocidad
 
         # Autoapuntado activo
         if self.objetivo_apuntado is not None:
