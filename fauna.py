@@ -20,6 +20,27 @@ from personaje import repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGU
 MARGEN_CULL = 90
 PIXELES_POR_PUNTO_EMPUJE = 6   # igual que en el juego: puntos de arma -> px de empuje
 
+# Experiencia que da cada animal al morir a manos del jugador o de sus invocaciones
+# (Documentacion/sistema_xp.md). Lo que matan los depredadores salvajes no da XP.
+XP_CONEJO = 0.1
+XP_VENADO = 1.0
+XP_ZORRO = 1.5
+XP_JABALI = 3.0
+XP_COCODRILO = 4.0
+XP_OSO = 6.0
+XP_ORBE_CUEVA = 2.0          # al recoger el orbe de la cueva de un oso
+XP_LOBO = 2.0
+XP_LOBO_ALFA = 4.0
+XP_MANADA_COMPLETA = 3.0     # bono al acabar con toda la manada (alfa incluido)
+
+# Reaparicion de fauna (sin pasar nunca el maximo de cada especie)
+LOBO_REAPARICION = 60.0      # cada 60 s la manada crece +1 lobo (hasta 4)
+LOBO_REAPARECEN = 2          # si la manada fue exterminada, otra se inicia con 2 lobos en otro bosque
+MANADA_DIST_NUEVA = 1500.0   # la manada nueva aparece al menos a esta distancia de la anterior
+OSO_REAPARICION = 180.0      # 3 min despues de morir aparece un oso nuevo en su cueva
+ZORRO_REAPARICION = 180.0    # cada 3 min aparece un zorro nuevo en el mundo
+ZORRO_REPRO_INTERVALO = 120.0  # cada 2 min nace +1 si hay al menos 2 zorros
+
 
 def bloqueado_por_escudo(atacante, objetivo, dano):
     """Si el objetivo lleva el Escudo desenfundado cubriendo al atacante, bloquea el golpe o
@@ -303,7 +324,9 @@ class SistemaFauna:
         self.vegetacion = vegetacion
         self.charcos = charcos
         self.rocas = list(rocas)
+        self._rocas_mundo = rocas          # lista viva: Cortar puede destruir rocas (cuevas)
         self.mariposas = []
+        self.xp_pendiente = 0.0            # XP ganada por el jugador y aun no entregada
 
         # Pajaros: una fraccion de los arboles existentes.
         self.pajaros = [Pajaro(a) for a in vegetacion.arboles if random.random() < PAJARO_PROB]
@@ -324,17 +347,10 @@ class SistemaFauna:
         # Madrigueras de conejos salvajes en el pasto alto (10 a 15 en el mundo).
         self.madrigueras = []
         self.conejos = []
-        zonas = list(getattr(vegetacion, "pastizales", [])) or list(getattr(vegetacion, "praderas", []))
-        if zonas:
+        self._zonas_madriguera = list(getattr(vegetacion, "pastizales", [])) or list(getattr(vegetacion, "praderas", []))
+        if self._zonas_madriguera:
             for _ in range(random.randint(MADRIGUERAS_MIN, MADRIGUERAS_MAX)):
-                centro_p, radio_p = random.choice(zonas)
-                ang = random.uniform(0, math.tau)
-                r = random.uniform(0, max(0.0, radio_p * 0.7))
-                pos = pygame.Vector2(centro_p) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
-                m = Madriguera(pos)
-                self.madrigueras.append(m)
-                for _ in range(random.randint(*CONEJOS_POR_MADRIGUERA)):
-                    self.conejos.append(ConejoSalvaje(m))
+                self._nueva_madriguera()
 
         # Venados: poblacion global repartida por el mundo (hasta VENADO_MAX).
         self.venados = [self._nuevo_venado() for _ in range(VENADO_MAX)]
@@ -344,19 +360,14 @@ class SistemaFauna:
         self.jabalies = [self._nuevo_jabali() for _ in range(JABALI_MAX)]
         self._t_repro_jabali = 0.0
         self.zorros = [self._nuevo_zorro() for _ in range(ZORRO_MAX)]
+        self._t_reap_zorro = 0.0
+        self._t_repro_zorro = 0.0
 
         # Manadas de lobos (7 por mundo), en los bosques.
         self.manadas = []
-        bosques = list(getattr(vegetacion, "bosques", []))
+        self._bosques = list(getattr(vegetacion, "bosques", []))
         for _ in range(LOBO_MANADAS):
-            if bosques:
-                centro_b, radio_b = random.choice(bosques)
-                ang = random.uniform(0, math.tau)
-                r = random.uniform(0, max(0.0, radio_b * 0.6))
-                centro = pygame.Vector2(centro_b) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
-            else:
-                centro = self._punto_mundo()
-            self.manadas.append(Manada(centro))
+            self.manadas.append(Manada(self._centro_manada()))
 
         # Osos: uno por algunas rocas gigantes (8 a 12 por mundo), su cueva.
         self.rugidos = []
@@ -391,6 +402,8 @@ class SistemaFauna:
 
     def actualizar(self, dt, jugador, vista):
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        # Antes de limpiar las listas: XP de los animales que murieron desde el ultimo frame.
+        self._recoger_muertes()
 
         # Mariposas: cull de las que se alejan y repoblado alrededor de la camara.
         self.mariposas = [m for m in self.mariposas
@@ -443,6 +456,13 @@ class SistemaFauna:
                 vivos = sum(1 for c in self.conejos if c.madriguera is m)
                 if 2 <= vivos < m.max_conejos:
                     self.conejos.append(ConejoSalvaje(m))
+        # Madriguera sin conejos: se destruye y aparece otra en otra parte del pasto alto.
+        habitadas = {id(c.madriguera) for c in self.conejos}
+        for i, m in enumerate(self.madrigueras):
+            if id(m) not in habitadas and self._zonas_madriguera:
+                self.madrigueras.pop(i)
+                self._nueva_madriguera(evitar=zona)
+                break                      # una por frame basta
 
         # Venados: quitar muertos y actualizar los cercanos.
         self.venados = [v for v in self.venados if v.vivo]
@@ -476,13 +496,44 @@ class SistemaFauna:
         for z in self.zorros:
             if zona.collidepoint(z.posicion.x, z.posicion.y):
                 z.actualizar(dt, jugador, amenazas, self.conejos)
+        # Reaparicion (uno nuevo cada 3 min, lejos de la vista) y reproduccion (cada 2 min, con >= 2).
+        self._t_reap_zorro += dt
+        if self._t_reap_zorro >= ZORRO_REAPARICION:
+            self._t_reap_zorro -= ZORRO_REAPARICION
+            if len(self.zorros) < ZORRO_MAX:
+                self.zorros.append(self._nuevo_zorro(evitar=zona))
+        self._t_repro_zorro += dt
+        if self._t_repro_zorro >= ZORRO_REPRO_INTERVALO:
+            self._t_repro_zorro -= ZORRO_REPRO_INTERVALO
+            if 2 <= len(self.zorros) < ZORRO_MAX:
+                padre = random.choice(self.zorros)
+                off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
+                self.zorros.append(Zorro(padre.posicion.x + off.x, padre.posicion.y + off.y))
 
-        # Manadas de lobos: actualizar las que tienen algun lobo cerca de la camara.
+        # Manadas de lobos: crecen cada minuto (fuera de combate) y se actualizan las que
+        # tienen algun lobo cerca de la camara.
         presas = [c for c in self.conejos if c.vivo] + [v for v in self.venados if v.vivo]
         for man in self.manadas:
+            man._t_repro += dt
+            if man._t_repro >= LOBO_REAPARICION:
+                man._t_repro -= LOBO_REAPARICION
+                # Exterminada: la manada nueva se inicia en otro bosque, fuera de la vista
+                otro = self._centro_manada(evitar=zona, lejos_de=man.centro) if not man.vivos() else None
+                man.repoblar(otro)
             if any(l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y) for l in man.lobos):
                 man.actualizar(dt, jugador, amenazas, presas)
+            else:
+                man.alertada = False     # fuera de la vista no hay combate (si no, nunca creceria)
 
+        # Osos: un oso nuevo aparece en su cueva 3 min despues de morir el anterior (si la
+        # roca sigue en pie y el jugador no esta dentro de la cueva).
+        for i, oso in enumerate(self.osos):
+            if oso.vivo or not oso._xp_contada:
+                continue
+            oso._t_reaparicion += dt
+            if (oso._t_reaparicion >= OSO_REAPARICION and oso.roca in self._rocas_mundo
+                    and (jugador.posicion - oso.entrada).length() > ENTRADA_RADIO * 2):
+                self.osos[i] = oso.renacer()
         # Osos: actualizar los cercanos (y su orbe tras morir).
         for oso in self.osos:
             cerca = zona.collidepoint(oso.posicion.x, oso.posicion.y) or zona.collidepoint(oso.cueva.x, oso.cueva.y)
@@ -492,6 +543,8 @@ class SistemaFauna:
                 oso.actualizar(dt, jugador, amenazas, self.charcos, self.rugidos)
             if oso.orbe is not None and oso.orbe.activo:
                 oso.orbe.actualizar(dt, jugador)
+                if not oso.orbe.activo:
+                    self.xp_pendiente += XP_ORBE_CUEVA
         # Ondas de choque de los rugidos
         for r in self.rugidos:
             r.actualizar(dt, jugador)
@@ -535,15 +588,54 @@ class SistemaFauna:
             return p
         return None
 
-    def _punto_mundo(self):
+    def _punto_mundo(self, evitar=None):
+        """Punto al azar dentro del mundo y fuera del agua (y fuera del rect 'evitar', p. ej.
+        la vista de la camara, para que lo nuevo no aparezca delante del jugador)."""
         for _ in range(20):
             ang = random.uniform(0, math.tau)
             d = math.sqrt(random.random()) * self.radio_mundo * 0.95
             p = self.centro_mundo + pygame.Vector2(math.cos(ang), math.sin(ang)) * d
             if any(c.contiene(p) for c in self.charcos):
                 continue
+            if evitar is not None and evitar.collidepoint(p.x, p.y):
+                continue
             return p
         return pygame.Vector2(self.centro_mundo)
+
+    def _centro_manada(self, evitar=None, lejos_de=None):
+        """Punto dentro de un bosque al azar para una manada (fuera de 'evitar' y, si se
+        puede, a mas de MANADA_DIST_NUEVA del centro anterior)."""
+        centro = None
+        for _ in range(15):
+            if self._bosques:
+                centro_b, radio_b = random.choice(self._bosques)
+                ang = random.uniform(0, math.tau)
+                r = random.uniform(0, max(0.0, radio_b * 0.6))
+                centro = pygame.Vector2(centro_b) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
+            else:
+                centro = self._punto_mundo()
+            if evitar is not None and evitar.collidepoint(centro.x, centro.y):
+                continue
+            if lejos_de is not None and (centro - lejos_de).length() < MANADA_DIST_NUEVA:
+                continue
+            break
+        return centro
+
+    def _nueva_madriguera(self, evitar=None):
+        """Crea una madriguera en un pastizal al azar con sus conejos (2 a 10)."""
+        pos = None
+        for _ in range(10):
+            centro_p, radio_p = random.choice(self._zonas_madriguera)
+            ang = random.uniform(0, math.tau)
+            r = random.uniform(0, max(0.0, radio_p * 0.7))
+            pos = pygame.Vector2(centro_p) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
+            if evitar is None or not evitar.collidepoint(pos.x, pos.y):
+                break
+        m = Madriguera(pos)
+        self.madrigueras.append(m)
+        for _ in range(random.randint(*CONEJOS_POR_MADRIGUERA)):
+            self.conejos.append(ConejoSalvaje(m))
+        return m
 
     def _nuevo_venado(self):
         p = self._punto_mundo()
@@ -553,9 +645,61 @@ class SistemaFauna:
         p = self._punto_mundo()
         return Jabali(p.x, p.y)
 
-    def _nuevo_zorro(self):
-        p = self._punto_mundo()
+    def _nuevo_zorro(self, evitar=None):
+        p = self._punto_mundo(evitar)
         return Zorro(p.x, p.y)
+
+    # ---- Experiencia ----
+    def _contar_muerte(self, animal):
+        """Suma la XP de un animal muerto una sola vez. True si la gano el jugador."""
+        if animal.vivo or animal._xp_contada:
+            return False
+        animal._xp_contada = True
+        if animal.muerto_por_fauna:
+            return False
+        self.xp_pendiente += animal.xp
+        return True
+
+    def _recoger_muertes(self):
+        for grupo in (self.conejos, self.venados, self.jabalies, self.zorros, self.osos, self.cocodrilos):
+            for animal in grupo:
+                self._contar_muerte(animal)
+        for man in self.manadas:
+            murio = False
+            for lobo in man.lobos:
+                if self._contar_muerte(lobo):
+                    murio = True
+                    man.alfa_cazado = man.alfa_cazado or lobo.es_alfa
+            # Bono solo por la manada completa: hay que haber cazado tambien a su alfa
+            if murio and not man.vivos() and man.alfa_cazado and not man.bono_dado:
+                man.bono_dado = True
+                self.xp_pendiente += XP_MANADA_COMPLETA
+        # Un oso muerto por un efecto (desangrado, quemadura...) tambien deja su orbe.
+        for oso in self.osos:
+            if not oso.vivo and oso.orbe is None:
+                oso.orbe = OrbeCueva(oso.entrada)
+
+    def tomar_xp(self):
+        """Devuelve la XP ganada por el jugador desde la ultima llamada y la reinicia."""
+        self._recoger_muertes()
+        xp, self.xp_pendiente = self.xp_pendiente, 0.0
+        return xp
+
+    def olvidar_objetivos(self, objetivos):
+        """Tras la muerte del jugador: los animales dejan de perseguirlo a el y a sus sombras."""
+        ids = {id(o) for o in objetivos}
+        for z in self.zorros:
+            if z.presa is not None and id(z.presa) in ids:
+                z._liberar_robo()
+        for man in self.manadas:
+            man.alertada = False
+        for oso in self.osos:
+            if oso.vivo and oso.estado == "ataca":
+                oso.estado = "regresa"
+        for coco in self.cocodrilos:
+            if coco.vivo and coco.estado == "ataca":
+                coco.estado = "regresa"
+                coco._objetivo = None
 
     def cuerpos_solidos(self, vista):
         """Animales con colision solida cerca de la camara (para resolver_solapamientos)."""
@@ -708,8 +852,15 @@ class AnimalCombatible:
     """Interfaz minima de 'enemigo' para que armas, habilidades, mascotas y telaranas
     puedan danar/atrapar al animal (se mete en la lista 'enemigos' del juego).
     No tiene escudos: recibir_dano (definido en cada animal) baja la vida directo."""
+    XP = 0.0                               # experiencia al morir (cada especie la define)
+
+    @property
+    def xp(self):
+        return self.XP
 
     def _init_combate(self):
+        self._xp_contada = False           # su XP ya se sumo (o se descarto) al morir
+        self.muerto_por_fauna = False      # lo mato un depredador salvaje: no da XP
         self.escudo = 0.0
         self.escudo_magico = 0.0
         self.anulacion_escudo_magico = 0.0
@@ -779,6 +930,8 @@ class Madriguera:
 
 
 class ConejoSalvaje(AnimalCombatible):
+    XP = XP_CONEJO
+
     def __init__(self, madriguera):
         self.madriguera = madriguera
         self.radio = CONEJO_RADIO
@@ -908,6 +1061,8 @@ VENADO_COLORES = [(140, 96, 60), (120, 82, 52), (156, 110, 72)]
 
 
 class Venado(AnimalCombatible):
+    XP = XP_VENADO
+
     def __init__(self, x, y):
         self.posicion = pygame.Vector2(x, y)
         self.radio = VENADO_RADIO
@@ -1051,6 +1206,8 @@ JABALI_COLORES = [(92, 72, 56), (76, 58, 46), (106, 82, 62)]
 
 
 class Jabali(AnimalCombatible):
+    XP = XP_JABALI
+
     def __init__(self, x, y):
         self.posicion = pygame.Vector2(x, y)
         self.radio = JABALI_RADIO
@@ -1204,6 +1361,8 @@ ZORRO_COLORES = [(192, 110, 55), (172, 96, 46), (206, 126, 66)]
 
 
 class Zorro(AnimalCombatible):
+    XP = XP_ZORRO
+
     def __init__(self, x, y):
         self.posicion = pygame.Vector2(x, y)
         self.radio = ZORRO_RADIO
@@ -1357,6 +1516,7 @@ class Zorro(AnimalCombatible):
             dist = d.length()
             if dist <= self.radio + presa_conejo.radio + 2:
                 presa_conejo.vivo = False
+                presa_conejo.muerto_por_fauna = True
                 self._liberar_robo()
                 self._hambre_t = 0.0
                 self.hambriento = False
@@ -1452,6 +1612,20 @@ class Lobo(AnimalCombatible):
         self.dir_mira = pygame.Vector2(1, 0)
         self._init_combate()
 
+    @property
+    def xp(self):
+        return XP_LOBO_ALFA if self.es_alfa else XP_LOBO
+
+    def evolucionar_alfa(self):
+        """La manada llego a 4 sin alfa: este lobo pasa a ser el alfa (gana la vida que le falta)."""
+        self.es_alfa = True
+        self.radio = LOBO_RADIO_ALFA
+        self.color = LOBO_COLOR_ALFA
+        self.vida += LOBO_VIDA_ALFA - self.vida_max
+        self.vida_max = LOBO_VIDA_ALFA
+        self.dano = LOBO_DANO_ALFA
+        self.prob_desangrado = LOBO_DESANGRADO_ALFA
+
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         if not self.vivo:
             return 0
@@ -1514,6 +1688,9 @@ class Manada:
         self.centro = pygame.Vector2(centro)
         self.alertada = False
         self._hambre_t = random.uniform(0, LOBO_HAMBRE)
+        self._t_repro = 0.0
+        self.bono_dado = False           # ya se dio el bono por exterminarla
+        self.alfa_cazado = False         # el jugador mato a su alfa (requisito del bono)
         self.lobos = []
         for i in range(LOBO_POR_MANADA):
             off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
@@ -1521,6 +1698,34 @@ class Manada:
 
     def vivos(self):
         return [l for l in self.lobos if l.vivo]
+
+    def repoblar(self, nuevo_centro=None):
+        """Cada minuto: si la manada fue exterminada se inicia otra con 2 lobos (en
+        'nuevo_centro', otro bosque); si no, nace +1 junto a un lobo vivo (hasta 4). Al llegar
+        a 4 sin alfa, uno evoluciona. No crece mientras esta en combate (alertada)."""
+        vivos = self.vivos()
+        if not vivos:
+            self.alertada = False        # exterminada: ya no hay combate que esperar
+        if self.alertada:
+            return
+        # Quitar los muertos cuya XP ya se conto (los de este frame se cuentan en el siguiente)
+        self.lobos = [l for l in self.lobos if l.vivo or not l._xp_contada]
+        if not vivos:
+            if nuevo_centro is not None:
+                self.centro = pygame.Vector2(nuevo_centro)
+            nuevos, base = LOBO_REAPARECEN, self.centro
+            self.bono_dado = False
+            self.alfa_cazado = False
+        elif len(vivos) < LOBO_POR_MANADA:
+            nuevos, base = 1, random.choice(vivos).posicion
+        else:
+            nuevos, base = 0, self.centro
+        for _ in range(nuevos):
+            off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
+            self.lobos.append(Lobo(base.x + off.x, base.y + off.y, self))
+        vivos = self.vivos()
+        if len(vivos) >= LOBO_POR_MANADA and not any(l.es_alfa for l in vivos):
+            max(vivos, key=lambda l: l.vida).evolucionar_alfa()
 
     def actualizar(self, dt, jugador, amenazas, presas):
         vivos = self.vivos()
@@ -1573,6 +1778,7 @@ class Manada:
                 dist = l._mover_hacia(presa.posicion, LOBO_VEL, dt)
                 if dist <= l.radio + presa.radio + 2:
                     presa.vivo = False
+                    presa.muerto_por_fauna = True
                     self._hambre_t = 0.0      # una presa sacia a toda la manada
                     presa = None
             else:
@@ -1671,6 +1877,8 @@ class OrbeCueva:
 
 
 class Oso(AnimalCombatible):
+    XP = XP_OSO
+
     def __init__(self, roca):
         self.roca = roca
         self.cueva = pygame.Vector2(roca.rect.center)
@@ -1693,11 +1901,19 @@ class Oso(AnimalCombatible):
         self._destino_pesca = None
         self.dir_mira = pygame.Vector2(1, 0)
         self.orbe = None
+        self._t_reaparicion = 0.0
         self._init_combate()
 
     @property
     def en_cueva(self):
         return self.estado == "cueva"
+
+    def renacer(self):
+        """Oso nuevo en la misma cueva (misma entrada), con la vida llena y dentro de ella."""
+        nuevo = Oso(self.roca)
+        nuevo.entrada_dir = pygame.Vector2(self.entrada_dir)
+        nuevo.entrada = pygame.Vector2(self.entrada)
+        return nuevo
 
     def _boca(self):
         return self.cueva + self.entrada_dir * (self.cueva_radio + self.radio + 6)
@@ -1854,6 +2070,8 @@ COCODRILO_COLOR = (70, 92, 60)
 
 
 class Cocodrilo(AnimalCombatible):
+    XP = XP_COCODRILO
+
     def __init__(self, charco):
         self.charco = charco
         self.centro_lago = pygame.Vector2(charco.centro)

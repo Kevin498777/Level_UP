@@ -8,6 +8,12 @@ from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMP
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
 MASA_PERSONAJE = 100.0
 
+# Experiencia (Documentacion/sistema_xp.md). XP_POR_NIVEL[n - 1] = XP para pasar del nivel n
+# al n + 1. Total 1048 XP: pensado para llegar al nivel 20 en unas 2 horas de caza.
+NIVEL_MAXIMO = 20
+XP_POR_NIVEL = (1, 2, 4, 8, 12, 16, 20, 25, 30, 40, 50, 60, 70, 80, 95, 110, 125, 140, 160)
+PUNTOS_MEJORA_POR_NIVEL = 3
+
 # Silueta del personaje invisible (Paso 0): transparencias 0-255 de relleno, contorno y ojos
 ALFA_INVISIBLE_RELLENO = 25
 ALFA_INVISIBLE_CONTORNO = 90
@@ -107,6 +113,7 @@ class Personaje:
         # Progresión: nivel del personaje y puntos de mejora (empieza con 3)
         self.nivel = 1
         self.puntos_mejora = 3
+        self.xp = 0.0                    # XP acumulada hacia el siguiente nivel
         self.habilidades = habilidades if habilidades is not None else []
         # Efectos temporales de habilidades no equipadas (ej. los que otorga Golpe de Suerte)
         self.efectos_extra = []
@@ -340,10 +347,34 @@ class Personaje:
         return True
 
     def subir_nivel(self):
-        """(Debug) Sube de nivel al personaje y otorga 3 puntos de mejora."""
+        """Sube un nivel (hasta NIVEL_MAXIMO) y otorga 3 puntos de mejora. Tambien la usa [L]."""
+        if self.nivel >= NIVEL_MAXIMO:
+            return self.nivel
         self.nivel += 1
-        self.puntos_mejora += 3
+        self.puntos_mejora += PUNTOS_MEJORA_POR_NIVEL
+        if self.nivel >= NIVEL_MAXIMO:
+            self.xp = 0.0
         return self.nivel
+
+    @property
+    def xp_siguiente(self):
+        """XP necesaria para el siguiente nivel (None en el nivel maximo)."""
+        if self.nivel >= NIVEL_MAXIMO:
+            return None
+        return XP_POR_NIVEL[self.nivel - 1]
+
+    def ganar_xp(self, cantidad):
+        """Suma XP; cada vez que llega a la necesaria sube de nivel y el sobrante pasa al
+        siguiente. En el nivel maximo ya no acumula. Devuelve cuantos niveles subio."""
+        if cantidad <= 0 or self.nivel >= NIVEL_MAXIMO:
+            return 0
+        self.xp = round(self.xp + cantidad, 2)   # redondeo: 10 x 0.1 llega justo a 1
+        subidos = 0
+        while self.xp_siguiente is not None and self.xp >= self.xp_siguiente:
+            self.xp = round(self.xp - self.xp_siguiente, 2)
+            self.subir_nivel()
+            subidos += 1
+        return subidos
 
     def actualizar_regeneracion(self, dt):
         """

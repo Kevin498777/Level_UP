@@ -315,8 +315,20 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 
     pygame.draw.line(pantalla, (45, 52, 68), (x + 14, y + 58), (x + ancho - 14, y + 58), 1)
 
+    # Experiencia hacia el siguiente nivel (MÁX en el nivel máximo)
+    if jugador.xp_siguiente is None:
+        txt_xp = fuente_mini.render("XP: MÁX", True, COLOR_XP_MAX)
+        prog_xp, col_xp = 1.0, COLOR_XP_MAX
+    else:
+        txt_xp = fuente_mini.render(f"XP: {jugador.xp:.1f} / {jugador.xp_siguiente}", True, COLOR_XP)
+        prog_xp, col_xp = max(0.0, min(1.0, jugador.xp / jugador.xp_siguiente)), COLOR_XP
+    pantalla.blit(txt_xp, (x + 14, y + 62))
+    pygame.draw.rect(pantalla, (40, 45, 55), (x + 14, y + 78, ancho - 28, 5), border_radius=3)
+    if prog_xp > 0:
+        pygame.draw.rect(pantalla, col_xp, (x + 14, y + 78, int((ancho - 28) * prog_xp), 5), border_radius=3)
+
     # Mini tarjeta de avatar con ángulo de orientación
-    avatar_y = y + 68
+    avatar_y = y + 90
     pygame.draw.rect(pantalla, (26, 30, 40), (x + 12, avatar_y, ancho - 24, 52), border_radius=6)
     pygame.draw.rect(pantalla, (50, 60, 80), (x + 12, avatar_y, ancho - 24, 52), width=1, border_radius=6)
 
@@ -564,6 +576,13 @@ def hitboxes_de_armas_chocan(arma_a, arma_b):
 
 
 COLOR_MIRA = (255, 60, 60)
+
+# Experiencia y muerte del jugador
+COLOR_XP = (120, 200, 255)
+COLOR_XP_MAX = (255, 215, 120)
+DURACION_TEXTO_FLOTANTE = 1.4      # s que dura un "+2 XP" / "NIVEL 5" sobre el personaje
+SUBIDA_TEXTO_FLOTANTE = 40         # px que sube en ese tiempo
+ALFA_PANTALLA_MUERTE = 170
 
 
 def dibujar_mira(pantalla, objetivo, desplazamiento):
@@ -824,6 +843,32 @@ class Maniqui:
             pantalla.blit(txt, txt.get_rect(midleft=(bx + bw + 4, by - 3)))
 
 
+def dibujar_pantalla_muerte(pantalla, area, fuentes):
+    """Velo oscuro sobre el mundo con el aviso de muerte y dos botones.
+    Devuelve {"reaparecer": Rect, "menu": Rect}."""
+    velo = pygame.Surface(area.size, pygame.SRCALPHA)
+    velo.fill((0, 0, 0, ALFA_PANTALLA_MUERTE))
+    pantalla.blit(velo, area.topleft)
+    caja = pygame.Rect(0, 0, 360, 190)
+    caja.center = area.center
+    pygame.draw.rect(pantalla, (26, 20, 24), caja, border_radius=10)
+    pygame.draw.rect(pantalla, (200, 70, 70), caja, width=2, border_radius=10)
+    titulo = fuentes["hab_contador"].render("HAS MUERTO", True, (235, 90, 90))
+    pantalla.blit(titulo, titulo.get_rect(center=(caja.centerx, caja.y + 34)))
+    aviso = fuentes["texto"].render("Reapareces en el centro desde el nivel 1.", True, (200, 200, 210))
+    pantalla.blit(aviso, aviso.get_rect(center=(caja.centerx, caja.y + 66)))
+    botones = {}
+    for i, (clave, texto, borde) in enumerate((("reaparecer", "Reaparecer [R]", (100, 230, 130)),
+                                               ("menu", "Volver al menú principal [M]", (120, 160, 220)))):
+        r = pygame.Rect(caja.x + 30, caja.y + 92 + i * 42, caja.width - 60, 32)
+        pygame.draw.rect(pantalla, (40, 46, 60), r, border_radius=6)
+        pygame.draw.rect(pantalla, borde, r, width=1, border_radius=6)
+        t = fuentes["sub"].render(texto, True, (230, 235, 245))
+        pantalla.blit(t, t.get_rect(center=r.center))
+        botones[clave] = r
+    return botones
+
+
 def iniciar_mundo(config):
     """
     Inicia y gestiona el bucle del mundo del juego en pantalla completa.
@@ -865,7 +910,24 @@ def iniciar_mundo(config):
     capa_oscura = pygame.Surface((mundo_w, mundo_h), pygame.SRCALPHA)
     capa_oscura.fill((0, 0, 0, OSCURECIMIENTO))
 
-    # Instanciar personaje en el centro del mapa
+    # Instanciar personaje en el centro del mapa (los mismos datos sirven para reaparecer)
+    def datos_jugador(habilidades, herramienta):
+        return dict(
+            nombre=config.get("nombre", "Héroe"),
+            x=CENTRO_MUNDO.x,
+            y=CENTRO_MUNDO.y,
+            tamano=config.get("tamano", 1),
+            velocidad=config.get("velocidad", 3),
+            vida=config.get("vida", 20),
+            fuerza=config.get("fuerza", 3),
+            energia=config.get("energia", 80),
+            escudo=config.get("escudo", 0),
+            escudo_magico=config.get("escudo_magico", 0),
+            color=config.get("color", (0, 150, 255)),
+            habilidades=habilidades,
+            herramienta=herramienta
+        )
+
     jugador = Personaje(
         nombre=config.get("nombre", "Héroe"),
         x=CENTRO_MUNDO.x,
@@ -899,6 +961,9 @@ def iniciar_mundo(config):
 
     reloj = pygame.time.Clock()
     ejecutando = True
+    muerto = False            # Vida a 0: el mundo se congela y sale la pantalla de muerte
+    botones_muerte = {}
+    textos_flotantes = []     # [texto, color, posicion en el mundo, segundos transcurridos]
     motivo_salida = "salir"   # "salir" = cerrar juego; "menu" = volver a seleccion
     mostrar_hitboxes = False  # Alternable con la tecla [H]
     mostrar_brujula = False   # Alternable con la tecla [C]
@@ -917,6 +982,27 @@ def iniciar_mundo(config):
             mundo_h
         )
 
+    def reaparecer():
+        """El jugador vuelve al centro desde cero (nivel 1, XP 0, armas y habilidades a
+        nivel 1, vida y energía llenas). Sus sombras desaparecen; el mundo sigue igual."""
+        viejas = list(jugador.habilidades)
+        objetivos_viejos = [jugador]
+        for hab in viejas:
+            for cr in getattr(hab, "criaturas", ()):
+                cr.vivo = False
+                objetivos_viejos.append(cr)
+        fauna.olvidar_objetivos(objetivos_viejos)
+        nuevas = []
+        for hab in viejas:
+            nueva = type(hab)()
+            nueva.asignar_tecla(hab.tecla, hab.tecla_str)
+            nuevas.append(nueva)
+        herramienta = type(jugador.herramienta)() if jugador.herramienta else None
+        # Se reinicia el mismo objeto: quien lo referencia (maniqui, fauna) sigue valiendo
+        jugador.__init__(**datos_jugador(nuevas, herramienta))
+        camara.update(jugador.posicion)
+        textos_flotantes.clear()
+
     while ejecutando:
         dt = reloj.tick(60) / 1000.0  # Delta time en segundos
 
@@ -933,6 +1019,27 @@ def iniciar_mundo(config):
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 ejecutando = False
+
+            # Muerto: solo valen reaparecer y volver al menú (teclas o botones)
+            elif muerto:
+                accion = None
+                if evento.type == pygame.KEYDOWN:
+                    if evento.key in (pygame.K_r, pygame.K_RETURN):
+                        accion = "reaparecer"
+                    elif evento.key == pygame.K_m:
+                        accion = "menu"
+                    elif evento.key == pygame.K_ESCAPE:
+                        ejecutando = False
+                elif evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                    for clave, rect in botones_muerte.items():
+                        if rect.collidepoint(evento.pos):
+                            accion = clave
+                if accion == "reaparecer":
+                    reaparecer()
+                    muerto = False
+                elif accion == "menu":
+                    motivo_salida = "menu"
+                    ejecutando = False
 
             elif evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_ESCAPE:
@@ -1071,189 +1178,191 @@ def iniciar_mundo(config):
                         if not en_combate:
                             jugador.alternar_autoapuntado(enemigo_en(punto, enemigos, AUTOAPUNTADO_MARGEN_CLIC))
 
-        # Actualizar herramienta (temporizador y cálculo de su hitbox)
-        if jugador.herramienta:
-            jugador.herramienta.actualizar(dt, jugador)
+        # Muerto: el mundo queda congelado detrás de la pantalla de muerte
+        if not muerto:
+            # Actualizar herramienta (temporizador y cálculo de su hitbox)
+            if jugador.herramienta:
+                jugador.herramienta.actualizar(dt, jugador)
 
-        # Mantener [Espacio] repite el golpe segun la cadencia del arma
-        if teclas_estado[pygame.K_SPACE] and jugador.herramienta:
-            jugador.herramienta.atacar(jugador)
+            # Mantener [Espacio] repite el golpe segun la cadencia del arma
+            if teclas_estado[pygame.K_SPACE] and jugador.herramienta:
+                jugador.herramienta.atacar(jugador)
 
-        # Golpe del jugador: choque de armas (prioridad) o golpe al cuerpo del enemigo
-        arma_actual = jugador.herramienta
-        if arma_actual and getattr(arma_actual, "golpeando", False):
-            for enemigo in enemigos:
-                if id(enemigo) in arma_actual.enemigos_golpeados:
-                    continue
-                arma_enemiga = getattr(enemigo, "herramienta", None)
-                # 1) Choque de armas: mi filo toca su espada -> repelido mutuo igual + ambas se desgastan
-                if (arma_enemiga and not arma_enemiga.roto
-                        and hitboxes_de_armas_chocan(arma_actual, arma_enemiga)):
+            # Golpe del jugador: choque de armas (prioridad) o golpe al cuerpo del enemigo
+            arma_actual = jugador.herramienta
+            if arma_actual and getattr(arma_actual, "golpeando", False):
+                for enemigo in enemigos:
+                    if id(enemigo) in arma_actual.enemigos_golpeados:
+                        continue
+                    arma_enemiga = getattr(enemigo, "herramienta", None)
+                    # 1) Choque de armas: mi filo toca su espada -> repelido mutuo igual + ambas se desgastan
+                    if (arma_enemiga and not arma_enemiga.roto
+                            and hitboxes_de_armas_chocan(arma_actual, arma_enemiga)):
+                        arma_actual.enemigos_golpeados.add(id(enemigo))
+                        fuerza_choque = max(arma_actual.puntos_empuje, arma_enemiga.puntos_empuje)
+                        dir_al_enemigo = enemigo.posicion - jugador.posicion
+                        jugador.aplicar_empuje(-dir_al_enemigo, fuerza_choque)      # yo retrocedo
+                        if hasattr(enemigo, "aplicar_empuje"):
+                            enemigo.aplicar_empuje(dir_al_enemigo, fuerza_choque)   # el enemigo retrocede igual
+                        arma_actual.desgastar(1)
+                        arma_enemiga.desgastar(1)
+                        continue
+                    # 2) Golpe al cuerpo del enemigo
+                    tocado = any(
+                        hb and rect_circulo_colisionan(hb, enemigo.posicion, enemigo.radio)
+                        for hb in arma_actual.obtener_hitboxes()
+                    )
+                    if not tocado:
+                        continue
                     arma_actual.enemigos_golpeados.add(id(enemigo))
-                    fuerza_choque = max(arma_actual.puntos_empuje, arma_enemiga.puntos_empuje)
-                    dir_al_enemigo = enemigo.posicion - jugador.posicion
-                    jugador.aplicar_empuje(-dir_al_enemigo, fuerza_choque)      # yo retrocedo
-                    if hasattr(enemigo, "aplicar_empuje"):
-                        enemigo.aplicar_empuje(dir_al_enemigo, fuerza_choque)   # el enemigo retrocede igual
-                    arma_actual.desgastar(1)
-                    arma_enemiga.desgastar(1)
-                    continue
-                # 2) Golpe al cuerpo del enemigo
-                tocado = any(
-                    hb and rect_circulo_colisionan(hb, enemigo.posicion, enemigo.radio)
-                    for hb in arma_actual.obtener_hitboxes()
-                )
-                if not tocado:
-                    continue
-                arma_actual.enemigos_golpeados.add(id(enemigo))
-                dano = arma_actual.calcular_dano(jugador)
-                if dano > 0 and hasattr(enemigo, "recibir_dano"):
-                    enemigo.recibir_dano(dano, arma_actual.tipo_dano)
-                    if hasattr(enemigo, "aplicar_empuje"):
-                        enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
-                    arma_actual.desgastar(1)
+                    dano = arma_actual.calcular_dano(jugador)
+                    if dano > 0 and hasattr(enemigo, "recibir_dano"):
+                        enemigo.recibir_dano(dano, arma_actual.tipo_dano)
+                        if hasattr(enemigo, "aplicar_empuje"):
+                            enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
+                        arma_actual.desgastar(1)
 
-        # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
-        for enemigo in enemigos:
-            arma_enemiga = getattr(enemigo, "herramienta", None)
-            if not (arma_enemiga and getattr(arma_enemiga, "golpeando", False)):
-                continue
-            objetivos = [jugador]
-            for hab in jugador.habilidades:
-                objetivos.extend(getattr(hab, "criaturas", ()))
-            for obj in objetivos:
-                if id(obj) in arma_enemiga.enemigos_golpeados:
-                    continue
-                toca = any(
-                    hb and rect_circulo_colisionan(hb, obj.posicion, obj.radio)
-                    for hb in arma_enemiga.obtener_hitboxes()
-                )
-                if not toca:
-                    continue
-                arma_enemiga.enemigos_golpeados.add(id(obj))
-                dano = arma_enemiga.calcular_dano(enemigo)
-                # Escudo desenfundado cubriendo el golpe: como un choque, no hace daño, el
-                # atacante sale repelido con el empuje del escudo y su arma se desgasta 1
-                if obj is jugador and dano > 0 and jugador.bloquear_con_escudo(dano, enemigo.posicion):
-                    if hasattr(enemigo, "aplicar_empuje"):
-                        enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, jugador.herramienta.puntos_empuje)
-                    arma_enemiga.desgastar(1)
-                    continue
-                if dano > 0 and hasattr(obj, "recibir_dano"):
-                    obj.recibir_dano(dano, arma_enemiga.tipo_dano, obj.posicion - enemigo.posicion)
-                    arma_enemiga.desgastar(1)
-
-        # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
-        jugador.actualizar_proyectiles(dt, limites_mundo, rocas)
-        # Los proyectiles desaparecen al salir del círculo del mapa
-        jugador.proyectiles = [
-            p for p in jugador.proyectiles
-            if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
-        ]
-
-        # Proyectiles (Disparo Veloz, Carga de Fuego, Disparo Venenoso, flechas del Arco) golpean a los enemigos
-        for p in jugador.proyectiles:
-            if not p.activo or getattr(p, "clavada", False):
-                continue
+            # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
             for enemigo in enemigos:
-                if not getattr(enemigo, "vivo", True):
+                arma_enemiga = getattr(enemigo, "herramienta", None)
+                if not (arma_enemiga and getattr(arma_enemiga, "golpeando", False)):
                     continue
-                if rect_circulo_colisionan(p.hitbox, enemigo.posicion, enemigo.radio):
-                    if hasattr(p, "puntos_empuje"):
-                        # Flecha: daño fisico, empuje fijo del arma y desgaste del arco si hace daño
-                        aplicado = enemigo.recibir_dano(p.dano, p.tipo_dano)
-                        enemigo.aplicar_empuje(p.direccion, p.puntos_empuje)
-                        if aplicado > 0:
-                            p.arco.desgastar(1)
-                    elif hasattr(enemigo, "recibir_dano"):
-                        enemigo.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"),
-                                             enemigo.posicion - p.posicion)
-                    if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
-                        aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
-                    if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
-                        aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
-                    p.activo = False
-                    break
-        jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
+                objetivos = [jugador]
+                for hab in jugador.habilidades:
+                    objetivos.extend(getattr(hab, "criaturas", ()))
+                for obj in objetivos:
+                    if id(obj) in arma_enemiga.enemigos_golpeados:
+                        continue
+                    toca = any(
+                        hb and rect_circulo_colisionan(hb, obj.posicion, obj.radio)
+                        for hb in arma_enemiga.obtener_hitboxes()
+                    )
+                    if not toca:
+                        continue
+                    arma_enemiga.enemigos_golpeados.add(id(obj))
+                    dano = arma_enemiga.calcular_dano(enemigo)
+                    # Escudo desenfundado cubriendo el golpe: como un choque, no hace daño, el
+                    # atacante sale repelido con el empuje del escudo y su arma se desgasta 1
+                    if obj is jugador and dano > 0 and jugador.bloquear_con_escudo(dano, enemigo.posicion):
+                        if hasattr(enemigo, "aplicar_empuje"):
+                            enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, jugador.herramienta.puntos_empuje)
+                        arma_enemiga.desgastar(1)
+                        continue
+                    if dano > 0 and hasattr(obj, "recibir_dano"):
+                        obj.recibir_dano(dano, arma_enemiga.tipo_dano, obj.posicion - enemigo.posicion)
+                        arma_enemiga.desgastar(1)
 
-        # Actualizar regeneración global de energía
-        jugador.actualizar_regeneracion(dt)
-        # Actualizar regeneración del escudo físico
-        jugador.actualizar_regeneracion_escudo(dt)
-        # Actualizar regeneración del escudo mágico
-        jugador.actualizar_regeneracion_escudo_magico(dt)
+            # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
+            jugador.actualizar_proyectiles(dt, limites_mundo, rocas)
+            # Los proyectiles desaparecen al salir del círculo del mapa
+            jugador.proyectiles = [
+                p for p in jugador.proyectiles
+                if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
+            ]
 
-        # Actualizar todas las habilidades equipadas
-        for hab in jugador.habilidades:
-            hab.actualizar(dt, jugador)
+            # Proyectiles (Disparo Veloz, Carga de Fuego, Disparo Venenoso, flechas del Arco) golpean a los enemigos
+            for p in jugador.proyectiles:
+                if not p.activo or getattr(p, "clavada", False):
+                    continue
+                for enemigo in enemigos:
+                    if not getattr(enemigo, "vivo", True):
+                        continue
+                    if rect_circulo_colisionan(p.hitbox, enemigo.posicion, enemigo.radio):
+                        if hasattr(p, "puntos_empuje"):
+                            # Flecha: daño fisico, empuje fijo del arma y desgaste del arco si hace daño
+                            aplicado = enemigo.recibir_dano(p.dano, p.tipo_dano)
+                            enemigo.aplicar_empuje(p.direccion, p.puntos_empuje)
+                            if aplicado > 0:
+                                p.arco.desgastar(1)
+                        elif hasattr(enemigo, "recibir_dano"):
+                            enemigo.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"),
+                                                 enemigo.posicion - p.posicion)
+                        if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
+                            aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
+                        if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
+                            aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
+                        p.activo = False
+                        break
+            jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
 
-        # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto
-        for hab in jugador.habilidades:
-            if hasattr(hab, "actualizar_cuchillas"):
-                destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, vegetacion.arboles, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
-                vegetacion.liberar_obstaculos(destruidas)
+            # Actualizar regeneración global de energía
+            jugador.actualizar_regeneracion(dt)
+            # Actualizar regeneración del escudo físico
+            jugador.actualizar_regeneracion_escudo(dt)
+            # Actualizar regeneración del escudo mágico
+            jugador.actualizar_regeneracion_escudo_magico(dt)
 
-        # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
-        maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
-        for hab in jugador.habilidades:
-            if hasattr(hab, "actualizar_ondas"):
-                hab.actualizar_ondas(dt, enemigos)
-        # Aura Electrica: dano por segundo a los enemigos dentro del aura
-        for hab in jugador.habilidades:
-            if hasattr(hab, "actualizar_dano_enemigos"):
-                hab.actualizar_dano_enemigos(dt, enemigos, jugador)
-        # Sombra Araña: las telaranas atrapan a los enemigos que las pisan
-        for hab in jugador.habilidades:
-            if hasattr(hab, "actualizar_telaranas"):
-                hab.actualizar_telaranas(dt, enemigos)
-        # Efectos temporales otorgados (ej. por Golpe de Suerte)
-        jugador.actualizar_efectos(dt)
-        # Desangrado activo (resta vida por intervalo; preparado para el combate)
-        jugador.actualizar_desangrado(dt)
-        # Veneno activo (ej. el que da Golpe de Suerte al portador)
-        jugador.actualizar_veneno(dt)
-        # Ralentizacion recibida (ej. Onda Sonora de un enemigo)
-        jugador.actualizar_ralentizacion(dt)
+            # Actualizar todas las habilidades equipadas
+            for hab in jugador.habilidades:
+                hab.actualizar(dt, jugador)
 
-        # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
-        jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
-        jugador.en_agua_profunda = any(c.en_zona_peligro(jugador.posicion) for c in charcos)
+            # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto
+            for hab in jugador.habilidades:
+                if hasattr(hab, "actualizar_cuchillas"):
+                    destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, vegetacion.arboles, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
+                    vegetacion.liberar_obstaculos(destruidas)
 
-        # Zona profunda: 10 de daño por segundo
-        if jugador.en_agua_profunda:
-            jugador.tiempo_dano_lago += dt
-            while jugador.tiempo_dano_lago >= 1.0:
-                jugador.tiempo_dano_lago -= 1.0
-                jugador.vida = max(0, jugador.vida - DANO_LAGO_PROFUNDO)
-        else:
-            jugador.tiempo_dano_lago = 0.0
+            # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
+            maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
+            for hab in jugador.habilidades:
+                if hasattr(hab, "actualizar_ondas"):
+                    hab.actualizar_ondas(dt, enemigos)
+            # Aura Electrica: dano por segundo a los enemigos dentro del aura
+            for hab in jugador.habilidades:
+                if hasattr(hab, "actualizar_dano_enemigos"):
+                    hab.actualizar_dano_enemigos(dt, enemigos, jugador)
+            # Sombra Araña: las telaranas atrapan a los enemigos que las pisan
+            for hab in jugador.habilidades:
+                if hasattr(hab, "actualizar_telaranas"):
+                    hab.actualizar_telaranas(dt, enemigos)
+            # Efectos temporales otorgados (ej. por Golpe de Suerte)
+            jugador.actualizar_efectos(dt)
+            # Desangrado activo (resta vida por intervalo; preparado para el combate)
+            jugador.actualizar_desangrado(dt)
+            # Veneno activo (ej. el que da Golpe de Suerte al portador)
+            jugador.actualizar_veneno(dt)
+            # Ralentizacion recibida (ej. Onda Sonora de un enemigo)
+            jugador.actualizar_ralentizacion(dt)
 
-        # Autoapuntado: mira al objetivo (o lo suelta si muere o sale de rango) antes de moverse
-        jugador.actualizar_autoapuntado(dt)
+            # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
+            jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
+            jugador.en_agua_profunda = any(c.en_zona_peligro(jugador.posicion) for c in charcos)
 
-        # Calcular velocidad acumulando debuffs y buffs
-        jugador.actualizar_velocidad()
+            # Zona profunda: 10 de daño por segundo
+            if jugador.en_agua_profunda:
+                jugador.tiempo_dano_lago += dt
+                while jugador.tiempo_dano_lago >= 1.0:
+                    jugador.tiempo_dano_lago -= 1.0
+                    jugador.vida = max(0, jugador.vida - DANO_LAGO_PROFUNDO)
+            else:
+                jugador.tiempo_dano_lago = 0.0
 
-        # Mover personaje respetando el círculo del mapa y las rocas
-        jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, rocas, vegetacion.obstaculos_para(jugador))
+            # Autoapuntado: mira al objetivo (o lo suelta si muere o sale de rango) antes de moverse
+            jugador.actualizar_autoapuntado(dt)
 
-        # Aplicar el retroceso acumulado por empuje (combate futuro; por ahora suele ser 0)
-        jugador.actualizar_empuje(dt, CENTRO_MUNDO, RADIO_MUNDO)
+            # Calcular velocidad acumulando debuffs y buffs
+            jugador.actualizar_velocidad()
 
-        # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
-        vegetacion.actualizar(dt, jugador)
+            # Mover personaje respetando el círculo del mapa y las rocas
+            jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, rocas, vegetacion.obstaculos_para(jugador))
 
-        # Maniqui de pruebas (tiquea su desangrado y su reaparicion)
-        maniqui.actualizar(dt, jugador)
+            # Aplicar el retroceso acumulado por empuje (combate futuro; por ahora suele ser 0)
+            jugador.actualizar_empuje(dt, CENTRO_MUNDO, RADIO_MUNDO)
 
-        # Cuerpos solidos: jugador, maniqui e invocaciones no se solapan entre si
-        cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
-        for hab in jugador.habilidades:
-            cuerpos.extend(getattr(hab, "criaturas", ()))
-        cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
-        resolver_solapamientos(cuerpos)
-        jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
-        jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)
+            # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
+            vegetacion.actualizar(dt, jugador)
+
+            # Maniqui de pruebas (tiquea su desangrado y su reaparicion)
+            maniqui.actualizar(dt, jugador)
+
+            # Cuerpos solidos: jugador, maniqui e invocaciones no se solapan entre si
+            cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
+            for hab in jugador.habilidades:
+                cuerpos.extend(getattr(hab, "criaturas", ()))
+            cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
+            resolver_solapamientos(cuerpos)
+            jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
+            jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)
 
         # Cámara que sigue suavemente al personaje
         factor = min(1.0, SUAVIZADO_CAMARA * dt)
@@ -1267,7 +1376,18 @@ def iniciar_mundo(config):
         # 1. Dibujar el mundo (solo lo visible), recortado al área central entre paneles
         vista = vista_camara()
         desplazamiento = (vista.x - mundo_x, vista.y - mundo_y)  # mundo -> pantalla
-        fauna.actualizar(dt, jugador, vista)
+        if not muerto:
+            fauna.actualizar(dt, jugador, vista)
+            # Experiencia de los animales que mataste tú o tus sombras
+            xp = fauna.tomar_xp()
+            if xp > 0:
+                niveles = jugador.ganar_xp(xp)
+                textos_flotantes.append([f"+{xp:g} XP", COLOR_XP, pygame.Vector2(jugador.posicion), 0.0])
+                if niveles:
+                    textos_flotantes.append([f"NIVEL {jugador.nivel}", COLOR_XP_MAX,
+                                             jugador.posicion - pygame.Vector2(0, 18), 0.0])
+            if jugador.vida <= 0:
+                muerto = True
         pantalla.set_clip(area_mundo_pantalla)
 
         dibujar_suelo(pantalla, vista, desplazamiento)
@@ -1339,6 +1459,17 @@ def iniciar_mundo(config):
             pantalla.blit(capa_oscura, (mundo_x, mundo_y))
             vegetacion.dibujar_interior(pantalla, desplazamiento, jugador)
         fauna.dibujar_orbes_cueva(pantalla, vista, desplazamiento)
+
+        # Textos flotantes de XP y subida de nivel
+        for tf in textos_flotantes:
+            tf[3] += dt
+            prog = tf[3] / DURACION_TEXTO_FLOTANTE
+            sup = fuentes["sub"].render(tf[0], True, tf[1])
+            sup.set_alpha(int(255 * max(0.0, 1.0 - prog)))
+            pos_tf = (round(tf[2].x - desplazamiento[0]) - sup.get_width() // 2,
+                      round(tf[2].y - desplazamiento[1] - jugador.radio - 14 - SUBIDA_TEXTO_FLOTANTE * prog))
+            pantalla.blit(sup, pos_tf)
+        textos_flotantes[:] = [tf for tf in textos_flotantes if tf[3] < DURACION_TEXTO_FLOTANTE]
 
         # Brujula [C]: flechas hacia el conejo, lobo, oso y maniqui mas cercanos
         if mostrar_brujula:
@@ -1450,6 +1581,8 @@ def iniciar_mundo(config):
         botones_hab = dibujar_panel_habilidades(pantalla, ancho_pantalla - ancho_panel_der, 0, ancho_panel_der, alto_pantalla, jugador.habilidades, jugador, fuentes, info_abierta)
         if botones_hab:
             botones_stats.update(botones_hab)
+
+        botones_muerte = dibujar_pantalla_muerte(pantalla, area_mundo_pantalla, fuentes) if muerto else {}
 
         pygame.display.flip()
 
