@@ -165,7 +165,7 @@ El zorro tiene **tres pasivas**:
   grande y oscuro, con ojos amarillos y una marca sobre la cabeza.
 - **Hostil:** si la manada **ve al jugador** (a 250 px, estando detectable), se
   **alerta** y lo **persigue hasta matarlo**, mordiendo (daño + posible
-  **desangrado**). Ataca también a las **sombras** que se acerquen, siempre a la
+  **desangrado**; cada lobo muerde como mucho **una vez cada 2 s**). Ataca también a las **sombras** que se acerquen, siempre a la
   **amenaza más cercana**. Pierde el rastro si te alejas más de 600 px o te
   vuelves indetectable.
 - **Retirada:** si la manada queda reducida a **1 lobo**, ese lobo **huye** del
@@ -235,8 +235,10 @@ El zorro tiene **tres pasivas**:
   lobos y osos además **reaparecen** con el tiempo, y las madrigueras vacías se
   mudan (ver cada animal y `sistema_xp.md`). Nada pasa nunca del máximo de su
   especie. El cocodrilo no vuelve.
-- **Experiencia:** cada animal muerto a manos del jugador o de sus sombras da XP
-  (tabla en `sistema_xp.md`); lo que cazan zorros y lobos salvajes no cuenta.
+- **Experiencia y monedas:** cada animal muerto a manos del jugador o de sus
+  sombras da XP y puede soltar monedas, más y con más probabilidad cuanto más
+  difícil es (tabla en `sistema_xp.md`); lo que cazan zorros y lobos salvajes no
+  cuenta.
 - Mientras un zorro está **invisible** (Paso 0) queda fuera de la lista de objetivos
   y de las colisiones: es intencional, para mostrar la característica estrella de
   Paso 0.

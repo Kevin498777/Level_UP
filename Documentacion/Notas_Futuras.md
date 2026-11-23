@@ -88,7 +88,11 @@ Pasivas
 
 
 
+Sistema de inventario
+Al precionar la tecla I este abre un ninventario donde se muestran las estadisticas, las herramientas (selecionadas), y habilidades selecionadas(solo las selecionadas no todas las existentes)
+
 
 
 Sistema nivel 20 al 40
-Al llegar a nivel 20 
+Al llegar a nivel 20 desbloquea la ruleta de habilidades,
+Esta 

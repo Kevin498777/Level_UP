@@ -22,16 +22,27 @@ PIXELES_POR_PUNTO_EMPUJE = 6   # igual que en el juego: puntos de arma -> px de 
 
 # Experiencia que da cada animal al morir a manos del jugador o de sus invocaciones
 # (Documentacion/sistema_xp.md). Lo que matan los depredadores salvajes no da XP.
-XP_CONEJO = 0.1
-XP_VENADO = 1.0
-XP_ZORRO = 1.5
-XP_JABALI = 3.0
-XP_COCODRILO = 4.0
-XP_OSO = 6.0
+XP_CONEJO = 0.5
+XP_VENADO = 2.0
+XP_ZORRO = 3.0
+XP_JABALI = 5.0
+XP_COCODRILO = 10.0
+XP_OSO = 15.0
 XP_ORBE_CUEVA = 2.0          # al recoger el orbe de la cueva de un oso
-XP_LOBO = 2.0
-XP_LOBO_ALFA = 4.0
+XP_LOBO = 5.0
+XP_LOBO_ALFA = 8.0
 XP_MANADA_COMPLETA = 3.0     # bono al acabar con toda la manada (alfa incluido)
+
+# Monedas al morir (mismas reglas que la XP): (probabilidad, minimo, maximo). La cantidad es un
+# entero al azar entre minimo y maximo. Por ahora no se gastan y se pierden al morir.
+MONEDAS_CONEJO = (0.05, 1, 1)
+MONEDAS_VENADO = (0.25, 1, 2)
+MONEDAS_ZORRO = (0.40, 1, 3)
+MONEDAS_JABALI = (0.70, 2, 5)
+MONEDAS_LOBO = (1.0, 5, 10)
+MONEDAS_LOBO_ALFA = (1.0, 7, 10)
+MONEDAS_COCODRILO = (1.0, 6, 12)
+MONEDAS_OSO = (1.0, 8, 12)
 
 # Reaparicion de fauna (sin pasar nunca el maximo de cada especie)
 LOBO_REAPARICION = 60.0      # cada 60 s la manada crece +1 lobo (hasta 4)
@@ -327,6 +338,7 @@ class SistemaFauna:
         self._rocas_mundo = rocas          # lista viva: Cortar puede destruir rocas (cuevas)
         self.mariposas = []
         self.xp_pendiente = 0.0            # XP ganada por el jugador y aun no entregada
+        self.monedas_pendientes = 0        # monedas ganadas y aun no entregadas
 
         # Pajaros: una fraccion de los arboles existentes.
         self.pajaros = [Pajaro(a) for a in vegetacion.arboles if random.random() < PAJARO_PROB]
@@ -649,15 +661,16 @@ class SistemaFauna:
         p = self._punto_mundo(evitar)
         return Zorro(p.x, p.y)
 
-    # ---- Experiencia ----
+    # ---- Experiencia y monedas ----
     def _contar_muerte(self, animal):
-        """Suma la XP de un animal muerto una sola vez. True si la gano el jugador."""
+        """Suma la XP y las monedas de un animal muerto una sola vez. True si las gano el jugador."""
         if animal.vivo or animal._xp_contada:
             return False
         animal._xp_contada = True
         if animal.muerto_por_fauna:
             return False
         self.xp_pendiente += animal.xp
+        self.monedas_pendientes += animal.tirar_monedas()
         return True
 
     def _recoger_muertes(self):
@@ -684,6 +697,12 @@ class SistemaFauna:
         self._recoger_muertes()
         xp, self.xp_pendiente = self.xp_pendiente, 0.0
         return xp
+
+    def tomar_monedas(self):
+        """Devuelve las monedas ganadas por el jugador desde la ultima llamada y las reinicia."""
+        self._recoger_muertes()
+        monedas, self.monedas_pendientes = self.monedas_pendientes, 0
+        return monedas
 
     def olvidar_objetivos(self, objetivos):
         """Tras la muerte del jugador: los animales dejan de perseguirlo a el y a sus sombras."""
@@ -853,10 +872,22 @@ class AnimalCombatible:
     puedan danar/atrapar al animal (se mete en la lista 'enemigos' del juego).
     No tiene escudos: recibir_dano (definido en cada animal) baja la vida directo."""
     XP = 0.0                               # experiencia al morir (cada especie la define)
+    MONEDAS = (0.0, 0, 0)                  # (probabilidad, minimo, maximo) de monedas al morir
 
     @property
     def xp(self):
         return self.XP
+
+    @property
+    def monedas(self):
+        return self.MONEDAS
+
+    def tirar_monedas(self):
+        """Monedas que suelta al morir: con su probabilidad, un entero entre minimo y maximo."""
+        prob, minimo, maximo = self.monedas
+        if prob <= 0 or random.random() >= prob:
+            return 0
+        return random.randint(minimo, maximo)
 
     def _init_combate(self):
         self._xp_contada = False           # su XP ya se sumo (o se descarto) al morir
@@ -931,6 +962,7 @@ class Madriguera:
 
 class ConejoSalvaje(AnimalCombatible):
     XP = XP_CONEJO
+    MONEDAS = MONEDAS_CONEJO
 
     def __init__(self, madriguera):
         self.madriguera = madriguera
@@ -1062,6 +1094,7 @@ VENADO_COLORES = [(140, 96, 60), (120, 82, 52), (156, 110, 72)]
 
 class Venado(AnimalCombatible):
     XP = XP_VENADO
+    MONEDAS = MONEDAS_VENADO
 
     def __init__(self, x, y):
         self.posicion = pygame.Vector2(x, y)
@@ -1207,6 +1240,7 @@ JABALI_COLORES = [(92, 72, 56), (76, 58, 46), (106, 82, 62)]
 
 class Jabali(AnimalCombatible):
     XP = XP_JABALI
+    MONEDAS = MONEDAS_JABALI
 
     def __init__(self, x, y):
         self.posicion = pygame.Vector2(x, y)
@@ -1364,6 +1398,7 @@ ZORRO_CAPA = 40                  # lado de la capa con la que se dibuja el fundi
 
 class Zorro(AnimalCombatible):
     XP = XP_ZORRO
+    MONEDAS = MONEDAS_ZORRO
 
     def __init__(self, x, y):
         self.posicion = pygame.Vector2(x, y)
@@ -1609,7 +1644,7 @@ LOBO_MASA = 8.0
 LOBO_VEL = 165.0
 LOBO_VEL_RETIRADA = 210.0
 LOBO_VEL_PASEO = 40.0
-LOBO_MORDIDA_CD = 1.0
+LOBO_MORDIDA_CD = 2.0              # una mordida cada 2 s por lobo
 LOBO_COLOR = [(90, 92, 100), (76, 78, 86), (108, 110, 118)]
 LOBO_COLOR_ALFA = (58, 60, 70)
 
@@ -1636,6 +1671,10 @@ class Lobo(AnimalCombatible):
     @property
     def xp(self):
         return XP_LOBO_ALFA if self.es_alfa else XP_LOBO
+
+    @property
+    def monedas(self):
+        return MONEDAS_LOBO_ALFA if self.es_alfa else MONEDAS_LOBO
 
     def evolucionar_alfa(self):
         """La manada llego a 4 sin alfa: este lobo pasa a ser el alfa (gana la vida que le falta)."""
@@ -1899,6 +1938,7 @@ class OrbeCueva:
 
 class Oso(AnimalCombatible):
     XP = XP_OSO
+    MONEDAS = MONEDAS_OSO
 
     def __init__(self, roca):
         self.roca = roca
@@ -2092,6 +2132,7 @@ COCODRILO_COLOR = (70, 92, 60)
 
 class Cocodrilo(AnimalCombatible):
     XP = XP_COCODRILO
+    MONEDAS = MONEDAS_COCODRILO
 
     def __init__(self, charco):
         self.charco = charco

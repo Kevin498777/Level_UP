@@ -118,6 +118,7 @@ class Personaje:
         self.nivel = 1
         self.puntos_mejora = 3
         self.xp = 0.0                    # XP acumulada hacia el siguiente nivel
+        self.monedas = 0                 # monedas de la caza (por ahora no se gastan; se pierden al morir)
         self.habilidades = habilidades if habilidades is not None else []
         # Efectos temporales de habilidades no equipadas (ej. los que otorga Golpe de Suerte)
         self.efectos_extra = []

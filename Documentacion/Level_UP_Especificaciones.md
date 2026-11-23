@@ -164,18 +164,23 @@ El personaje empieza con **3 puntos de mejora** y gana **3 por cada nivel**. Son
 - **Coste:** una estadística cuesta **1 punto**, una habilidad **1 punto** y el arma **2 puntos** por nivel.
 - **Subir de nivel:** con **experiencia (XP)** al cazar animales (tú o tus sombras). Nivel máximo **20**; llegar a él cuesta **1048 XP**, pensado para unas **2 horas** de juego. Al subir, la XP vuelve a 0 más lo que sobró. La tecla de prueba **[L]** sigue subiendo un nivel. Tablas de XP por nivel y por animal en `sistema_xp.md`.
 
-| Animal | XP | Animal | XP |
-|---|---|---|---|
-| Conejo salvaje | 0.1 | Cocodrilo | 4 |
-| Venado | 1 | Oso (+2 al recoger el orbe de su cueva) | 6 |
-| Zorro | 1.5 | Lobo / lobo alfa | 2 / 4 |
-| Jabalí | 3 | Manada completa, alfa incluido (bono) | +3 |
+| Animal | XP | Monedas (probabilidad) |
+|---|---|---|
+| Conejo salvaje | 0.5 | 1 (5 %) |
+| Venado | 2 | 1 – 2 (25 %) |
+| Zorro | 3 | 1 – 3 (40 %) |
+| Jabalí | 5 | 2 – 5 (70 %) |
+| Lobo / lobo alfa | 5 / 8 | 5 – 10 / 7 – 10 (100 %) |
+| Cocodrilo | 10 | 6 – 12 (100 %) |
+| Oso | 15 (+2 al recoger el orbe de su cueva) | 8 – 12 (100 %) |
+| Manada completa, alfa incluido (bono) | +3 | — |
 
-Lo que cazan los depredadores salvajes no da XP, y el maniquí tampoco.
+- **Monedas:** al matar un animal puede soltar monedas según la tabla; se suman al momento ("+X monedas"). **Por ahora no se gastan** y se pierden al morir.
+- Lo que cazan los depredadores salvajes no da XP ni monedas, y el maniquí tampoco.
 
 ### 7.1 Muerte
 
-Si la vida llega a **0**, el mundo se congela tras un aviso **"HAS MUERTO"** con **Reaparecer [R]** y **Volver al menú principal [M]**. Al reaparecer vuelves al **centro** desde cero: nivel 1, XP 0, 3 puntos, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas; tus **sombras desaparecen**. El **mundo sigue igual** (solo se genera uno nuevo al crear otra partida).
+Si la vida llega a **0**, el mundo se congela tras un aviso **"HAS MUERTO"** con **Reaparecer [R]** y **Volver al menú principal [M]**. Al reaparecer vuelves al **centro** desde cero: nivel 1, XP 0, **sin monedas**, 3 puntos, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas; tus **sombras desaparecen**. El **mundo sigue igual** (solo se genera uno nuevo al crear otra partida).
 
 ---
 
@@ -516,7 +521,7 @@ Reglas comunes:
 - Los animales con vida **reciben daño de todo** (armas, proyectiles, habilidades, efectos e invocaciones), los inmoviliza la telaraña y los empuja el arma. Cuentan como **enemigos** para el modo combate de las sombras y para el **Autoapuntado** (ver 6.4).
 - **Sigilo:** oculto en un arbusto o invisible (Paso 0), **ningún animal** te detecta.
 - **Escudo:** sus golpes y mordidas consultan al Escudo igual que la espada del maniquí: de frente con el Escudo desenfundado se bloquean enteros y el animal sale repelido con 40 de empuje (ver 8.2).
-- **Experiencia:** al morir a tus manos dan XP (ver 7).
+- **Experiencia y monedas:** al morir a tus manos dan XP y pueden soltar monedas (ver 7).
 - **Reaparición:** sin pasar el máximo de cada especie, los **zorros** vuelven (uno nuevo cada 3 min y +1 cada 2 min si quedan 2), las **manadas** crecen +1 lobo por minuto hasta 4 (al llegar a 4 sin alfa, uno evoluciona) y una manada exterminada se **reinicia con 2 lobos en otro bosque**, y cada **oso** muerto es sustituido por otro en su cueva a los **3 min**. Conejos, venados y jabalíes se reproducen; el cocodrilo no vuelve. Detalle en `sistema_xp.md`.
 
 ---
@@ -524,12 +529,12 @@ Reglas comunes:
 ## 11. Interfaz
 
 - **Pantalla de creación (a pantalla completa y adaptable):** se escala al tamaño de la pantalla (diseño base 1600x900, factor 0.6–1.6) y se reorganiza al ancho disponible: en pantallas anchas va en **dos columnas** (personaje, herramienta y estadísticas a la izquierda; habilidades a la derecha) y en estrechas en **una**. Las tarjetas se reparten en filas según quepan, los nombres largos reducen su fuente para no cortarse y, si el contenido no cabe en alto, aparece una **barra de desplazamiento** (rueda del ratón). El botón **Comenzar mundo** queda **fijo abajo**, siempre visible. [ESC] sale de pantalla completa y la interfaz se reacomoda sola. Contiene nombre, color con vista previa, y **tarjetas de selección** para la herramienta (una) y las habilidades (hasta 3). Las habilidades se agrupan **por categorías en columnas** (Artes de las Sombras, Potenciadores, Ataque Mágico, Defensa y Soporte, Especiales), pensado para escalar al añadir más. Cada tarjeta tiene un botón **[?]** que muestra su descripción en un recuadro; el texto de cada habilidad vive **solo** en ese **[?]**.
-- **Panel izquierdo (en juego):** nivel y puntos, **barra de experiencia** (XP actual / necesaria, o MÁX en el nivel 20), tarjeta del arma (nombre, nivel, daño y cadencia real "Daño X · Cad Y/s", debuff/buff y barra de durabilidad; con el **Arco**: flechas en el carcaj, carga actual con su barra y botón de compra de flechas) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), **Cadencia** (la real con el arma desenfundada; si no, el bonus del personaje), Energía, **Escudo** y **Escudo M.** (actual / máximo). Abajo, el botón **Volver a selección [M]**.
+- **Panel izquierdo (en juego):** nivel y puntos, **barra de experiencia** (XP actual / necesaria, o MÁX en el nivel 20) con las **monedas** a la derecha, tarjeta del arma (nombre, nivel, daño y cadencia real "Daño X · Cad Y/s", debuff/buff y barra de durabilidad; con el **Arco**: flechas en el carcaj, carga actual con su barra y botón de compra de flechas) y la lista de estadísticas con su botón **[+]**: Vida, **Daño**, **Velocidad** (ya muestran el valor efectivo, sin filas separadas de base/actual), **Cadencia** (la real con el arma desenfundada; si no, el bonus del personaje), Energía, **Escudo** y **Escudo M.** (actual / máximo). Abajo, el botón **Volver a selección [M]**.
 - **Panel derecho (en juego):** más ancho y con letra más grande y de alto contraste. Una tarjeta por habilidad con tecla, nivel, coste, estado, recarga, resumen del efecto según el nivel y botón **[+]**.
 - **Volver a selección:** el botón del panel izquierdo o **[M]** cierran el mundo y reabren la pantalla de creación para probar otro personaje sin salir del juego.
 - **Iconos de ayuda [?]:** en ambos paneles abren un tooltip con las explicaciones, manteniendo la interfaz despejada.
 - **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto, **invisible** (Paso 0) o en **autoapuntado**. Dentro de la cueva de un oso muerto el mapa se oscurece como en un arbusto.
-- **Textos flotantes:** **"+X XP"** sobre el personaje al cazar y **"NIVEL N"** al subir.
+- **Textos flotantes:** **"+X XP"** y **"+X monedas"** sobre el personaje al cazar y **"NIVEL N"** al subir.
 - **Pantalla de muerte:** velo oscuro sobre el mundo con **Reaparecer [R]** y **Volver al menú principal [M]** (ver 7.1).
 - **Brújula [C]:** flechas alrededor del personaje hacia el **conejo (C)**, **lobo (L)** y **oso (O)** más cercanos y hacia el **maniquí (M)**, con la distancia a cada uno y una leyenda arriba a la izquierda.
 

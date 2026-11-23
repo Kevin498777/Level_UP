@@ -11,7 +11,7 @@ Las reglas de desarrollo se mantienen en la raíz: `../reglas.md`.
 | `Tablas_Tipos.xlsx` | Clasificación de herramientas y habilidades por tipo (armas físicas/mágicas/defensivas, potenciadores, daño mágico/físico, invocaciones) y evoluciones previstas **Normal → Única → Dominio** con su probabilidad. Diseño a futuro: aún no está en el código. |
 | `Balance_Estado.md` | Estado del balance: criterio de medida, cambios ya aplicados, tier list actual de herramientas y habilidades, y propuestas pendientes para las siguientes fases. |
 | `Fauna.md` | Fauna del mundo por fases: ambiental, pasiva, neutral y hostil (conejos, venados, jabalíes, zorros, lobos, osos, cocodrilos), con sus valores y notas de diseño. |
-| `sistema_xp.md` | Sistema de experiencia (XP por nivel hasta el 20 y por animal), reaparición de la fauna y muerte del jugador. |
+| `sistema_xp.md` | Sistema de experiencia (XP por nivel hasta el 20 y por animal), monedas por animal, reaparición de la fauna y muerte del jugador. |
 | `Notas_Futuras.md` | Ideas y notas sueltas para el diseño futuro (aún no implementadas). |
 | `Medidas_PixelArt.md` | Medidas (tamaño en juego y lienzo recomendado) de cada objeto que puede llevar un dibujo en pixel art: personajes, armas, proyectiles, auras, terreno e interfaz. |
 

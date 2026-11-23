@@ -323,6 +323,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         txt_xp = fuente_mini.render(f"XP: {jugador.xp:.1f} / {jugador.xp_siguiente}", True, COLOR_XP)
         prog_xp, col_xp = max(0.0, min(1.0, jugador.xp / jugador.xp_siguiente)), COLOR_XP
     pantalla.blit(txt_xp, (x + 14, y + 62))
+    txt_monedas = fuente_mini.render(f"Monedas: {jugador.monedas}", True, COLOR_MONEDAS)
+    pantalla.blit(txt_monedas, (x + ancho - 14 - txt_monedas.get_width(), y + 62))
     pygame.draw.rect(pantalla, (40, 45, 55), (x + 14, y + 78, ancho - 28, 5), border_radius=3)
     if prog_xp > 0:
         pygame.draw.rect(pantalla, col_xp, (x + 14, y + 78, int((ancho - 28) * prog_xp), 5), border_radius=3)
@@ -580,6 +582,7 @@ COLOR_MIRA = (255, 60, 60)
 # Experiencia y muerte del jugador
 COLOR_XP = (120, 200, 255)
 COLOR_XP_MAX = (255, 215, 120)
+COLOR_MONEDAS = (245, 200, 70)
 DURACION_TEXTO_FLOTANTE = 1.4      # s que dura un "+2 XP" / "NIVEL 5" sobre el personaje
 SUBIDA_TEXTO_FLOTANTE = 40         # px que sube en ese tiempo
 ALFA_PANTALLA_MUERTE = 170
@@ -1387,7 +1390,13 @@ def iniciar_mundo(config):
                 textos_flotantes.append([f"+{xp:g} XP", COLOR_XP, pygame.Vector2(jugador.posicion), 0.0])
                 if niveles:
                     textos_flotantes.append([f"NIVEL {jugador.nivel}", COLOR_XP_MAX,
-                                             jugador.posicion - pygame.Vector2(0, 18), 0.0])
+                                             jugador.posicion - pygame.Vector2(0, 32), 0.0])
+            # Monedas de la caza
+            monedas = fauna.tomar_monedas()
+            if monedas > 0:
+                jugador.monedas += monedas
+                textos_flotantes.append([f"+{monedas} monedas", COLOR_MONEDAS,
+                                         jugador.posicion - pygame.Vector2(0, 16), 0.0])
             if jugador.vida <= 0:
                 muerto = True
         pantalla.set_clip(area_mundo_pantalla)
@@ -1469,7 +1478,7 @@ def iniciar_mundo(config):
             sup = fuentes["sub"].render(tf[0], True, tf[1])
             sup.set_alpha(int(255 * max(0.0, 1.0 - prog)))
             pos_tf = (round(tf[2].x - desplazamiento[0]) - sup.get_width() // 2,
-                      round(tf[2].y - desplazamiento[1] - jugador.radio - 14 - SUBIDA_TEXTO_FLOTANTE * prog))
+                      round(tf[2].y - desplazamiento[1] - jugador.radio - 32 - SUBIDA_TEXTO_FLOTANTE * prog))
             pantalla.blit(sup, pos_tf)
         textos_flotantes[:] = [tf for tf in textos_flotantes if tf[3] < DURACION_TEXTO_FLOTANTE]
 
