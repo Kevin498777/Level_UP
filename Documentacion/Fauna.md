@@ -203,7 +203,8 @@ El zorro tiene **tres pasivas**:
   que reaparecen).
 - **Emboscada:** solo te detecta si **entras a la zona profunda peligrosa** del
   lago (el centro); entonces **emerge** y muerde fuerte (**18–30** + empuje).
-  Solo es vulnerable mientras está emergido.
+  Solo es vulnerable mientras está emergido. Si una **mascota** (sombra) lo
+  daña, **cambia de objetivo** y ataca al atacante.
 - **Veloz en el agua, lento en tierra:** te persigue muy rápido dentro del lago y
   sale un poco a la orilla, pero en tierra es lento; si te alejas del lago, **vuelve
   a sumergirse**.

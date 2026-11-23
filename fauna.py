@@ -489,7 +489,7 @@ class SistemaFauna:
         # Cocodrilos: emboscada acuatica (actualizar los cercanos).
         for coco in self.cocodrilos:
             if coco.vivo and (zona.collidepoint(coco.posicion.x, coco.posicion.y) or zona.collidepoint(coco.centro_lago.x, coco.centro_lago.y)):
-                coco.actualizar(dt, jugador)
+                coco.actualizar(dt, jugador, amenazas)
 
     # ---- Dibujo por capas (llamados desde el render de mundo.py) ----
     def dibujar_peces(self, pantalla, vista, desplazamiento):
@@ -1266,7 +1266,8 @@ class Zorro(AnimalCombatible):
         self.hambriento = self._hambre_t >= ZORRO_HAMBRE
         self._cd_mordida -= dt
 
-        amenaza = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared()) if amenazas else None
+        candidatos = [o for o in amenazas if o is not self and not isinstance(o, Zorro)]
+        amenaza = min(candidatos, key=lambda o: (o.posicion - self.posicion).length_squared()) if candidatos else None
         d_amen = (amenaza.posicion - self.posicion).length() if amenaza is not None else float("inf")
 
         # El robo es permanente: la presa se mantiene hasta morir, esconderse o salir de la vista.
@@ -1309,20 +1310,24 @@ class Zorro(AnimalCombatible):
         self._agredido = False
 
         # 1) Objetivo-amenaza (jugador/sombra): muerde si esta cerca, huye y sigue robando.
-        if self.presa is not None and not self._presa_es_conejo:
-            self._mantener_robo(self.presa)
-            dp = (self.presa.posicion - self.posicion).length()
+        presa = self.presa
+        if presa is not None and not self._presa_es_conejo:
+            self._mantener_robo(presa)
+            dp = (presa.posicion - self.posicion).length()
             if self._cd_mordida <= 0 and dp < ZORRO_ACORRALA + 6:
                 self._cd_mordida = ZORRO_MORDIDA_CD
                 dano = random.randint(*ZORRO_DANO)
-                if hasattr(self.presa, "recibir_dano"):
-                    self.presa.recibir_dano(dano, "fisico", self.presa.posicion - self.posicion)
-            d = self.posicion - self.presa.posicion
-            if d.length() < 1:
-                d = pygame.Vector2(1, 0)
-            self.posicion += d.normalize() * ZORRO_VEL * self.vel_mult * dt
-            self.dir_mira = d.normalize()
-            return
+                if hasattr(presa, "recibir_dano"):
+                    presa.recibir_dano(dano, "fisico", presa.posicion - self.posicion)
+            if self.presa is None:
+                presa = None
+            if presa is not None:
+                d = self.posicion - presa.posicion
+                if d.length() < 1:
+                    d = pygame.Vector2(1, 0)
+                self.posicion += d.normalize() * ZORRO_VEL * self.vel_mult * dt
+                self.dir_mira = d.normalize()
+                return
 
         # 2) Hambriento: caza al conejo (lo mata al contacto y se llena).
         if presa_conejo is not None:
@@ -1844,6 +1849,9 @@ class Cocodrilo(AnimalCombatible):
         self.dir_mira = pygame.Vector2(1, 0)
         self._init_combate()
         self.escudo = float(COCODRILO_ESCUDO)   # tras _init_combate (que lo reinicia a 0)
+        self._objetivo = None
+        self._agredido = False
+        self._desde = pygame.Vector2()
 
     @property
     def sumergido(self):
@@ -1862,6 +1870,8 @@ class Cocodrilo(AnimalCombatible):
             self.escudo = max(0.0, round(self.escudo - absorbido, 2))
             self.tiempo_sin_dano_escudo = 0.0
         self.vida = max(0.0, round(self.vida - dano_vida, 2))
+        self._agredido = True
+        self._desde = pygame.Vector2(direccion_empuje) if (direccion_empuje is not None and direccion_empuje.length() > 0) else pygame.Vector2()
         if self.vida <= 0:
             self.vida = 0
             self.vivo = False
@@ -1876,7 +1886,7 @@ class Cocodrilo(AnimalCombatible):
     def _vel(self):
         return COCODRILO_VEL_AGUA if self.charco.contiene(self.posicion) else COCODRILO_VEL_TIERRA
 
-    def actualizar(self, dt, jugador):
+    def actualizar(self, dt, jugador, amenazas=None):
         self._tick_efectos(dt)
         if not self.vivo:
             return
@@ -1884,29 +1894,46 @@ class Cocodrilo(AnimalCombatible):
             return
         self._cd_mordida -= dt
         self._regen_escudo(dt)
+        if amenazas is None:
+            amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
 
         det = getattr(jugador, "detectable", True)
-        d_lago = (jugador.posicion - self.centro_lago).length() if det else float("inf")
-        # Solo te detecta si entras a la zona profunda peligrosa del lago.
-        detecta = det and self.charco.en_zona_peligro(jugador.posicion)
 
-        if self.estado != "ataca" and detecta:
-            self.estado = "ataca"      # emerge: emboscada
+        # Emboscada: emerge si entras a la zona profunda peligrosa del lago.
+        if self.estado != "ataca" and det and self.charco.en_zona_peligro(jugador.posicion):
+            self.estado = "ataca"
+            self._objetivo = None
+
+        # Si lo atacan (p. ej. una mascota), cambia de objetivo al atacante.
+        if self._agredido:
+            self._agredido = False
+            self.estado = "ataca"
+            if amenazas:
+                origen = self.posicion - self._desde
+                self._objetivo = min(amenazas, key=lambda o: (o.posicion - origen).length_squared())
 
         if self.estado == "ataca":
-            if not det or d_lago > self.charco.radio + COCODRILO_PERSIGUE:
+            objetivo = self._objetivo
+            if objetivo is None or not getattr(objetivo, "vivo", True):
+                objetivo = jugador if det else None
+                self._objetivo = None
+            if objetivo is None:
                 self.estado = "regresa"
                 return
-            d = jugador.posicion - self.posicion
+            if (objetivo.posicion - self.centro_lago).length() > self.charco.radio + COCODRILO_PERSIGUE:
+                self.estado = "regresa"
+                self._objetivo = None
+                return
+            d = objetivo.posicion - self.posicion
             dist = d.length()
-            if dist <= self.radio + jugador.radio + 4:
+            if dist <= self.radio + getattr(objetivo, "radio", 10) + 4:
                 if self._cd_mordida <= 0:
                     self._cd_mordida = COCODRILO_MORDIDA_CD
                     dano = random.randint(*COCODRILO_DANO)
-                    if hasattr(jugador, "recibir_dano"):
-                        jugador.recibir_dano(dano, "fisico", jugador.posicion - self.posicion)
-                    if hasattr(jugador, "aplicar_empuje"):
-                        jugador.aplicar_empuje(jugador.posicion - self.posicion, COCODRILO_EMPUJE)
+                    if hasattr(objetivo, "recibir_dano"):
+                        objetivo.recibir_dano(dano, "fisico", objetivo.posicion - self.posicion)
+                    if hasattr(objetivo, "aplicar_empuje"):
+                        objetivo.aplicar_empuje(objetivo.posicion - self.posicion, COCODRILO_EMPUJE)
             elif dist > 0:
                 self.posicion += d.normalize() * self._vel() * dt
                 self.dir_mira = d.normalize()

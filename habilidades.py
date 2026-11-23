@@ -1243,6 +1243,11 @@ class OrdenesSombrias:
         self._pasivo_al_soltar = False   # una orden nueva sustituye a la vuelta al pasivo
         blanco = enemigo_en(punto, enemigos, self.RADIO_SELECCION)
         if blanco is not None:
+            costo = getattr(self, "costo_orden_ataque", 0)
+            if costo > 0:
+                if jugador.energia < costo:
+                    return                 # sin energia no puedes ordenar el ataque
+                jugador.energia -= costo
             self.objetivo = blanco
         elif (punto - jugador.posicion).length() <= jugador.radio + self.RADIO_LLAMADA:
             self.objetivo = None
@@ -1727,6 +1732,7 @@ class InvocacionLobos(OrdenesSombrias, HabilidadBase):
         self.velocidad_lobo = 10 + 2 * (n // 5)
         self.dano_lobo = round(min(30.0, 8.0 + (30.0 - 8.0) * (n - 1) / 19.0), 2)
         self.costo_energia = 90
+        self.costo_orden_ataque = round(5 + 5 * (n - 1) / 19.0)   # orden de ataque: 5 -> 10
 
     def _invocar(self, jugador, cantidad):
         rad = math.radians(jugador.angulo)
