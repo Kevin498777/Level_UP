@@ -53,7 +53,7 @@ El salto sigue creciendo de forma suave: **+20 por nivel** hasta el 25, **+25** 
 
 La tabla 20 → 40 está pensada para los **enemigos futuros**, que darán más XP pero serán más difíciles. Con solo la fauna actual el tramo 30 → 40 se hace largo (cada nivel de 30 a 50 minutos).
 
-La tabla está pensada para llegar al nivel 20 en **unas 2 horas** de caza. Las simulaciones del 23/11/2026 (10 000 partidas con un bot) dicen que todavía no se consigue: con la XP actual el mejor llegó al 20 en unas 4.3 h y la mayoría se queda entre el nivel 5 y el 12, porque lobos, osos y cocodrilos siguen siendo demasiado peligrosos para el personaje. Falta medirlo jugando.
+La tabla está pensada para llegar al nivel 20 en **unas 2 horas** de caza. Simulación del 24/11/2026 (10 000 partidas con el bot, con el combate nuevo, 4 puntos por nivel y el Gacha a 15/20): el **83 %** llega al 20, con una mediana de **134 min**; el 88 % llega al 15 (77 min) y el 90 % al 10 (48 min). Falta medirlo jugando.
 
 ---
 
@@ -67,12 +67,14 @@ La tabla está pensada para llegar al nivel 20 en **unas 2 horas** de caza. Las 
 | Jabalí | 5 | 70 % | 2 – 5 | 2.5 |
 | Lobo | 5 | 100 % | 5 – 10 | 7.5 |
 | Lobo alfa | 8 | 100 % | 7 – 10 | 8.5 |
+| Lobo solitario | 10 | 100 % | 10 | 10 |
 | Cocodrilo | 10 | 100 % | 6 – 12 | 9 |
 | Oso | 15 | 100 % | 8 – 12 | 10 |
 | Orbe de curación de la cueva del oso | +2 | — | — | — |
 | Orbe de XP de la cueva del oso | +5 | — | — | — |
 | Orbe Gacha de la cueva del oso (50 % de que aparezca) | — | ruleta gratis de anillos | — | — |
 | Manada completa (bono) | +3 | — | — | — |
+| Cofre escondido (20 – 40 por mundo, no reaparecen) | +2 | 100 % | 5 | 5 |
 
 Una manada completa da **26 XP** (3 lobos × 5 + alfa 8 + bono 3) y unas **31 monedas** de promedio.
 
@@ -90,13 +92,15 @@ Para que el mundo no se agote, los animales vuelven sin pasar nunca el máximo d
 
 | Animal | Cómo vuelve |
 |---|---|
-| Conejo | Cada 30 s nace +1 en su madriguera si quedan 2 o más (máx. 10). Si una madriguera **se queda sin conejos, desaparece** y aparece otra en otro pastizal con 2 – 10 conejos. |
-| Venado | Cada 60 s nace +1 si quedan 2 o más (máx. 50). |
-| Jabalí | Cada 60 s nace +1 si quedan 2 o más (máx. 20). |
-| Zorro | Cada **3 min** aparece uno nuevo en el mundo (fuera de tu vista) y cada **2 min** nace +1 si quedan 2 o más (máx. 15). |
-| Lobos | Cada **1 min** la manada crece **+1** (hasta 4) si no está en combate. Al llegar a 4 sin alfa, **uno evoluciona a alfa**. Si exterminas una manada, al minuto **se inicia otra con 2 lobos en otro bosque** (a más de 1500 px y fuera de tu vista). Siempre hay **7 manadas** como máximo. |
+| Conejo | 15 madrigueras. Cada 30 s nace +1 en su madriguera si quedan 2 o más (máx. 10 por madriguera). Si una madriguera **se queda sin conejos, desaparece** y aparece otra en otro pastizal con 2 – 10 conejos. |
+| Venado | Cada 60 s nace +1 si quedan 2 o más (máx. 70). |
+| Jabalí | Cada 60 s nace +1 si quedan 2 o más (máx. 40). |
+| Zorro | Cada **3 min** aparece uno nuevo en el mundo (fuera de tu vista) y cada **2 min** nace +1 si quedan 2 o más (máx. 30). |
+| Lobos | Cada **1 min** la manada crece **+1** (hasta 4) si no está en combate. Al llegar a 4 sin alfa, **uno evoluciona a alfa**. Si exterminas una manada, al minuto **se inicia otra con 2 lobos en otro bosque** (a más de 1500 px y fuera de tu vista). Siempre hay **8 manadas** como máximo. |
+| Lobo solitario | Siempre hay **6**: **1 min** después de morir aparece otro (fuera de tu vista). |
 | Oso | **3 min** después de morir aparece un oso nuevo **en su misma cueva**, salvo que estés dentro de ella (la cueva no se puede destruir). |
-| Cocodrilo | No reaparece. |
+| Cocodrilo | No reaparece (2 por lago profundo, 3 en los muy grandes). |
+| Cofre | No reaparece. |
 
 ---
 
@@ -105,7 +109,7 @@ Para que el mundo no se agote, los animales vuelven sin pasar nunca el máximo d
 - Si tu vida llega a **0**, el mundo se congela detrás de un aviso **"HAS MUERTO"** con dos opciones:
   - **Reaparecer [R]** (o Enter): vuelves al **centro del mapa** desde cero.
   - **Volver al menú principal [M]**: regresa a la pantalla de creación.
-- **Al reaparecer se reinicia:** nivel 1, XP 0, **pierdes todas las monedas**, 4 puntos de mejora, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas. Tus **sombras desaparecen** y los animales que te perseguían te olvidan.
+- **Al reaparecer se reinicia:** nivel 1, XP 0, **pierdes todas las monedas**, 4 puntos de mejora (y las habilidades potenciadas), estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas. Tus **sombras desaparecen** y los animales que te perseguían te olvidan.
 - **El mundo sigue igual:** los animales muertos siguen muertos y lo que se regeneró sigue ahí. Solo se genera un mundo nuevo al **crear otra partida** con un personaje nuevo.
 
 ---

@@ -1,18 +1,18 @@
 # LEVEL_UP — Estado del balance
 
 > Documento de trabajo para retomar el balance más adelante.
-> Actualizado: 23 de noviembre de 2026.
+> Actualizado: 24 de noviembre de 2026 (ver también `Cambios_2026-11-24.md`).
 > Los valores de detalle están en `Tablas_Escalado.md` y en `Level_UP_Especificaciones.md`.
 
 ---
 
 ## 1. Cómo se mide el balance
 
-- **La energía es el recurso clave.** Hay 100 de energía máxima y se recupera **+1 cada 3 s** quieto y **+1 cada 6 s** en movimiento (unos 0.33/s como mucho). Llenar la barra tarda unos 5 minutos, así que la métrica principal es el **daño por punto de energía** (dmg/En).
+- **La energía es el recurso clave.** Hay 100 de energía máxima y se recupera **+1 cada 3 s** quieto y **+1 cada 6 s** en movimiento (unos 0.33/s; hasta el doble con la stat Regen. de energía, x2 en agua y x4 en la zona profunda). Llenar la barra tarda unos 5 minutos, así que la métrica principal es el **daño por punto de energía** (dmg/En).
 - Para las armas se compara el **daño por segundo** (daño × cadencia) con Fuerza 2, la velocidad y la durabilidad.
 - **Enemigo de referencia:** el maniquí, con 100 de vida, escudos físico y mágico de 50 y una Espada Larga de nivel 1 (6.8 de daño por golpe cada 2 s, alcance 150). Las mediciones de este documento se hicieron contra él.
-- **Fauna (desde el 23/11/2026):** ya hay enemigos reales que rodean y persiguen (lobos en manada, osos, cocodrilos, jabalíes y zorros; ver `Fauna.md`). Todavía no se ha medido el balance contra ellos.
-- **Experiencia (desde el 23/11/2026):** cazar animales da XP y se sube de nivel sin teclas de prueba (`sistema_xp.md`); morir devuelve al nivel 1. La tabla de XP está pensada para llegar al nivel 20 en unas 2 horas: hay que medirlo en partida.
+- **Fauna (desde el 23/11/2026):** ya hay enemigos reales que rodean y persiguen (lobos en manada, osos, cocodrilos, jabalíes y zorros; ver `Fauna.md`). El 24/11/2026 se midió con duelos (clases reales de `fauna.py`) y con la simulación de progresión (sección 2b).
+- **Experiencia (desde el 23/11/2026):** cazar animales da XP y se sube de nivel sin teclas de prueba (`sistema_xp.md`); morir devuelve al nivel 1. La tabla de XP está pensada para llegar al nivel 20 en unas 2 horas (la simulación da 134 min de mediana) y el máximo es ahora el nivel 40: hay que medirlo en partida.
 - El escudo mágico absorbe el 90 % del daño mágico, así que el daño mágico rinde mucho menos contra objetivos con escudo mágico, salvo si se anula con Cortar.
 
 ---
@@ -33,57 +33,75 @@ Gancho para enemigos: `Personaje.bloquear_con_escudo(daño, origen)`. Los ataque
 
 ---
 
-## 3. Tier list actual (después de los cambios)
+## 2b. Cambios de balance aplicados el 24/11/2026
+
+| Tema | Antes | Ahora |
+|---|---|---|
+| **Gacha** | Tirada 10, devolución 25 (daba monedas infinitas) | Tirada **15** (Gacha mejorado **20** desde el nivel 20), devolución **10**; regla proporcional (Nada 15 %, agotada 5 %), anillos al máximo fuera del sorteo y **legendario garantizado en la tirada 90** |
+| **Puntos de mejora** | 3 al empezar y +3 por nivel | **4** al empezar y **+4** por nivel (160 al nivel 40) |
+| **Regen. de energía** | +0.2 % por punto (inútil) | **+5 % por punto**, máx. +100 % (20 puntos) |
+| **Combate cuerpo a cuerpo** | Empuje doble de la fauna, sin protección | Solo el empuje propio del animal; **0.5 s de invulnerabilidad** tras un golpe; cada golpe de arma **aturde 0.3 s** al animal (1 s sin repetir); **vida inicial 30** |
+| **Nivel máximo** | 20 | **40** (20 → 40: +8410 XP) |
+| **Disparo Veloz (nerf)** | Vel 14 → 40, daño 8 → 30, recarga 2 → 0.5 s | Vel **14 → 35**, daño **8 → 25**, recarga **4 → 2 s** |
+| **Cuevas de oso** | Cortar a nivel 20 las destruía | Nada las destruye |
+| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea y Vestigios Míticos (niveles 21 – 30, 2 puntos por nivel) |
+
+**Medición (simulación de 10 000 partidas con el bot):** con todo lo anterior el **83 %** llega al nivel 20 (mediana **134 min**), 5.9 muertes por partida y el 80 % llega al 20 con todos los objetos del Gacha. Duelos solo con arma contra la fauna real: la manada ya se gana desde el nivel 5 (antes 15) y el oso desde el 15.
+
+## 3. Tier list actual (24/11/2026)
+
+Según el porcentaje que llega al nivel 20 empezando con esa arma o habilidad (simulación de 10 000 partidas), los duelos contra la fauna y el daño por energía. Medida **antes** del nerf de Disparo Veloz y sin las potenciadas.
 
 ### 3.1 Herramientas
 
-| Tier | Arma | Antes | Motivo |
+| Tier | Arma | Llega a nv20 | Motivo |
 |---|---|---|---|
-| **S** | Dagas Simples | S | A nivel 5 es la mejor: 13.1 de daño/s, +10 % de velocidad, 400 de durabilidad y la cadencia más alta. Es débil a nivel 1. |
-| **A** | Escudo | F ⬆️ | Bloqueo frontal total más un empuje de 40. Contra el maniquí aguanta ~18 golpes a nv1 y ~147 a nv5. No hace daño, deja la espalda expuesta y tiene −34 % de velocidad; la pasiva solo vale si se invierte en escudos. |
-| **A** | Mandoble | A | Mayor daño/s (8.5 → 14.4) y el que más gana con Burst de Fuerza. Su −70 % de velocidad a nv1 es durísimo. |
-| **A** | Espada Larga | A | La más equilibrada: 7.2 → 13.0 de daño/s con −34 % → −10 % de velocidad. |
-| **B** | Arco | B | Seguro (300 de alcance, 25 de empuje) pero hace poco daño (2 → 4 de daño/s) y gasta energía en flechas. |
-| **B−** | Espada Ligera | B | La de menos daño al máximo nivel (10.6 de daño/s). Las Dagas la superan en todo: no tiene un papel propio. |
+| **S** | Mandoble | 96.6 % | Más daño por golpe, alcance (91) y empuje (20); el mejor contra el oso. Muy lento al principio. |
+| **A** | Espada Larga | 95.3 % | La más equilibrada; gana al lobo solitario desde el nivel 1. |
+| **A−** | Dagas Simples | 93.7 % | Débil a nv1, la de más daño/s a nv5; poco alcance contra manadas. |
+| **B** | Espada Ligera | 91.9 % | Sin papel propio: Dagas en daño y Larga en alcance la superan. |
+| **C** | Arco | 89.4 % | Seguro pero poco daño y gasta energía; más muertes (5.7). |
+| **C** | Escudo | 86.6 % | Bloquea todo de frente pero no hace daño. |
 
 ### 3.2 Habilidades
 
-| Tier | Habilidad | Antes | dmg/En nv1 → nv20 | Motivo |
-|---|---|---|---|---|
-| **S** | Invocar Lobos | S | (24 de daño/s desde nv1) | **La más desbalanceada.** A nv1 los tres lobos hacen el triple de daño/s que cualquier arma y 90/s a nv20. Además desangran y reducen la curación un 50 %. |
-| **A** | Carga de Fuego | S ⬇️ | 0.93 → 1.9 | Ya no se puede spamear. Ahora premia cargarla: a nv20 la carga completa hace 78 + 7 de quemadura. Bien ubicada. |
-| **A** | Invocar Conejos | S ⬇️ | — | Tardan en multiplicarse y los cuerpos sólidos limitan a ~10 los que tocan al objetivo a la vez (≈77 de daño/s a nv20). Inútiles a nv1–3 (0.1 de daño). |
-| **A** | Onda Sonora | A | 1.0 → 2.0 (4.0 en agua) | La mejor en daño por energía. Golpea en área y ralentiza. |
-| **A** | Destello | A | — | Barata (+52 % de velocidad durante 10 s por 10 de energía) y casi permanente a nv20. |
-| **B** | Disparo Veloz | D ⬆️ | 0.53 → 0.86 | Ya es viable: casi instantánea y con 0.5 s de recarga. A nv1 rinde menos que el toque de Carga de Fuego (8 contra 14 de daño por 15 de energía). La limita la energía, no la recarga. |
-| **B** | Burst de Fuerza | B | — | +21–40 % honesto; solo mejora el arma. |
-| **B** | Sombra Araña | B | — | Inmoviliza 5 → 20 s, pero es cara (50 → 100 de energía) y el inmovilizado puede seguir atacando. Ganará valor con enemigos que se muevan. |
-| **B** | Golpe de Suerte | B | — | Mala a nv1 (30 % de no obtener nada y puede envenenarte); muy fuerte a nv20. Pura varianza. |
-| **B** | Cortar | B | 0.33 → 0.75 | Su valor está en anular el escudo mágico 8 s (combo con Carga de Fuego u Onda Sonora). |
-| **B** | Reforzamiento Mágico | B | — | En la práctica es 1 s de invulnerabilidad. Se pisa con el Escudo. |
-| **B−** | Disparo Venenoso | C ⬆️ | 1.0 → 0.89 | Ya no empeora tanto al subir de nivel, pero tiene 30 s de recarga a nv1 y el escudo mágico enemigo le absorbe el 90 %. |
-| **C** | Paso 0 | C | — | Los arbustos esconden gratis y cada nivel cuesta 2 puntos. |
-| **C** | Aura Eléctrica | C | 0.5 → 1.7 por enemigo | 40 s de recarga a nv1 (sube a 60 s) y daño a sí mismo. Solo vale a nv20 y rodeado de enemigos. |
-| **C** | Regeneración Inversa | C | (10 de energía por vida) | Muy cara para lo poco que se recupera la energía; los frutales curan gratis. Cuesta 2 puntos por nivel. |
+| Tier | Habilidad | Llega a nv20 | Motivo |
+|---|---|---|---|
+| **S** | Carga de Fuego | 99.7 % | Mucho daño a distancia; 1 muerte de media. |
+| **S** | Invocar Lobos | 96.9 % | Demasiado fuerte a nivel 1 (≈24 de daño/s) y se llevan los golpes. **Ajuste pendiente.** |
+| **S → ?** | Disparo Veloz | 99.0 % | Barata y casi instantánea. **Nerfeada el 24/11**: hay que volver a medirla. |
+| **A** | Onda Sonora | 97.1 % | Mejor daño por energía, en área y ralentiza. |
+| **A** | Cortar | 96.3 % | Daño a distancia y anula el escudo mágico. |
+| **B** | Paso 0 | 91.0 % | No hace daño pero es la mejor para escapar (2 muertes de media). |
+| **B** | Burst de Fuerza / Golpe de Suerte / Reforzamiento Mágico | ≈90 % | Útiles pero dependientes (solo el arma, azar, o solapadas con la invulnerabilidad nueva). |
+| **B−** | Destello | 89.3 % | Barata para huir o perseguir; no mata. |
+| **C** | Invocar Conejos, Sombra Araña, Regeneración Inversa, Aura Eléctrica | 88.6 – 90.6 % | Lentas, caras o con autodaño. |
+| **D** | Disparo Venenoso | 85.1 % | 7.1 muertes de media, 30 s de recarga y el escudo mágico le quita el 90 %. |
 
----
+### 3.3 Anillos y tótem
+
+| Tier | Objeto | Motivo |
+|---|---|---|
+| **S+** | Tótem de vida | Evita perderlo todo al morir. |
+| **S** | Regeneración inversa (legendario), Vida (épico) | +0.9 vida/s siempre; +20 de vida (dos tercios de la vida inicial). |
+| **A** | Cadencia (épico), Sombra lobo (épico) | Casi duplica el daño de un arma; defensa muy fuerte. |
+| **B** | Defensa física | Absorbe mordidas y zarpazos. |
+| **C** | Fuerza, Viento, Energía, Sombra conejo | Efectos pequeños. |
+| **D** | Defensa mágica | Casi no hay daño mágico enemigo (solo ondas de 5 – 10). |
 
 ## 4. Pendiente: siguientes fases de balance (propuestas, no aplicadas)
 
-1. **Invocar Lobos (demasiado fuerte, prioridad):** daño **4 → 30** en vez de 8 → 30 y desangrado del 33 % al **20 %**. A nv1 quedarían en 12 de daño/s en total; el nv20 no cambia.
-2. **Regeneración Inversa (débil):** bajar el coste a ~6 de energía por vida o que cada nivel cueste 1 punto en vez de 2.
-3. **Aura Eléctrica (débil):** que la recarga **baje** con el nivel (40 → 25 s) en vez de subir a 60 s.
-4. **Paso 0 (débil):** darle un plus que el arbusto no tenga (p. ej. +50 % de daño en el primer ataque desde la invisibilidad) o bajar el coste de nv1 a 20.
-5. **Espada Ligera (sin papel):** darle un rasgo propio, como más cadencia o no desgastarse en los choques de armas.
-6. **Disparo Veloz (algo débil al principio):** coste de nv1 de 10 de energía o daño inicial de 10.
-7. **Escudo (vigilar, ya se puede medir):** con el maniquí siempre te da de frente. La manada de lobos ya rodea al jugador: revisar que el bloqueo total sin coste para el jugador más el empuje de 40 no lo haga intocable, y que contra el oso (que además resta un 30 % extra al escudo cuando no se bloquea) no sea obligatorio.
-8. **Autoapuntado (vigilar, ya se puede medir):** −40 % de velocidad a cambio de apuntar siempre. Con el Escudo, el arco de bloqueo mira siempre al objetivo; junto al −34 % del escudo, la velocidad baja al mínimo (0.4). Revisarlo contra la manada de lobos y el jabalí en rabia.
-9. **Invocar Lobos y la fauna:** ordenar el ataque ahora cuesta 5 → 10 de energía (rama de fauna). Tenerlo en cuenta al bajar su daño (punto 1).
-
-Orden sugerido para la próxima sesión: **Lobos → Regeneración Inversa → Aura Eléctrica**, y después el resto.
-
----
+1. **Invocar Lobos (demasiado fuerte, prioridad):** daño **4 → 30** en vez de 8 → 30 y desangrado del 33 % al **20 %**.
+2. **Volver a medir** con la simulación: el nerf de Disparo Veloz, las 5 potenciadas y la economía del Gacha (15 / 20).
+3. **Regeneración Inversa (débil):** bajar el coste a ~6 de energía por vida o que cada nivel cueste 1 punto en vez de 2.
+4. **Paso 0 (débil):** darle un plus (p. ej. +50 % de daño en el primer ataque desde la invisibilidad) o bajar el coste de nv1 a 20.
+5. **Espada Ligera (sin papel):** darle un rasgo propio (más cadencia o no desgastarse en los choques).
+6. **Disparo Venenoso y anillo de Defensa mágica (los más flojos).**
+7. **Lobo solitario (vigilar):** con 10 XP y 10 monedas fijas es la mejor fuente de XP del bot; si se nota en partida, bajar a 6 – 8 XP.
+8. **Estrella Ígnea (vigilar):** una carga de 5 s o más borra una manada de lobos normales con la explosión (29 – 38 de daño en 100 px).
+9. **Nivel 20 → 40:** con solo la fauna actual se tarda ≈10 h (14.5 XP/min); depende de los enemigos nuevos.
+10. **Habilidades potenciadas pendientes de diseñar:** Invocar Conejos, Invocar Lobos, Cortar, Onda Sonora, Reforzamiento Mágico, Regeneración Inversa, Golpe de Suerte, Sombra Araña, Paso 0 y Disparo Venenoso.
 
 ## 5. Pendientes de documentación
 
-- Ninguno: `Tablas_Escalado.xlsx` ya está al día con `Tablas_Escalado.md` (23/11/2026), incluidos los cambios de la sección 2 y el coste de la orden de ataque de Invocar Lobos.
+- Ninguno al 24/11/2026: especificación, tablas (`.md` y `.xlsx`), fauna, XP y Gacha están al día con el código.

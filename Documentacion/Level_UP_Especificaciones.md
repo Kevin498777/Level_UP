@@ -113,6 +113,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 | Escudo (físico) | 0 | +5 hasta 15, luego +2 |
 | Escudo mágico | 0 | +5 hasta 15, luego +2 |
 | Energía | 100 | +5 |
+| Regen. de energía | +0 % | +5 % (máx. +100 %) |
 | Tamaño | 1 | — (estético) |
 
 ### 6.2 Significado de cada estadística
@@ -529,9 +530,10 @@ En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y
 El mundo tiene animales en cuatro grupos (detalle y valores en `Fauna.md`). Solo se actualizan y dibujan **cerca de la cámara**, por rendimiento.
 
 - **Ambiental (sin colisión):** mariposas y luciérnagas sobre las praderas, pájaros posados en las copas que alzan el vuelo si te acercas, peces (sombras bajo el agua) y ranas en orillas y nenúfares que saltan al agua.
-- **Pasiva (huye):** **conejos salvajes** (10 madrigueras en el pasto alto, se esconden 60 s y se reproducen; una madriguera vacía se muda a otro pastizal) y **venados** (50 en el mundo, se regeneran y se reproducen). Huyen del jugador, de sus sombras y de los zorros hambrientos.
+- **Pasiva (huye):** **conejos salvajes** (15 madrigueras en el pasto alto, se esconden 60 s y se reproducen; una madriguera vacía se muda a otro pastizal) y **venados** (70 en el mundo, se regeneran y se reproducen). Huyen del jugador, de sus sombras y de los zorros hambrientos.
 - **Neutral (reacciona si la provocas):** **jabalí** (rabia de 6 s al recibir un golpe: embiste con 10 – 18 de daño y 40 de empuje) y **zorro** (muerde si lo acorralas o golpeas, roba un 30 % de velocidad a su objetivo, caza conejos cuando tiene hambre y tiene su propio **Paso 0**, con el mismo fundido de 0.4 s).
-- **Hostil (te caza):** **lobos en manada** (7 manadas de 4 con un alfa; desangran, se retiran si queda uno y cazan presas con hambre compartida), **osos** (150 de vida, viven en una roca gigante que hace de cueva; zarpazo de 15 – 25 que resta un 30 % extra al escudo y rugido que ralentiza; al morir se puede entrar a la cueva, que oscurece el mapa, y recoger un orbe que cura +20 y da +2 XP, un orbe de +5 XP y, con un 50 %, un orbe Gacha que gira una ruleta gratis de anillos) y **cocodrilos** (uno en la zona profunda de cada lago grande, intocables sumergidos, con escudo físico de 30).
+- **Hostil (te caza):** **lobos en manada** (8 manadas de 4 con un alfa; desangran, se retiran si queda uno y cazan presas con hambre compartida), **osos** (150 de vida, viven en una roca gigante que hace de cueva; zarpazo de 15 – 25 que resta un 30 % extra al escudo y rugido que ralentiza y hace 10 de daño mágico; al morir se puede entrar a la cueva, que oscurece el mapa, y recoger un orbe que cura +20 y da +2 XP, un orbe de +5 XP y, con un 50 %, un orbe Gacha que gira una ruleta gratis de anillos) **cocodrilos** (2 en la zona profunda de cada lago grande, 3 en los muy grandes; intocables sumergidos, con escudo físico de 30) y **lobos solitarios** (6 en el mapa, vida 40, mordida 15 con 20 % de desangrado y una onda que hace 5 de daño mágico; 10 XP y 10 monedas).
+- **Cofres:** 20 – 40 por mundo escondidos junto a árboles y arbustos; dan 5 monedas y 2 XP una vez y no reaparecen.
 
 Reglas comunes:
 

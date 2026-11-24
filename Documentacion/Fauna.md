@@ -2,7 +2,7 @@
 
 > Documento de información (no técnico) sobre los animales del mundo.
 > Pensado como contexto de referencia para la IA y para el equipo.
-> Actualizado: 23 de noviembre de 2026.
+> Actualizado: 24 de noviembre de 2026.
 
 ---
 
@@ -71,7 +71,7 @@ La fauna pasiva huye de la **amenaza más cercana**: el jugador, cualquiera de t
 ### Conejo salvaje
 - **Vida:** 5 a 20.
 - **Aspecto:** conejo natural (gris/café) con orejas largas y cola blanca.
-- **Madrigueras:** hay **10 madrigueras** por mundo, situadas en el **bioma de
+- **Madrigueras:** hay **15 madrigueras** por mundo, situadas en el **bioma de
   pasto alto**. Cada madriguera alberga de **2 a 10** conejos.
 - **Comportamiento:** deambulan alrededor de su madriguera en un radio amplio
   (180 a 320 px, se separan de forma progresiva). Si ven una amenaza a menos de
@@ -88,7 +88,7 @@ La fauna pasiva huye de la **amenaza más cercana**: el jugador, cualquiera de t
   después de recibir daño.
 - **Aspecto:** cuerpo café con patas, cuello y cabeza; algunos con cornamenta.
   Más grande que el conejo.
-- **Población:** **50** repartidos por todo el mundo (muy dispersos).
+- **Población:** **70** repartidos por todo el mundo (muy dispersos).
 - **Comportamiento:** muy tímido; pasta tranquilo y **huye lejos** si una amenaza
   entra a menos de **160 px**.
 - **Reproducción:** si hay **2 o más** venados en el mundo, cada **60 s** nace
@@ -103,7 +103,7 @@ La fauna pasiva huye de la **amenaza más cercana**: el jugador, cualquiera de t
 - **Vida:** 40 a 70. Resistente.
 - **Aspecto:** cuerpo robusto marrón con colmillo; los **ojos se ponen rojos**
   mientras está en rabia.
-- **Población:** **20** repartidos por los bosques del mundo.
+- **Población:** **40** repartidos por los bosques del mundo.
 - **Comportamiento:** neutral; te ignora mientras no lo golpees. Al recibir un
   golpe entra en **estado de RABIA** durante **6 s**: se mueve de forma
   **errática** y **embiste a quien lo golpeó** (jugador o sombra), haciendo **10 a
@@ -117,7 +117,7 @@ La fauna pasiva huye de la **amenaza más cercana**: el jugador, cualquiera de t
 - **Vida:** 15 a 30.
 - **Aspecto:** cuerpo naranja con orejas puntiagudas, hocico y cola de punta
   blanca.
-- **Población:** **15** repartidos por el mapa.
+- **Población:** **30** repartidos por el mapa.
 - **Comportamiento base:** neutral; ronda manteniendo distancia. Si lo
   **acorralas** (a menos de 45 px) o lo **golpeas**, **muerde** a esa amenaza
   (**5 a 10 de daño**) y huye.
@@ -159,7 +159,7 @@ El zorro tiene **tres pasivas**:
 
 ### Lobo (en manada)
 - **Manada de 4 lobos:** 1 **alfa** (vida 40, daño 15, 30% de desangrado) y 3
-  normales (vida 25, daño 8, 10% de desangrado). Hay **7 manadas** por mundo,
+  normales (vida 25, daño 8, 10% de desangrado). Hay **8 manadas** por mundo,
   en los bosques.
 - **Aspecto:** cuerpo gris con orejas puntiagudas y cola; el **alfa** es más
   grande y oscuro, con ojos amarillos y una marca sobre la cabeza.
@@ -179,12 +179,24 @@ El zorro tiene **tres pasivas**:
   vida, daño, desangrado y aspecto).
 - **Manada nueva:** si la exterminas, al minuto **se inicia otra con 2 lobos en
   otro bosque** (a más de 1500 px y fuera de tu vista), que crece igual. Siempre
-  hay como máximo **7 manadas**.
+  hay como máximo **8 manadas**.
 - **Velocidad:** paseo 40, persecución 165, retirada 210.
+
+### Lobo solitario
+- **Lobo único con la fuerza de un alfa:** vida **40**, mordida **15** (una cada
+  2 s) con **20 %** de desangrado. No forma manada. Ojos rojos siempre, cuerpo gris
+  oscuro.
+- **Población:** siempre hay **6** repartidos por el mapa; **1 min** después de
+  morir aparece otro (fuera de tu vista).
+- **Hostil:** te detecta a **200 px** (la manada a 250), te persigue (165) y pierde
+  el rastro a más de 600 px o si te vuelves indetectable.
+- **Onda sonora:** en combate, cada **10 s** lanza una onda (radio 200) que te hace
+  **5 de daño mágico** y te ralentiza un **10 %** durante 2 s.
+- **Recompensa:** **10 XP** y **10 monedas** fijas (ver `sistema_xp.md`).
 
 ### Oso (en su cueva, roca gigante)
 - **Tanque territorial:** vida **150**, muy resistente, lento pero demoledor.
-  Hay **8–12 osos** por mundo; cada uno vive en una **roca gigante** que hace de
+  Hay **12 osos** por mundo; cada uno vive en una **roca gigante** que hace de
   su **cueva**.
 - **Aspecto:** cuerpo grande marrón con orejas redondas y hocico; ojos rojos al
   atacar.
@@ -194,7 +206,8 @@ El zorro tiene **tres pasivas**:
   lo golpeas, y te **caza a zarpazos** mientras estés en su territorio (~1000 px);
   si te alejas, **regresa a su cueva**.
 - **Rugido:** al alertarse (y cada 10 s en combate) lanza una **onda de choque**
-  que te **ralentiza** (~30% por 2 s).
+  que te **ralentiza** (~30% por 2 s) y te hace **10 de daño mágico** (lo frena el
+  escudo mágico).
 - **Guarida:** vive metido en su cueva — ahí es **intocable** y se **regenera**.
   Sale si te detecta (**emboscada**) y, además, **cada 1 minuto sale 10 s** a
   acercarse al **lago más cercano** a "pescar" y vuelve.
@@ -214,7 +227,7 @@ El zorro tiene **tres pasivas**:
 
 ### Cocodrilo (zona profunda del lago)
 - **Depredador de emboscada acuática:** vive en la **zona profunda peligrosa** de
-  los lagos grandes (**1 por lago**). Vida **70** y un **escudo físico de 30** con
+  los lagos grandes (**2 por lago**, **3** si el lago es muy grande, radio ≥ 600). Vida **70** y un **escudo físico de 30** con
   las mismas reglas que el del jugador (absorbe parte del daño físico y se
   regenera).
 - **Acecho sumergido:** mientras espera es **intocable** — solo se ven una sombra
@@ -228,6 +241,16 @@ El zorro tiene **tres pasivas**:
   sale un poco a la orilla, pero en tierra es lento; si te alejas del lago, **vuelve
   a sumergirse**.
 - **Velocidad:** agua 210, tierra 65.
+- **Agua evaporada:** la explosión de Estrella Ígnea seca el agua que toca para
+  siempre; esa zona ya no cuenta como lago (tampoco para el cocodrilo).
+
+---
+
+## Cofres escondidos
+
+- Entre **20 y 40 cofres** por mundo, escondidos junto a árboles y arbustos (nunca
+  dentro del agua). Al tocarlos dan **5 monedas** y **2 XP** una sola vez y **no
+  reaparecen**.
 
 ---
 

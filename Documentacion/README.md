@@ -10,9 +10,10 @@ Las reglas de desarrollo se mantienen en la raíz: `../reglas.md`.
 | `Tablas_Escalado.xlsx` | Las mismas tablas de `Tablas_Escalado.md` en Excel: una hoja por herramienta y por habilidad. |
 | `Tablas_Tipos.xlsx` | Clasificación de herramientas y habilidades por tipo (armas físicas/mágicas/defensivas, potenciadores, daño mágico/físico, invocaciones) y evoluciones previstas **Normal → Única → Dominio** con su probabilidad. Diseño a futuro: aún no está en el código. |
 | `Balance_Estado.md` | Estado del balance: criterio de medida, cambios ya aplicados, tier list actual de herramientas y habilidades, y propuestas pendientes para las siguientes fases. |
-| `Fauna.md` | Fauna del mundo por fases: ambiental, pasiva, neutral y hostil (conejos, venados, jabalíes, zorros, lobos, osos, cocodrilos), con sus valores y notas de diseño. |
-| `sistema_xp.md` | Sistema de experiencia (XP por nivel hasta el 20 y por animal), monedas por animal, reaparición de la fauna y muerte del jugador. |
-| `Gacha_Talismanes.md` | Gacha (por fases) y talismanes: anillos por rareza con sus efectos y niveles, Tótem de vida, huecos de equipo. |
+| `Fauna.md` | Fauna del mundo por fases: ambiental, pasiva, neutral y hostil (conejos, venados, jabalíes, zorros, lobos, lobos solitarios, osos, cocodrilos) y cofres, con sus valores y notas de diseño. |
+| `sistema_xp.md` | Sistema de experiencia (XP por nivel hasta el 40 y por animal, cofres), monedas por animal, reaparición de la fauna y muerte del jugador. |
+| `Gacha_Talismanes.md` | Gacha (por fases, regla proporcional, legendario garantizado, Gacha mejorado con habilidades potenciadas) y talismanes: anillos por rareza con sus efectos y niveles, Tótem de vida, huecos de equipo. |
+| `Cambios_2026-11-24.md` | Reporte de los cambios del 24/11/2026 (balance, combate, Gacha, nivel 40 y 5 habilidades potenciadas) con una lista de verificación manual. |
 | `Notas_Futuras.md` | Ideas y notas sueltas para el diseño futuro (aún no implementadas). |
 | `Medidas_PixelArt.md` | Medidas (tamaño en juego y lienzo recomendado) de cada objeto que puede llevar un dibujo en pixel art: personajes, armas, proyectiles, auras, terreno e interfaz. |
 

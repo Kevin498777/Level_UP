@@ -140,7 +140,7 @@ Se pierde **todo**: nivel, XP, monedas, talismanes, tótems y lo que hayas sacad
 
 ### Economía anterior (simulación del 23/11/2026 con la tirada a 30, ya no vigente)
 
-Con las monedas de caza más **+20 por nivel**, un bot que tira en cuanto junta 30 monedas consiguió:
+Con las monedas de caza más **+20 por nivel**, un bot que tiraba en cuanto juntaba 30 monedas (coste de entonces) consiguió:
 
 | | Jugador cuidadoso | Con encuentros de lobos y osos |
 |---|---|---|
