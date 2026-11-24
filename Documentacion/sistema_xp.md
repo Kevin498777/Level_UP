@@ -9,7 +9,7 @@
 ## 1. Niveles
 
 - Nivel máximo del personaje: **20**.
-- Cada nivel da **4 puntos de mejora** (3 hasta el 24/11/2026; 79 en total al nivel 20 contando los 3 iniciales) (ver la sección 7 de `Level_UP_Especificaciones.md`) y **+20 monedas** (380 en total hasta el nivel 20; [L] también las da).
+- Cada nivel da **4 puntos de mejora** (3 hasta el 24/11/2026; se empieza con 4, así que al nivel 20 hay 80 en total) (ver la sección 7 de `Level_UP_Especificaciones.md`) y **+20 monedas** (380 en total hasta el nivel 20; [L] también las da).
 - Al subir, la experiencia **vuelve a 0 más lo que sobró**: si te faltaba 1 XP y ganas 4, subes y empiezas el siguiente nivel con 3. Con mucha XP de golpe se pueden subir varios niveles.
 - En el nivel 20 la experiencia ya no se acumula y la barra muestra **MÁX**.
 - La tecla de prueba **[L]** sigue subiendo un nivel (también se detiene en el 20).
@@ -76,7 +76,7 @@ Para que el mundo no se agote, los animales vuelven sin pasar nunca el máximo d
 - Si tu vida llega a **0**, el mundo se congela detrás de un aviso **"HAS MUERTO"** con dos opciones:
   - **Reaparecer [R]** (o Enter): vuelves al **centro del mapa** desde cero.
   - **Volver al menú principal [M]**: regresa a la pantalla de creación.
-- **Al reaparecer se reinicia:** nivel 1, XP 0, **pierdes todas las monedas**, 3 puntos de mejora, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas. Tus **sombras desaparecen** y los animales que te perseguían te olvidan.
+- **Al reaparecer se reinicia:** nivel 1, XP 0, **pierdes todas las monedas**, 4 puntos de mejora, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas. Tus **sombras desaparecen** y los animales que te perseguían te olvidan.
 - **El mundo sigue igual:** los animales muertos siguen muertos y lo que se regeneró sigue ahí. Solo se genera un mundo nuevo al **crear otra partida** con un personaje nuevo.
 
 ---

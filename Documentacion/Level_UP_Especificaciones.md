@@ -160,7 +160,7 @@ Con el **clic derecho sobre un enemigo** (sin mantener la tecla de una invocaci�
 
 ## 7. Progresión y puntos de mejora
 
-El personaje empieza con **3 puntos de mejora** y gana **4 por cada nivel** (además de **+20 monedas** por nivel). Son un **recurso compartido** para mejorar estadísticas, arma o habilidades con los botones **[+]** verdes.
+El personaje empieza con **4 puntos de mejora** y gana **4 por cada nivel** (además de **+20 monedas** por nivel). Son un **recurso compartido** para mejorar estadísticas, arma o habilidades con los botones **[+]** verdes.
 
 - **Coste:** una estadística cuesta **1 punto**, una habilidad **1 punto** y el arma **2 puntos** por nivel.
 - **Subir de nivel:** con **experiencia (XP)** al cazar animales (tú o tus sombras). Nivel máximo **20**; llegar a él cuesta **1048 XP**, pensado para unas **2 horas** de juego. Al subir, la XP vuelve a 0 más lo que sobró. La tecla de prueba **[L]** sigue subiendo un nivel. Tablas de XP por nivel y por animal en `sistema_xp.md`.
@@ -181,7 +181,7 @@ El personaje empieza con **3 puntos de mejora** y gana **4 por cada nivel** (ade
 
 ### 7.1 Muerte
 
-Si la vida llega a **0**, el mundo se congela tras un aviso **"HAS MUERTO"** con **Reaparecer [R]** y **Volver al menú principal [M]**. Al reaparecer vuelves al **centro** desde cero: nivel 1, XP 0, **sin monedas**, 3 puntos, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas; tus **sombras desaparecen**. El **mundo sigue igual** (solo se genera uno nuevo al crear otra partida).
+Si la vida llega a **0**, el mundo se congela tras un aviso **"HAS MUERTO"** con **Reaparecer [R]** y **Volver al menú principal [M]**. Al reaparecer vuelves al **centro** desde cero: nivel 1, XP 0, **sin monedas**, 4 puntos, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas; tus **sombras desaparecen**. El **mundo sigue igual** (solo se genera uno nuevo al crear otra partida).
 
 ---
 

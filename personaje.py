@@ -17,6 +17,7 @@ TECLAS_HUECOS = ((pygame.K_2, "2"), (pygame.K_3, "3"), (pygame.K_4, "4"))
 NIVEL_MAXIMO = 20
 XP_POR_NIVEL = (1, 2, 4, 8, 12, 16, 20, 25, 30, 40, 50, 60, 70, 80, 95, 110, 125, 140, 160)
 PUNTOS_MEJORA_POR_NIVEL = 4
+PUNTOS_MEJORA_INICIALES = 4     # puntos con los que empieza el personaje (y al reaparecer)
 MONEDAS_POR_NIVEL = 20           # monedas que da cada subida de nivel
 
 # Silueta del personaje invisible (Paso 0): transparencias 0-255 de relleno, contorno y ojos
@@ -127,9 +128,9 @@ class Personaje:
         self.escudo_magico_guardado = 0.0    # Valor que recupera al terminar la anulacion
         self.color = color
 
-        # Progresión: nivel del personaje y puntos de mejora (empieza con 3)
+        # Progresión: nivel del personaje y puntos de mejora (empieza con PUNTOS_MEJORA_INICIALES)
         self.nivel = 1
-        self.puntos_mejora = 3
+        self.puntos_mejora = PUNTOS_MEJORA_INICIALES
         self.xp = 0.0                    # XP acumulada hacia el siguiente nivel
         self.monedas = 0                 # monedas de la caza (por ahora no se gastan; se pierden al morir)
         # Talismanes (anillos y Tótem de vida): solo dan efecto los equipados en los 3 huecos.
