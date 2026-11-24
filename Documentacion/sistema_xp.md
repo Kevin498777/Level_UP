@@ -2,17 +2,17 @@
 
 > Documento de información (no técnico) sobre cómo se sube de nivel y qué pasa al morir.
 > Nace de la propuesta del equipo (ver el anexo) y refleja lo que ya está en el juego.
-> Actualizado: 23 de noviembre de 2026.
+> Actualizado: 24 de noviembre de 2026.
 
 ---
 
 ## 1. Niveles
 
-- Nivel máximo del personaje: **20**.
-- Cada nivel da **4 puntos de mejora** (3 hasta el 24/11/2026; se empieza con 4, así que al nivel 20 hay 80 en total) (ver la sección 7 de `Level_UP_Especificaciones.md`) y **+20 monedas** (380 en total hasta el nivel 20; [L] también las da).
+- Nivel máximo del personaje: **40** (hasta el 24/11/2026 era 20). Al llegar al **nivel 20** se habilita el **Gacha mejorado** con las habilidades potenciadas (ver `Gacha_Talismanes.md`).
+- Cada nivel da **4 puntos de mejora** (3 hasta el 24/11/2026; se empieza con 4, así que hay 80 al nivel 20 y **160 al nivel 40**) (ver la sección 7 de `Level_UP_Especificaciones.md`) y **+20 monedas** (380 hasta el nivel 20 y 780 hasta el 40; [L] también las da).
 - Al subir, la experiencia **vuelve a 0 más lo que sobró**: si te faltaba 1 XP y ganas 4, subes y empiezas el siguiente nivel con 3. Con mucha XP de golpe se pueden subir varios niveles.
-- En el nivel 20 la experiencia ya no se acumula y la barra muestra **MÁX**.
-- La tecla de prueba **[L]** sigue subiendo un nivel (también se detiene en el 20).
+- En el nivel 40 la experiencia ya no se acumula y la barra muestra **MÁX**.
+- La tecla de prueba **[L]** sigue subiendo un nivel (también se detiene en el 40).
 
 | Salto | XP | Salto | XP | Salto | XP |
 |---|---|---|---|---|---|
@@ -22,7 +22,36 @@
 | 4 → 5 | 8 | 11 → 12 | 50 | 18 → 19 | 140 |
 | 5 → 6 | 12 | 12 → 13 | 60 | 19 → 20 | 160 |
 | 6 → 7 | 16 | 13 → 14 | 70 | | |
-| 7 → 8 | 20 | 14 → 15 | 80 | **Total** | **1048** |
+| 7 → 8 | 20 | 14 → 15 | 80 | **Total 1 → 20** | **1048** |
+
+### Niveles 20 → 40 (desde el 24/11/2026)
+
+El salto sigue creciendo de forma suave: **+20 por nivel** hasta el 25, **+25** del 25 al 29 y **+30 – 40** del 30 al 40.
+
+| Salto | XP | XP acumulada | Salto | XP | XP acumulada |
+|---|---|---|---|---|---|
+| 20 → 21 | 180 | 1228 | 30 → 31 | 420 | 4248 |
+| 21 → 22 | 200 | 1428 | 31 → 32 | 450 | 4698 |
+| 22 → 23 | 220 | 1648 | 32 → 33 | 480 | 5178 |
+| 23 → 24 | 240 | 1888 | 33 → 34 | 510 | 5688 |
+| 24 → 25 | 260 | 2148 | 34 → 35 | 540 | 6228 |
+| 25 → 26 | 285 | 2433 | 35 → 36 | 575 | 6803 |
+| 26 → 27 | 310 | 2743 | 36 → 37 | 610 | 7413 |
+| 27 → 28 | 335 | 3078 | 37 → 38 | 645 | 8058 |
+| 28 → 29 | 360 | 3438 | 38 → 39 | 680 | 8738 |
+| 29 → 30 | 390 | 3828 | 39 → 40 | 720 | **9458** |
+| **Total 20 → 30** | **2780** | | **Total 30 → 40** | **5630** | |
+
+**Ritmo esperado (simulación del 24/11/2026, 3000 partidas, solo con la fauna actual):** a partir del nivel 10 el bot gana unas **14.5 XP por minuto** y ese ritmo ya no sube, porque no hay animales que den más XP. Con eso:
+
+| Tramo | XP | Con la fauna actual (≈14.5 XP/min) | Si los enemigos nuevos duplican la XP/min |
+|---|---|---|---|
+| 1 → 20 | 1048 | ≈2.4 h (mediana) | — |
+| 20 → 30 | 2780 | ≈3.2 h | ≈1.6 h |
+| 30 → 40 | 5630 | ≈6.5 h | ≈3.2 h |
+| **1 → 40** | **9458** | **≈12 h** | **≈7 h** |
+
+La tabla 20 → 40 está pensada para los **enemigos futuros**, que darán más XP pero serán más difíciles. Con solo la fauna actual el tramo 30 → 40 se hace largo (cada nivel de 30 a 50 minutos).
 
 La tabla está pensada para llegar al nivel 20 en **unas 2 horas** de caza. Las simulaciones del 23/11/2026 (10 000 partidas con un bot) dicen que todavía no se consigue: con la XP actual el mejor llegó al 20 en unas 4.3 h y la mayoría se queda entre el nivel 5 y el 12, porque lobos, osos y cocodrilos siguen siendo demasiado peligrosos para el personaje. Falta medirlo jugando.
 

@@ -9,7 +9,7 @@ import math
 import pygame
 from habilidades import resumen_habilidad
 import talismanes as TL
-from personaje import PUNTOS_MEJORA_POR_NIVEL, REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE
+from personaje import PUNTOS_MEJORA_POR_NIVEL, REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE, NIVEL_MAXIMO
 
 # Medidas y colores del inventario
 ANCHO_INVENTARIO = 820
@@ -286,7 +286,7 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
         _barra(pantalla, bx, r_nivel.y + 40, bw, 10, jugador.xp / jugador.xp_siguiente, COLOR_XP)
     if h:
         descripcion = (f"Nivel y experiencia: cazar animales da XP (tú o tus sombras). Cada nivel da {PUNTOS_MEJORA_POR_NIVEL} puntos de "
-                       "mejora; el sobrante de XP pasa al siguiente nivel. Máximo nivel 20.")
+                       f"mejora; el sobrante de XP pasa al siguiente nivel. Máximo nivel {NIVEL_MAXIMO}.")
 
     h = r_mon.collidepoint(raton)
     _tarjeta(pantalla, r_mon, h)

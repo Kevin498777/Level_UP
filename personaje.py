@@ -13,9 +13,12 @@ MASA_PERSONAJE = 100.0
 TECLAS_HUECOS = ((pygame.K_2, "2"), (pygame.K_3, "3"), (pygame.K_4, "4"))
 
 # Experiencia (Documentacion/sistema_xp.md). XP_POR_NIVEL[n - 1] = XP para pasar del nivel n
-# al n + 1. Total 1048 XP: pensado para llegar al nivel 20 en unas 2 horas de caza.
-NIVEL_MAXIMO = 20
-XP_POR_NIVEL = (1, 2, 4, 8, 12, 16, 20, 25, 30, 40, 50, 60, 70, 80, 95, 110, 125, 140, 160)
+# al n + 1. Niveles 1-20: 1048 XP (unas 2 horas de caza). Niveles 20-40 (tras el nivel 20 se
+# habilita el Gacha mejorado): 8410 XP mas, pensados para los enemigos futuros que daran mas XP.
+NIVEL_MAXIMO = 40
+XP_POR_NIVEL = (1, 2, 4, 8, 12, 16, 20, 25, 30, 40, 50, 60, 70, 80, 95, 110, 125, 140, 160,   # 1 -> 20
+                180, 200, 220, 240, 260, 285, 310, 335, 360, 390,                             # 20 -> 30
+                420, 450, 480, 510, 540, 575, 610, 645, 680, 720)                             # 30 -> 40
 PUNTOS_MEJORA_POR_NIVEL = 4
 PUNTOS_MEJORA_INICIALES = 4     # puntos con los que empieza el personaje (y al reaparecer)
 MONEDAS_POR_NIVEL = 20           # monedas que da cada subida de nivel

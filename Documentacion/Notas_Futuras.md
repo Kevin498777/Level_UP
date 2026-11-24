@@ -242,7 +242,8 @@ debuff de fatiga al acabar **0 %**
 coste **60 En.**
 Pasiva extra: Aura electrica 70 px mas pequeña que la habilidad Aura electrica
 1 punto de daño cada 0.5s a si mismo 5 puntos de daño a otros enemigos la aura electrica
-
+Cuesta 2 puntos de mejora subir 1 nivel
+Si te puede salir pero no potenciada tiene que mejorarla al 20 para usar Relampago esto con todas las habilidades potenciadas
 
 ### Aura Eléctrica → Aura Relampago
 Estadisticas de Aura Eléctrica nv20
@@ -265,7 +266,7 @@ Aura de 120 px de radio que sigue al personaje y cambia a un color azul rojizo.
 Buff de velocidad **15→30%/50→100%**
 **5→20/10→50** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico). Mientras está activa, el portador recibe **0.5→0.2/2→5 de daño mágico por segundo** (lo amortigua su escudo mágico).
 Duración **Ultimos 10 segundos**
-
+Cuesta 2 puntos de mejora subir 1 nivel
 
 ### Burst de Fuerza → Fuerza Colozal
 Estadisticas de Burst de Fuerza nv20
@@ -281,6 +282,24 @@ recarga **8 → 4 s**
 coste **35 → 70 En.**
 Pasiva 
 Los ataques hace un 30% estra de daño a escudos fisicos
+Cuesta 2 puntos de mejora subir 1 nivel
+
+
+### Disparo Veloz → Rafaga veloz
+Ajuste de habilidad
+Estadisticas Disparo Veloz
+Esfera recta **muy rápida**: su punto fuerte es la velocidad del proyectil, **14 → 35** (lineal, la más alta del juego).
+Daño mágico **fijo 8 → 25**
+coste fijo **15 → 35 En.** 
+recarga **4 → 2 s**. 
+Se detiene en el **primer enemigo** que toca (daño mágico)
+**Disparo veloz pasa a llamarse Refaga veloz**
+1 disparos en forma conica en forma de esfera recta a nivel maximo 5 esferas 
+velocidad de los proyectiles **35 → 45**
+Daño mágico **fijo 25 → 40**
+coste fijo **35 → 50 En.** 
+recarga **2 → 0.5 s**. 
+Se detiene en el **primer enemigo** que toca (daño mágico)
 
 
 
