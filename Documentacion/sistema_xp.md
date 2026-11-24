@@ -50,7 +50,7 @@ Una manada completa da **26 XP** (3 lobos × 5 + alfa 8 + bono 3) y unas **31 mo
 - **Quién da XP y monedas:** solo los animales que matas **tú o tus sombras** (invocaciones), incluidos los que mueren por un efecto que causaste (desangrado, quemadura, veneno, telaraña). Lo que cazan los **depredadores salvajes** (zorros y lobos que se comen conejos o venados) **no da XP**.
 - **Bono de manada:** se da al acabar con **todos** los lobos de la manada y **solo si entre ellos estaba el alfa** (por eso es "completa"). Así no se puede farmear matando a los 2 lobos de una manada que se está formando.
 - **El maniquí no da XP ni monedas.**
-- **Monedas:** si el animal suelta, la cantidad es un entero al azar entre el mínimo y el máximo. Además cada subida de nivel da **+20**. Se gastan en el **Gacha** (10 por tirada, ver `Gacha_Talismanes.md`). En las simulaciones del 23/11/2026 un jugador cuidadoso ganó unas **270 monedas** por partida (≈ 8 tiradas).
+- **Monedas:** si el animal suelta, la cantidad es un entero al azar entre el mínimo y el máximo. Además cada subida de nivel da **+20**. Se gastan en el **Gacha** (15 por tirada; 20 el mejorado desde el nivel 20, ver `Gacha_Talismanes.md`). En las simulaciones del 23/11/2026 un jugador cuidadoso ganó unas **270 monedas** por partida (≈ 8 tiradas).
 - En pantalla aparece **"+X XP"**, **"+X monedas"** y **"NIVEL N"** sobre el personaje. El panel izquierdo muestra la XP actual y la necesaria con una barra, y las monedas a la derecha.
 
 ---

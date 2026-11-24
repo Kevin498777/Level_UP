@@ -136,7 +136,7 @@ def manejar_clic_inventario(clave, jugador, estado, tiempo):
             return True
         res = G.tirar(jugador)
         if res is None:
-            estado["mensaje"] = (f"Necesitas {G.COSTO_TIRADA} monedas para tirar", tiempo, True)
+            estado["mensaje"] = (f"Necesitas {G.costo_tirada(jugador)} monedas para tirar", tiempo, True)
         else:
             estado["ruleta"] = G.nueva_ruleta(res, tiempo)
             estado["tiradas"] = estado.get("tiradas", 0) + 1
@@ -236,7 +236,7 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
                                      ancho_util, caja.bottom - 14 - alto_desc - 10, estado)
         _caja_descripcion(pantalla, f_txt, pygame.Rect(x0, caja.bottom - 14 - alto_desc, ancho_util, alto_desc),
                           descripcion, estado, tiempo,
-                          f"Gacha: pulsa TIRAR para gastar {G.COSTO_TIRADA} monedas. Lo que consigas va a las pestañas Equipo y "
+                          f"Gacha{' mejorado' if G.gacha_mejorado(jugador) else ''}: pulsa TIRAR para gastar {G.costo_tirada(jugador)} monedas. Lo que consigas va a las pestañas Equipo y "
                           "Talismanes. Cuidado: el mundo sigue en marcha.")
         botones["__inv_fondo__"] = caja
         return botones
@@ -699,6 +699,58 @@ def _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, a
     return descripcion
 
 
+def _pct(p):
+    """0.4556 -> '45.6%', 0.05 -> '5%'."""
+    txt = f"{p * 100:.1f}".rstrip("0").rstrip(".")
+    return txt + "%"
+
+
+def _filas_probabilidades(jugador):
+    """Filas (categoria, titulo, detalle, descripcion) con las probabilidades reales de la
+    proxima tirada para este jugador (cambian segun lo que ya tiene)."""
+    import gacha as G
+    prob = G.probabilidades(jugador)
+    dev = f"+{G.DEVOLUCION} monedas"
+    filas = []
+    for cat, p in prob.items():
+        titulo = f"{G.NOMBRE_CATEGORIA[cat]}  {_pct(p)}"
+        agotada = cat != G.NADA and G.categoria_agotada(jugador, cat)
+        if cat == G.HERRAMIENTA:
+            n = len(jugador.herramientas_faltantes())
+            detalle = f"te faltan {n}" if n else f"tienes todas: {dev}"
+            desc = "Una herramienta que no tengas, a nivel 1."
+        elif cat == G.HABILIDAD:
+            n = len(jugador.habilidades_faltantes())
+            detalle = f"te faltan {n}" if n else f"tienes todas: {dev}"
+            desc = "Una habilidad que no tengas, a nivel 1 (se equipa sola si hay hueco libre)."
+        elif cat == G.ANILLO:
+            if agotada:
+                detalle = f"todos al máximo: {dev}"
+            elif G.legendario_disponible(jugador):
+                detalle = f"legendario seguro en {G.tiradas_para_garantia(jugador)}"
+            else:
+                detalle = f"quedan {len(G.anillos_disponibles(jugador))} por subir"
+            rz = G.probabilidades_rareza(jugador)
+            desc = ("Solo salen anillos que aún pueden subir. Rareza: "
+                    + " · ".join(f"{TL.NOMBRE_RAREZA[r]} {_pct(q)}" for r, q in rz.items())
+                    + f". La tirada {G.GARANTIA_LEGENDARIO} sin legendario lo da seguro.")
+        elif cat == G.TOTEM:
+            detalle = f"tienes {jugador.talismanes.totems}/{TL.TOTEM_MAX}" + (f": {dev}" if agotada else "")
+            desc = f"Se acumula hasta {TL.TOTEM_MAX}. Equipado, te salva de una muerte."
+        elif cat == G.POTENCIADA:
+            n = len(G.potenciadas_disponibles(jugador))
+            detalle = f"te faltan {n}" if n else f"todas: {dev}"
+            desc = (f"Desde el nivel {G.NIVEL_POTENCIADAS}: potencia una habilidad de tu colección "
+                    "(su efecto llega en la siguiente fase).")
+        else:
+            detalle = "fija"
+            desc = "No te toca nada."
+        if agotada:
+            desc += f" Ya no queda nada que darte: baja al {_pct(G.PROB_AGOTADA)} y devuelve {G.DEVOLUCION} monedas."
+        filas.append((cat, titulo, detalle, desc))
+    return filas
+
+
 def _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, ancho, y_fin, estado):
     """Monedas y botón de tirar, la ruleta, el premio, las probabilidades y el historial."""
     import gacha as G
@@ -721,7 +773,8 @@ def _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, an
         descripcion = "Monedas: se consiguen cazando animales y se pierden al morir (salvo con un Tótem de vida)."
 
     r_tirar = pygame.Rect(r_mon.right + 14, y, ancho - 200 - 14 - 170 - 14, alto1)
-    puede = jugador.monedas >= G.COSTO_TIRADA and not girando
+    costo = G.costo_tirada(jugador)
+    puede = jugador.monedas >= costo and not girando
     hover = r_tirar.collidepoint(raton)
     if puede:
         pulso = 0.5 + 0.5 * math.sin(tiempo * 4)
@@ -733,16 +786,16 @@ def _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, an
     pygame.draw.rect(pantalla, borde, r_tirar, width=2, border_radius=10)
     if girando:
         texto_boton = "Girando..."
-    elif jugador.monedas < G.COSTO_TIRADA:
-        texto_boton = f"Te faltan {G.COSTO_TIRADA - jugador.monedas} monedas"
+    elif jugador.monedas < costo:
+        texto_boton = f"Te faltan {costo - jugador.monedas} monedas"
     else:
-        texto_boton = f"TIRAR  ·  {G.COSTO_TIRADA} monedas"
+        texto_boton = f"TIRAR{' MEJORADO' if G.gacha_mejorado(jugador) else ''}  ·  {costo} monedas"
     _texto(pantalla, f_titulo if puede else f_sub, texto_boton, (255, 240, 200) if puede else (130, 136, 150),
            r_tirar.center, centro=True)
     if puede:
         botones["__inv__tirar"] = r_tirar
     if hover:
-        descripcion = (f"Una tirada cuesta {G.COSTO_TIRADA} monedas. El premio se aplica al instante; "
+        descripcion = (f"Una tirada cuesta {costo} monedas{' (Gacha mejorado: desde el nivel ' + str(G.NIVEL_POTENCIADAS) + ', con habilidades potenciadas)' if G.gacha_mejorado(jugador) else ''}. El premio se aplica al instante; "
                        "la ruleta solo lo muestra. El mundo sigue en marcha mientras giras.")
 
     r_tot = pygame.Rect(r_tirar.right + 14, y, 170, alto1)
@@ -821,22 +874,10 @@ def _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, an
     r_prob = pygame.Rect(x0, y4, ancho_p, alto4)
     _tarjeta(pantalla, r_prob, False)
     _texto(pantalla, f_mini, "PROBABILIDADES", COLOR_TEXTO_SUAVE, (r_prob.x + 12, r_prob.y + 8))
-    faltan_h = len(jugador.herramientas_faltantes())
-    faltan_a = len(jugador.habilidades_faltantes())
-    filas = [
-        (G.HERRAMIENTA, f"Herramienta  25%", f"te faltan {faltan_h}" if faltan_h else f"tienes todas: +{G.DEVOLUCION} monedas",
-         f"Una herramienta que no tengas, a nivel 1. Si ya tienes las 6, te devuelve {G.DEVOLUCION} monedas."),
-        (G.HABILIDAD, f"Habilidad  15%", f"te faltan {faltan_a}" if faltan_a else f"tienes todas: +{G.DEVOLUCION} monedas",
-         f"Una habilidad que no tengas, a nivel 1 (se equipa sola si hay hueco libre). Si ya las tienes todas, +{G.DEVOLUCION} monedas."),
-        (G.ANILLO, f"Anillo  45%", "Común 60 · Especial 30 · Épico 9 · Legendario 1",
-         f"Primero se sortea la rareza y luego un anillo de esa rareza. Repetido: sube de nivel; si ya está al máximo, +{G.DEVOLUCION} monedas."),
-        (G.TOTEM, f"Tótem de vida  10%", f"tienes {jugador.talismanes.totems}/{TL.TOTEM_MAX}",
-         f"Se acumula hasta {TL.TOTEM_MAX}. Equipado, te salva de una muerte. Si ya tienes {TL.TOTEM_MAX}, +{G.DEVOLUCION} monedas."),
-        (G.NADA, f"Nada  5%", "", "No te toca nada."),
-    ]
+    filas = _filas_probabilidades(jugador)
     paso = max(18, (alto4 - 30) // len(filas))
     color_cat = {G.HERRAMIENTA: G.COLOR_HERRAMIENTA, G.HABILIDAD: G.COLOR_HABILIDAD, G.ANILLO: TL.COLOR_RAREZA[TL.EPICO],
-                 G.TOTEM: TL.COLOR_TOTEM, G.NADA: G.COLOR_NADA}
+                 G.TOTEM: TL.COLOR_TOTEM, G.POTENCIADA: G.COLOR_POTENCIADA, G.NADA: G.COLOR_NADA}
     for k, (cat, titulo, detalle, desc) in enumerate(filas):
         fy = r_prob.y + 28 + k * paso
         r_fila = pygame.Rect(r_prob.x + 4, fy - 2, r_prob.width - 8, paso)

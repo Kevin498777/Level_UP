@@ -21,7 +21,7 @@ PROB_RAREZA = {COMUN: 0.60, ESPECIAL: 0.30, EPICO: 0.09, LEGENDARIO: 0.01}
 MAX_EQUIPADOS_RAREZA = {LEGENDARIO: 1, EPICO: 2}
 
 HUECOS = 3                       # huecos de equipamiento (anillos y tótem)
-DEVOLUCION_REPETIDO = 5          # monedas que devuelve un premio repetido (menos que la tirada: sin monedas infinitas)
+DEVOLUCION_REPETIDO = 10         # monedas que devuelve un premio agotado (menos que la tirada: sin monedas infinitas)
 
 # ---------------------------------------------------------------- Colores de cada anillo
 BLANCO = (238, 238, 242)

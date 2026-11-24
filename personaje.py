@@ -133,6 +133,8 @@ class Personaje:
         self.puntos_mejora = PUNTOS_MEJORA_INICIALES
         self.xp = 0.0                    # XP acumulada hacia el siguiente nivel
         self.monedas = 0                 # monedas de la caza (por ahora no se gastan; se pierden al morir)
+        self.tiradas_sin_legendario = 0  # tiradas del Gacha desde el ultimo anillo legendario (garantia)
+        self.habilidades_potenciadas = set()   # nombres de habilidades potenciadas (Gacha desde nivel 20)
         # Talismanes (anillos y Tótem de vida): solo dan efecto los equipados en los 3 huecos.
         self.talismanes = ColeccionTalismanes()
         self._bonos_talismanes = {}      # bonos aditivos ya sumados a las stats (para poder quitarlos)

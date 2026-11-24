@@ -131,33 +131,158 @@ Especial (probabilidad de obtener 30%)
     anillo de defensa magica (color azul)
     +4 de defensa magica, nivel maximo 7, aumeto de defensa maxima +20
     +10% de velocidad de regeneracion de escudo magico
-
     anillo de defensa fisica (color cafe)
     +4 de defensa fisica, nivel maximo 7, aumeto de defensa maxima +20
-    +10% de velocidad de regeneracion de escudo fisico    
+    +10% de velocidad de regeneracion de escudo fisico  
+
+    Nuevo  
 
 Epico (probabilidad de obtener 9%)
     anillo de vida (color rosa y rojo,forma de anillo)
     +4 de vida, nivel maximo 5 aumento de vida maxima 20
-
     anillo de cadencia (color amarillo y azul, forma de anillo)
     +0.3 de cadencia, nivel maximo 5, aumento maximo de cadencia 1.5
-
     anillo sobra lobo(color oscuro y morado)
     nivel maximo 10 este es como la habilidad sombra de lobo como este el nivel es maximo 20 este solo seran las estadisticas pero dividida para que sea acorde a el nivel 10 del anillo
     si muere la sombra darda 8s en reaparecer otra, nivel maximo tarda 4s
-    (Esta no se puede controlar solo ataca si atacan al jugador o asi misma)   
+    (Esta no se puede controlar solo ataca si atacan al jugador o asi misma) 
+
+    Nuevo  
+
+
 
 Legendario  (probabilidad de obtener 1%)
     anillo de regeneracion inversa (color rosa con azul marino y dorado, forma de anillo)
     +0.3 de regeneracion de vida por segundo por nivel, nivel maximo 3, regenerecion de vida maxima por nivel 0.9 por segundo
 
+    Nuevo
 
 
 
-Sistema nivel 20 al 40
-Al llegar a nivel 20 desbloquea la ruleta de habilidades,
-Esta 
+
+**Rediceño**
+Por faces 3 faces
+
+Face 1 
+Tirada
+
+- Coste: 20 monedas. El premio se aplica al momento.
+- La probabilidad de que no salga nada sube a 15% pero si tanto una herramienta,habilidad,anillo,o toten que este al maximo o repetido este baja a 5% de probabilidad de que salga.
+- Devolución: 10 monedas si el premio ya no te sirve (repetido o al máximo). 
+- Orbe Gacha: al matar un oso aparece con un 50 % de probabilidad. Da una ruleta gratis solo de anillos y devuelve 10 si el anillo ya está al máximo.
+
+
+Esta es mi idea tienes alguna otra mejor que llege al mismo concepto?
+Deves ajustar las probailidades de los demas para que esten balanceados cuando algo ya este al maximo
+Ejemplo
+Normal
+Herramienta nueva (nivel 1)22 %
+Habilidad nueva (nivel 1)13 %
+Anillo|41 %
+Tótem de vida│9 %
+Nada│15 % (fijo)
+Si ya tengo todas las herramientas 
+Herramienta nueva (Todas obtenidas)5 %
+Habilidad nueva (nivel 1)17 %
+Anillo|52 %
+Tótem de vida│11 %
+Nada│15 % (fijo)
+Si ya tengo todas las habilidaes pero no todas las herramientas
+Herramienta nueva (nivel 1)24 %
+Habilidad nueva (Todas obtenidas)5 %
+Anillo|46 %
+Tótem de vida│10 %
+Nada│15 % (fijo)
+Si ya tengo todas las habilidaes y herramientas
+Herramienta nueva (Todas obtenidas)5 %
+Habilidad nueva (Todas obtenidas)5 %
+Anillo|62 %
+Tótem de vida│13 %
+Nada│15 % (fijo)
+
+Entienedes a lo que quiero llegar asi con anillos y con totems(los anillos si se pueden repetir)
+
+Face 2 nueva objeto en los gachas
+### Gacha nivel 20
+Una vez llegado al nivel 20 desbloqueas las habilidades potenciadas
+La cual hace principalmente que se desbloque la habilidad hasta nivel maximo de mejora 30
+En la siguiente fase estaremos creado las habilidades potenciadas y su diseño
+Para este punto probablemente los porcentajes del gacha este asi
+Herramienta nueva (Todas obtenidas)5 %
+Habilidad nueva (Todas obtenidas)5 %
+Anillo|70 %
+Tótem de vida│5 % (OVIAMENTE SI LOS TOTEMS SE GASTAN LA PROBAILIDAD VUELVE A LA TORMALIDAD REPARTIDA 5% ES SI YA TIENES LOS 5 TOTEMS)
+Nada│15 % (fijo)
+SI ES EL CASO LA HABILIDADES CAMBIAN AL LLEGAR A NIVEL 20 EL CACHA SE MEJORA 
+Herramienta nueva (Todas obtenidas)5 %
+Habilidad POTENCIADA (ninguna obtenida) 20%
+Anillo|70 %
+Tótem de vida│5 %
+Nada│15 % (fijo)
+
+
+### habilidades potenciadas
+Fase 3 habilidades potenciadas
+Deja las planteo una por una y las aplicamos y probamos
+
+### Destello → Relampago
+Destello solo puedes potenciarlo si esta al maximo 
+Estadisticas de destello nv20
+Buff de velocidad **90 %**
+duración **18 s**
+recarga **1 s**
+debuff de fatiga al acabar **0 %**
+coste **40 En.**
+Destello pasa a llamarse Relampago
+Nivel maximo 30
+Buff de velocidad **90% → 200%** +10% cada nivel
+duración **30 s** 
+recarga **1 s**
+debuff de fatiga al acabar **0 %**
+coste **60 En.**
+Pasiva extra: Aura electrica 70 px mas pequeña que la habilidad Aura electrica
+1 punto de daño cada 0.5s a si mismo 5 puntos de daño a otros enemigos la aura electrica
+
+
+### Aura Eléctrica → Aura Relampago
+Estadisticas de Aura Eléctrica nv20
+Aura de 100 px de radio que sigue al personaje. 
+Buff de velocidad **+15 %**
+**5** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico). Mientras está activa, el portador recibe **0.5 de daño mágico por segundo** (lo amortigua su escudo mágico).
+Duración **20 s**
+recarga **60 s**
+coste **58 En.**
+Aura Eléctrica pasa a llamarse Aura Relampago
+Nivel maximo 30
+Aura de 150 px de radio que sigue al personaje. 
+Buff de velocidad **15→30%**
+**5→20** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico). Mientras está activa, el portador recibe **0.5→0.2 de daño mágico por segundo** (lo amortigua su escudo mágico).
+Duración **20s→40**
+recarga **60s→80s**
+coste **58→80En.**
+Pasiva en los ultimos 10 segundos obtines vestiguios de vestia mitica y te da lo sigueinte
+Aura de 120 px de radio que sigue al personaje y cambia a un color azul rojizo. 
+Buff de velocidad **15→30%/50→100%**
+**5→20/10→50** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico). Mientras está activa, el portador recibe **0.5→0.2/2→5 de daño mágico por segundo** (lo amortigua su escudo mágico).
+Duración **Ultimos 10 segundos**
+
+
+### Burst de Fuerza → Fuerza Colozal
+Estadisticas de Burst de Fuerza nv20
+Buff de fuerza**+21 % → +40 %**
+duración **6 → 10 s**
+recarga **12 → 8 s**
+coste **15 → 35 En.**
+Burst de Fuerza pasa a llamarse Fuerza Colozal
+Nivel maximo 30
+Buff de fuerza**+40 % → +100 %**
+duración **10 → 25 s**
+recarga **8 → 4 s**
+coste **35 → 70 En.**
+Pasiva 
+Los ataques hace un 30% estra de daño a escudos fisicos
+
+
 
 
 
