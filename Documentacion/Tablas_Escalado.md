@@ -128,6 +128,18 @@ Buff de velocidad temporal. Al terminar deja una fatiga (debuff de velocidad) du
 | 18 | +86 % | 16 s | 2 s | -5 % | 40 |
 | 19 | +88 % | 16 s | 2 s | -5 % | 40 |
 | 20 | +90 % | 18 s | 1 s | 0 % | 40 |
+| 21 | +100 % | 19.2 s | 1 s | 0 % | 42 |
+| 22 | +110 % | 20.4 s | 1 s | 0 % | 44 |
+| 23 | +120 % | 21.6 s | 1 s | 0 % | 46 |
+| 24 | +130 % | 22.8 s | 1 s | 0 % | 48 |
+| 25 | +140 % | 24 s | 1 s | 0 % | 50 |
+| 26 | +150 % | 25.2 s | 1 s | 0 % | 52 |
+| 27 | +160 % | 26.4 s | 1 s | 0 % | 54 |
+| 28 | +170 % | 27.6 s | 1 s | 0 % | 56 |
+| 29 | +180 % | 28.8 s | 1 s | 0 % | 58 |
+| 30 | +200 % | 30 s | 1 s | 0 % | 60 |
+
+**Niveles 21 – 30: Relámpago** (versión potenciada, sale en el Gacha mejorado; solo se usa con Destello en el nivel 20 y cada nivel cuesta **2 puntos**). Buff **+10 % por nivel** (nv29 +180 %) y **salto a +200 % en el nivel 30**; duración y coste lineales de 18 s / 40 En. a 30 s / 60 En. Mientras está activo lleva un **aura eléctrica de 70 px** que hace **5 de daño mágico cada 0.5 s** a cada enemigo dentro y **0.5 de daño mágico por segundo** al portador.
 
 ### 2.2 Burst de Fuerza
 
@@ -155,6 +167,18 @@ Buff de fuerza temporal; potencia el golpe del arma (el daño sigue siendo físi
 | 18 | +38 % | 9 s | 9 s | 30 |
 | 19 | +39 % | 9 s | 9 s | 30 |
 | 20 | +40 % | 10 s | 8 s | 35 |
+| 21 | +46 % | 11.5 s | 7.6 s | 39 |
+| 22 | +52 % | 13 s | 7.2 s | 42 |
+| 23 | +58 % | 14.5 s | 6.8 s | 46 |
+| 24 | +64 % | 16 s | 6.4 s | 49 |
+| 25 | +70 % | 17.5 s | 6 s | 53 |
+| 26 | +76 % | 19 s | 5.6 s | 56 |
+| 27 | +82 % | 20.5 s | 5.2 s | 60 |
+| 28 | +88 % | 22 s | 4.8 s | 63 |
+| 29 | +94 % | 23.5 s | 4.4 s | 67 |
+| 30 | +100 % | 25 s | 4 s | 70 |
+
+**Niveles 21 – 30: Fuerza Colosal** (versión potenciada, sale en el Gacha mejorado; solo se usa con Burst de Fuerza en el nivel 20 y cada nivel cuesta **2 puntos**). Todo lineal desde el nivel 20: fuerza **+40 % → +100 %**, duración **10 → 25 s**, recarga **8 → 4 s** y coste **35 → 70 En.** (redondeado). **Pasiva mientras está activa:** los golpes del arma y las flechas le quitan al escudo físico enemigo un **30 % más** de lo que absorbe (la vida recibe lo mismo).
 
 ### 2.3 Disparo Veloz
 

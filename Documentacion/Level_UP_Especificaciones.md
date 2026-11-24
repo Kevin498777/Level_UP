@@ -272,9 +272,15 @@ Se equipan en las teclas **[2]**, **[3]** y **[4]** (hasta 3 elegidas en la crea
 
 Buff de velocidad **+52 % → +90 %**, duración **10 → 18 s**, recarga **5 → 1 s**, debuff de fatiga al acabar **−20 % → 0 %**, coste **10 → 40 En.**
 
+**Potenciada: Relámpago (niveles 21 – 30).** Sale en el **Gacha mejorado** (desde el nivel 20 del personaje). Si sale con Destello por debajo del 20 queda desbloqueada pero inactiva hasta subirlo al 20; entonces la habilidad pasa a llamarse **Relámpago**, su máximo sube a **30** y cada nivel cuesta **2 puntos**. Buff de velocidad **+100 % (nv21) → +180 % (nv29) y +200 % en el 30**; duración **19.2 → 30 s** y coste **42 → 60 En.** (lineales); recarga **1 s**; sin fatiga. **Aura eléctrica** mientras está activo: radio **70 px** (Aura Eléctrica: 100), **5 de daño mágico cada 0.5 s** a cada enemigo dentro y **0.5 de daño mágico por segundo** al portador (lo frena su escudo mágico). El Destello que otorga Golpe de Suerte es siempre el normal. Se pierde al morir sin tótem.
+
+**Habilidades potenciadas (común a todas):** cada habilidad puede tener una versión potenciada (`HabilidadBase.POTENCIADA`) que solo sale en el Gacha mejorado si ya está diseñada. Se ve con un **borde eléctrico animado** y el nombre en dorado en el panel derecho y en el inventario.
+
 ### 9.2 Burst de Fuerza
 
 Buff de fuerza **+21 % → +40 %**, duración **6 → 10 s**, recarga **12 → 8 s**, coste **15 → 35 En.**
+
+**Potenciada: Fuerza Colosal (niveles 21 – 30).** Sale en el **Gacha mejorado**; se usa con Burst de Fuerza en el nivel 20 (antes queda desbloqueada pero inactiva) y cada nivel cuesta **2 puntos**. Todo **lineal** desde el nivel 20: fuerza **+46 % (nv21) → +100 % (nv30)**, duración **11.5 → 25 s**, recarga **7.6 → 4 s**, coste **39 → 70 En.** **Pasiva mientras está activa:** cada golpe del arma o flecha del Arco le quita al **escudo físico** del enemigo un **30 % más** de lo que este absorbe; el daño a la vida no cambia (rompe escudos más rápido; hoy solo tienen escudo físico el cocodrilo y el maniquí). Las habilidades y las invocaciones no la usan. Se ve con un **halo rojo que late** alrededor del personaje. El Burst que otorga Golpe de Suerte es el normal.
 
 ### 9.3 Disparo Veloz
 

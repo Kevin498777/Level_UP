@@ -1294,8 +1294,9 @@ def iniciar_mundo(config):
                         if 0 <= indice < len(jugador.habilidades):
                             hab_mejora = jugador.habilidades[indice]
                             # Cada habilidad define cuántos puntos cuesta su mejora (1 por defecto)
-                            if jugador.puntos_mejora >= hab_mejora.costo_mejora and hab_mejora.subir_nivel():
-                                jugador.puntos_mejora -= hab_mejora.costo_mejora
+                            costo = hab_mejora.costo_mejora     # coste del siguiente nivel (leer antes de subir)
+                            if jugador.puntos_mejora >= costo and hab_mejora.subir_nivel():
+                                jugador.puntos_mejora -= costo
                     elif click_btn == "__flechas__":
                         info_abierta = None
                         jugador.herramienta.comprar_flechas(jugador)
@@ -1382,7 +1383,7 @@ def iniciar_mundo(config):
                     arma_actual.enemigos_golpeados.add(id(enemigo))
                     dano = arma_actual.calcular_dano(jugador)
                     if dano > 0 and hasattr(enemigo, "recibir_dano"):
-                        enemigo.recibir_dano(dano, arma_actual.tipo_dano)
+                        jugador.golpear_con_arma(enemigo, dano, arma_actual.tipo_dano)
                         if hasattr(enemigo, "aturdir_ataque"):
                             enemigo.aturdir_ataque()     # retrasa su siguiente ataque (animales)
                         if hasattr(enemigo, "aplicar_empuje"):
@@ -1442,7 +1443,7 @@ def iniciar_mundo(config):
                     if rect_circulo_colisionan(p.hitbox, enemigo.posicion, enemigo.radio):
                         if hasattr(p, "puntos_empuje"):
                             # Flecha: daño fisico, empuje fijo del arma y desgaste del arco si hace daño
-                            aplicado = enemigo.recibir_dano(p.dano, p.tipo_dano)
+                            aplicado = jugador.golpear_con_arma(enemigo, p.dano, p.tipo_dano)
                             enemigo.aplicar_empuje(p.direccion, p.puntos_empuje)
                             if aplicado > 0:
                                 p.arco.desgastar(1)

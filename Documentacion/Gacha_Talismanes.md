@@ -46,9 +46,9 @@ Cuándo está agotada cada categoría: **Herramienta** si tienes las 6; **Habili
 
 ### 1.3 Habilidades potenciadas (desde el nivel 20)
 
-- Al llegar al **nivel 20** aparece la categoría **Habilidad potenciada** (peso 20): potencia una habilidad de tu colección que aún no lo esté.
+- Al llegar al **nivel 20** aparece la categoría **Habilidad potenciada** (peso 20): desbloquea la versión potenciada de una habilidad de tu colección. **Solo salen las que ya están diseñadas** (por ahora: Destello → **Relámpago** y Burst de Fuerza → **Fuerza Colosal**); si no te queda ninguna, la categoría cuenta como agotada.
 - Si ya tienes las 15 habilidades normales, la potenciada **ocupa el sitio de "Habilidad"**; si no, conviven las dos.
-- **Su efecto (nivel máximo 30) se diseña en la fase siguiente**: por ahora el Gacha ya la entrega y la guarda (`Personaje.habilidades_potenciadas`), pero todavía no cambia la habilidad. Se pierden al morir sin tótem.
+- Si sale con la habilidad por debajo de su nivel máximo normal queda **desbloqueada pero inactiva** (en Equipo aparece "Pot. al Nv 20"); al llegar al máximo se convierte en la potenciada, sube hasta el **nivel 30** y cada nivel extra cuesta **2 puntos**. Detalle de cada una en `Level_UP_Especificaciones.md` (9.x). Se pierden al morir sin tótem.
 
 | Nivel 20 (herramientas completas, 5 tótems) | Herramienta | Potenciada | Anillo | Tótem | Nada |
 |---|---|---|---|---|---|

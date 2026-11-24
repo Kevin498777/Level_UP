@@ -353,6 +353,32 @@ class Personaje:
     def tiene_habilidad(self, nombre):
         return any(h.nombre == nombre for h in self.coleccion_habilidades)
 
+    @property
+    def extra_dano_escudo(self):
+        """Desgaste extra que hacen tus golpes de arma al escudo fisico enemigo (Fuerza Colosal)."""
+        return max((getattr(h, "extra_dano_escudo", 0.0) for h in self.habilidades), default=0.0)
+
+    def golpear_con_arma(self, enemigo, dano, tipo_dano, direccion=None):
+        """Golpe del arma (hoja o flecha) a un enemigo. Con Fuerza Colosal activa, lo que absorbe
+        su escudo fisico se le resta un 30 % extra al escudo (la vida recibe lo mismo).
+        Devuelve el dano aplicado."""
+        escudo_antes = getattr(enemigo, "escudo", 0.0)
+        aplicado = enemigo.recibir_dano(dano, tipo_dano, direccion) if direccion is not None else enemigo.recibir_dano(dano, tipo_dano)
+        extra = self.extra_dano_escudo
+        if extra > 0 and tipo_dano == "fisico" and hasattr(enemigo, "escudo"):
+            absorbido = max(0.0, escudo_antes - enemigo.escudo)
+            enemigo.escudo = max(0.0, round(enemigo.escudo - absorbido * extra, 2))
+        return aplicado
+
+    def potenciar_habilidad(self, nombre):
+        """Gacha mejorado: desbloquea la version potenciada de una habilidad de tu coleccion.
+        Se usa cuando la habilidad llega a su nivel maximo normal."""
+        hab = next((h for h in self.coleccion_habilidades if h.nombre == nombre), None)
+        if hab is None or not hab.desbloquear_potenciada():
+            return False
+        self.habilidades_potenciadas.add(nombre)
+        return True
+
     def herramientas_faltantes(self):
         return [n for n in HERRAMIENTAS_DISPONIBLES if not self.tiene_herramienta(n)]
 

@@ -58,8 +58,9 @@ def anillos_disponibles(jugador):
 
 
 def potenciadas_disponibles(jugador):
-    """Habilidades de tu coleccion que aun no estan potenciadas."""
-    return [h.nombre for h in jugador.coleccion_habilidades if h.nombre not in jugador.habilidades_potenciadas]
+    """Habilidades de tu coleccion con version potenciada disenada y aun no desbloqueada."""
+    return [h.nombre for h in jugador.coleccion_habilidades
+            if h.tiene_potenciada and h.nombre not in jugador.habilidades_potenciadas]
 
 
 def categorias_activas(jugador):
@@ -199,7 +200,7 @@ def tirar(jugador, rng=random):
                   HABILIDAD: ("Ya tienes todas las habilidades", COLOR_HABILIDAD),
                   ANILLO: ("Todos los anillos al máximo", TL.COLOR_RAREZA[TL.COMUN]),
                   TOTEM: (f"Tótem de vida (ya tienes {TL.TOTEM_MAX})", TL.COLOR_TOTEM),
-                  POTENCIADA: ("Todas tus habilidades ya están potenciadas", COLOR_POTENCIADA)}
+                  POTENCIADA: ("Ya tienes todas las potenciadas disponibles", COLOR_POTENCIADA)}
         _agotada(res, *textos[categoria])
         if categoria == TOTEM:
             res["id"] = TL.TOTEM
@@ -220,8 +221,10 @@ def tirar(jugador, rng=random):
         res.update(id=TL.TOTEM, color=TL.COLOR_TOTEM, texto=f"Tótem de vida (x{jugador.talismanes.totems})")
     elif categoria == POTENCIADA:
         nombre = rng.choice(potenciadas_disponibles(jugador))
-        jugador.habilidades_potenciadas.add(nombre)
-        res.update(id=nombre, texto=f"Habilidad potenciada: {nombre}", color=COLOR_POTENCIADA)
+        jugador.potenciar_habilidad(nombre)
+        hab = next(h for h in jugador.coleccion_habilidades if h.nombre == nombre)
+        aviso = "" if hab.potenciada_activa else f" (súbela al Nv {hab._nivel_max_base} para usarla)"
+        res.update(id=nombre, texto=f"Potenciada: {hab.POTENCIADA['nombre']} ({nombre}){aviso}", color=COLOR_POTENCIADA)
 
     if res["devolucion"]:
         jugador.monedas += res["devolucion"]

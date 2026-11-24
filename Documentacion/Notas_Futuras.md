@@ -244,6 +244,8 @@ Pasiva extra: Aura electrica 70 px mas pequeña que la habilidad Aura electrica
 1 punto de daño cada 0.5s a si mismo 5 puntos de daño a otros enemigos la aura electrica
 Cuesta 2 puntos de mejora subir 1 nivel
 Si te puede salir pero no potenciada tiene que mejorarla al 20 para usar Relampago esto con todas las habilidades potenciadas
+En cuanto a dibujo se ve un poco electrico la habilidad en el inventario y la habilidad cuando juegas en la parte derecha de la pantalla para simular que es una habilidad potenciada esto aplica para todas las habildiades potenciadas 
+
 
 ### Aura Eléctrica → Aura Relampago
 Estadisticas de Aura Eléctrica nv20

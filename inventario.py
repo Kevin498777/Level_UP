@@ -7,7 +7,7 @@ abierto). Se cierra con [I] o con la X. Sus botones [+] gastan puntos igual que 
 """
 import math
 import pygame
-from habilidades import resumen_habilidad
+from habilidades import resumen_habilidad, dibujar_marco_potenciado, COLOR_POTENCIADA_TEXTO
 import talismanes as TL
 from personaje import PUNTOS_MEJORA_POR_NIVEL, REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE, NIVEL_MAXIMO
 
@@ -157,7 +157,7 @@ def manejar_clic_inventario(clave, jugador, estado, tiempo):
         hab = jugador.coleccion_habilidades[int(arg)]
         hueco = int(partes[4])
         if jugador.equipar_habilidad(hab, hueco):
-            estado["mensaje"] = (f"{hab.nombre} va ahora en [{hueco + 2}]", tiempo, False)
+            estado["mensaje"] = (f"{hab.nombre_mostrado} va ahora en [{hueco + 2}]", tiempo, False)
     elif accion == "quitar":
         hueco = int(arg)
         id_obj = jugador.talismanes.huecos[hueco]
@@ -407,12 +407,15 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
         else:
             borde, col_est, txt_est = None, (120, 255, 160), "LISTA"
         _tarjeta(pantalla, r, h, borde=borde)
+        if hab.potenciada_activa:
+            dibujar_marco_potenciado(pantalla, r, tiempo)
         # Tecla
         r_tecla = pygame.Rect(r.x + 12, r.y + 12, 28, 28)
         pygame.draw.rect(pantalla, (60, 52, 22), r_tecla, border_radius=6)
         pygame.draw.rect(pantalla, (255, 220, 80), r_tecla, width=1, border_radius=6)
         _texto(pantalla, f_sub, hab.tecla_str, (255, 220, 80), r_tecla.center, centro=True)
-        _texto(pantalla, f_sub, hab.nombre, (255, 255, 255), (r.x + 50, r.y + 9))
+        _texto(pantalla, f_sub, hab.nombre_mostrado, COLOR_POTENCIADA_TEXTO if hab.potenciada_activa else (255, 255, 255),
+               (r.x + 50, r.y + 9))
         der = r.right - 14
         if hab.escalable and hab.nivel < hab.nivel_max and jugador.puntos_mejora >= hab.costo_mejora:
             _boton_mas(pantalla, f_txt, der - 18, r.y + 10, botones, f"__hab__{idx}")
@@ -429,7 +432,7 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
             _barra(pantalla, r.x + 12, r.bottom - 10, r.width - 24, 4,
                    1 - hab.tiempo_restante_cooldown / max(0.1, hab.duracion_cooldown), (255, 140, 50))
         if h:
-            descripcion = f"{hab.nombre} [{hab.tecla_str}]: {hab.descripcion}"
+            descripcion = f"{hab.nombre_mostrado} [{hab.tecla_str}]: {_descripcion_con_potenciada(hab)}"
         y_hab += alto_hab + 8
 
     # ---------------- Descripción (lo que hay bajo el ratón)
@@ -594,6 +597,16 @@ def _descripcion_habilidad_clase(nombre):
     return _DESCRIPCIONES_HAB[nombre]
 
 
+def _descripcion_con_potenciada(hab):
+    """Descripcion de la habilidad mas el estado de su version potenciada, si la tiene desbloqueada."""
+    if not hab.potenciada_desbloqueada:
+        return hab.descripcion
+    nombre_pot = hab.POTENCIADA["nombre"]
+    if hab.potenciada_activa:
+        return f"{hab.descripcion} POTENCIADA ({nombre_pot}): niveles hasta el {hab.nivel_max}, cada uno cuesta {hab.POTENCIADA['costo_mejora']} puntos."
+    return f"{hab.descripcion} {nombre_pot} desbloqueada: súbela al Nv {hab._nivel_max_base} para usarla."
+
+
 def _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, ancho, y_fin):
     """Herramientas (izquierda) y habilidades (derecha): las conseguidas se pueden equipar,
     las que faltan se ven bloqueadas. Devuelve la descripción bajo el ratón."""
@@ -646,7 +659,7 @@ def _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, a
     xh = x0 + ancho_izq + 16
     ancho_der = x0 + ancho - xh
     _texto(pantalla, f_sub, "Habilidades", COLOR_TEXTO, (xh, y))
-    equipadas = " · ".join(f"[{i + 2}] {h.nombre if h else '—'}" for i, h in enumerate(jugador.huecos_habilidades))
+    equipadas = " · ".join(f"[{i + 2}] {h.nombre_mostrado if h else '—'}" for i, h in enumerate(jugador.huecos_habilidades))
     _texto(pantalla, f_mini, equipadas, (255, 220, 80), (xh + 104, y + 4))
     yk = y + 26
     nombres = list(HABILIDADES_DISPONIBLES)
@@ -669,7 +682,12 @@ def _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, a
             continue
         hueco = jugador.huecos_habilidades.index(hab) if hab in jugador.huecos_habilidades else None
         _tarjeta(pantalla, r, hover, borde=(255, 215, 0) if hueco is not None else None)
-        _texto(pantalla, f_mini, nombre, (255, 255, 255), (r.x + 10, r.y + 6))
+        if hab.potenciada_activa:
+            dibujar_marco_potenciado(pantalla, r, tiempo)
+        _texto(pantalla, f_mini, hab.nombre_mostrado, COLOR_POTENCIADA_TEXTO if hab.potenciada_activa else (255, 255, 255),
+               (r.x + 10, r.y + 6))
+        if hab.potenciada_desbloqueada and not hab.potenciada_activa:
+            _texto(pantalla, f_mini, f"Pot. al Nv {hab._nivel_max_base}", COLOR_POTENCIADA_TEXTO, (r.right - 10, r.y + 6), derecha=True)
         if hab.estado == "COOLDOWN":
             est, col_est = f"Recarga {max(0.0, hab.tiempo_restante_cooldown):.0f}s", (255, 165, 80)
         elif hab.estado in ("ACTIVA", "INVOCADO"):
@@ -694,7 +712,7 @@ def _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, a
                              color=(120, 160, 230))
         if hover:
             lugar = f"va en [{hueco + 2}]" if hueco is not None else "guardada (no está en ningún hueco)"
-            descripcion = (f"{nombre} ({lugar}): {hab.descripcion} Pulsa [2], [3] o [4] para ponerla en ese hueco; "
+            descripcion = (f"{hab.nombre_mostrado} ({lugar}): {_descripcion_con_potenciada(hab)} Pulsa [2], [3] o [4] para ponerla en ese hueco; "
                            f"si ya estaba en otro, se intercambian.")
     return descripcion
 

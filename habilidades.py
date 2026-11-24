@@ -206,6 +206,12 @@ def combinar_buffs(activas, atributo="porcentaje_buff"):
     return sum(getattr(h, atributo) * factor_duplicado(h, activas) for h in activas)
 
 class HabilidadBase:
+    # Version potenciada (Gacha mejorado): None si la habilidad aun no tiene una disenada.
+    # Si existe: {"nombre": nombre mostrado, "nivel_max": nuevo maximo, "costo_mejora": puntos por
+    # nivel por encima del maximo normal}. Se desbloquea con el Gacha y solo se usa cuando la
+    # habilidad llega a su nivel maximo normal (ej. Destello -> Relampago desde el nivel 20).
+    POTENCIADA = None
+
     def __init__(self, nombre, descripcion, costo_energia, duracion_activa, duracion_cooldown, tecla, tecla_str):
         self.nombre = nombre
         self.descripcion = descripcion
@@ -228,6 +234,7 @@ class HabilidadBase:
         self.escalable = True
         self.costo_mejora = COSTO_MEJORA_HABILIDAD   # Puntos de mejora por cada nivel
         self.otorgada = False   # True si es un efecto otorgado por Golpe de Suerte
+        self.potenciada_desbloqueada = False   # la version potenciada salio en el Gacha
         self._aplicar_nivel()
 
     def _aplicar_nivel(self):
@@ -235,12 +242,45 @@ class HabilidadBase:
         pass
 
     def subir_nivel(self):
-        """Sube la habilidad un nivel (máx nivel_max) y recalcula sus valores."""
+        """Sube la habilidad un nivel (máx nivel_max) y recalcula sus valores. 'costo_mejora'
+        es siempre el coste del SIGUIENTE nivel (leerlo antes de subir)."""
         if not self.escalable or self.nivel >= self.nivel_max:
             return False
         self.nivel += 1
         self._aplicar_nivel()
+        self._ajustar_costo_mejora()
         return True
+
+    # ---- Version potenciada
+    @property
+    def tiene_potenciada(self):
+        return self.POTENCIADA is not None
+
+    @property
+    def potenciada_activa(self):
+        """Desbloqueada y con la habilidad ya en su nivel maximo normal (si no, sigue normal)."""
+        return self.potenciada_desbloqueada and self.nivel >= self._nivel_max_base
+
+    @property
+    def nombre_mostrado(self):
+        return self.POTENCIADA["nombre"] if self.potenciada_activa else self.nombre
+
+    def desbloquear_potenciada(self):
+        """El Gacha mejorado da su version potenciada: sube el nivel maximo (los niveles extra
+        cuestan POTENCIADA["costo_mejora"]). False si no tiene o ya estaba desbloqueada."""
+        if not self.tiene_potenciada or self.potenciada_desbloqueada:
+            return False
+        self._nivel_max_base = self.nivel_max
+        self._costo_mejora_base = self.costo_mejora
+        self.potenciada_desbloqueada = True
+        self.nivel_max = self.POTENCIADA["nivel_max"]
+        self._ajustar_costo_mejora()
+        return True
+
+    def _ajustar_costo_mejora(self):
+        if self.potenciada_desbloqueada:
+            self.costo_mejora = (self.POTENCIADA["costo_mejora"] if self.nivel >= self._nivel_max_base
+                                 else self._costo_mejora_base)
 
     def asignar_tecla(self, tecla, tecla_str):
         """Asigna dinámicamente la tecla (2, 3 o 4) según la selección de habilidades."""
@@ -336,7 +376,20 @@ class HabilidadBase:
 # -----------------------------
 # HABILIDAD 1: DESTELLO
 # -----------------------------
+# Relampago (Destello potenciado): constantes del aura electrica que lleva mientras esta activo
+RELAMPAGO_RADIO = 70              # px (Aura Electrica: 100)
+RELAMPAGO_DANO = 5                # dano magico a cada enemigo dentro del aura...
+RELAMPAGO_INTERVALO_DANO = 0.5    # ...cada 0.5 s (10/s)
+RELAMPAGO_AUTODANO = 0.5          # dano magico al portador...
+RELAMPAGO_INTERVALO_AUTODANO = 1.0  # ...cada 1 s
+RELAMPAGO_BUFF_MAX = 2.00         # +200 % de velocidad en el nivel 30
+RELAMPAGO_DURACION_MAX = 30.0     # s en el nivel 30 (lineal desde 18 s)
+RELAMPAGO_COSTO_MAX = 60          # En. en el nivel 30 (lineal desde 40)
+
+
 class Destello(HabilidadBase):
+    POTENCIADA = {"nombre": "Relámpago", "nivel_max": 30, "costo_mejora": 2}
+
     def __init__(self):
         super().__init__(
             nombre="Destello",
@@ -347,6 +400,8 @@ class Destello(HabilidadBase):
             tecla=pygame.K_2,
             tecla_str="2"
         )
+        self._t_autodano = 0.0
+        self._t_dano_enemigos = 0.0
 
     def _aplicar_nivel(self):
         """
@@ -356,13 +411,73 @@ class Destello(HabilidadBase):
         - cooldown: 5s, -1s cada 5 niveles (mín. 1s)
         - debuff de fatiga: -20%, -5% cada 5 niveles (mín. 0)
         - costo: 10 energía, +5 cada 3 niveles
+        Relampago (potenciada, nivel 21 a 30):
+        - buff velocidad: 90 % +10 % por nivel (nv29: 180 %) y salto a 200 % en el nivel 30
+        - duracion: 18 s -> 30 s y coste 40 -> 60 En. (lineales); recarga 1 s; sin fatiga
         """
         n = self.nivel
+        if n > 20:
+            k = n - 20
+            self.porcentaje_buff = RELAMPAGO_BUFF_MAX if n >= 30 else round(0.90 + 0.10 * k, 3)
+            self.porcentaje_debuff = 0.0
+            self.duracion_activa = round(18.0 + (RELAMPAGO_DURACION_MAX - 18.0) * k / 10, 2)
+            self.duracion_cooldown = 1.0
+            self.costo_energia = round(40 + (RELAMPAGO_COSTO_MAX - 40) * k / 10)
+            return
         self.porcentaje_buff = round(0.50 + 0.02 * n, 3)
         self.porcentaje_debuff = max(0.0, round(0.20 - 0.05 * (n // 5), 3))
         self.duracion_activa = 10.0 + 2.0 * (n // 5)
         self.duracion_cooldown = max(1.0, 5.0 - 1.0 * (n // 5))
         self.costo_energia = 10 + 5 * (n // 3)
+
+    def _relampago_activo(self):
+        return self.estado == "ACTIVA" and self.potenciada_activa
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)
+        # Relampago: autodano magico mientras dura (lo amortigua el escudo magico)
+        if self._relampago_activo():
+            self._t_autodano += dt
+            while self._t_autodano >= RELAMPAGO_INTERVALO_AUTODANO:
+                self._t_autodano -= RELAMPAGO_INTERVALO_AUTODANO
+                jugador.recibir_dano(RELAMPAGO_AUTODANO, "magico")
+        else:
+            self._t_autodano = 0.0
+
+    def actualizar_dano_enemigos(self, dt, enemigos, jugador):
+        """Relampago: dano magico a los enemigos dentro del aura (RELAMPAGO_RADIO)."""
+        if not self._relampago_activo() or not enemigos:
+            self._t_dano_enemigos = 0.0
+            return
+        self._t_dano_enemigos += dt
+        while self._t_dano_enemigos >= RELAMPAGO_INTERVALO_DANO:
+            self._t_dano_enemigos -= RELAMPAGO_INTERVALO_DANO
+            for enemigo in enemigos:
+                if not getattr(enemigo, "vivo", True) or not hasattr(enemigo, "recibir_dano"):
+                    continue
+                if (enemigo.posicion - jugador.posicion).length() <= RELAMPAGO_RADIO + getattr(enemigo, "radio", 0):
+                    enemigo.recibir_dano(RELAMPAGO_DANO, "magico", enemigo.posicion - jugador.posicion)
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        """Relampago: aura electrica amarilla y cian con rayos que parpadean."""
+        if not self.potenciada_activa:
+            return
+        cx = round(jugador.posicion.x - desplazamiento[0])
+        cy = round(jugador.posicion.y - desplazamiento[1])
+        r = RELAMPAGO_RADIO
+        capa = pygame.Surface((r * 2 + 6, r * 2 + 6), pygame.SRCALPHA)
+        pygame.draw.circle(capa, (255, 230, 90, 40), (r + 3, r + 3), r)
+        pygame.draw.circle(capa, (140, 230, 255, 120), (r + 3, r + 3), r, 2)
+        pantalla.blit(capa, (cx - r - 3, cy - r - 3))
+        rng = random.Random(pygame.time.get_ticks() // 60)
+        for _ in range(4):
+            ang = rng.uniform(0, math.tau)
+            pts = []
+            for paso in range(5):
+                d = jugador.radio + (r - jugador.radio) * paso / 4
+                a = ang + rng.uniform(-0.25, 0.25)
+                pts.append((round(cx + math.cos(a) * d), round(cy + math.sin(a) * d)))
+            pygame.draw.lines(pantalla, (255, 240, 120) if rng.random() < 0.5 else (150, 235, 255), False, pts, 2)
 
     def aplicar_efecto_activo(self, jugador):
         jugador.velocidad = jugador.velocidad_base * (1.0 + self.porcentaje_buff)
@@ -377,7 +492,17 @@ class Destello(HabilidadBase):
 # -----------------------------
 # HABILIDAD 2: BURST DE FUERZA
 # -----------------------------
+# Fuerza Colosal (Burst de Fuerza potenciado): valores del nivel 30 (lineales desde el 20)
+COLOSAL_BUFF_MAX = 1.00           # +100 % de fuerza
+COLOSAL_DURACION_MAX = 25.0       # s
+COLOSAL_RECARGA_MIN = 4.0         # s
+COLOSAL_COSTO_MAX = 70            # En.
+COLOSAL_EXTRA_ESCUDO = 0.30       # pasiva: los golpes del arma quitan +30 % al escudo fisico enemigo
+
+
 class BurstDeFuerza(HabilidadBase):
+    POTENCIADA = {"nombre": "Fuerza Colosal", "nivel_max": 30, "costo_mejora": 2}
+
     def __init__(self):
         super().__init__(
             nombre="Burst de Fuerza",
@@ -396,8 +521,17 @@ class BurstDeFuerza(HabilidadBase):
         - duración: 6s, +1s cada 5 niveles
         - cooldown: 12s, -1s cada 5 niveles (mín. 1s)
         - costo: 15 energía, +5 cada 5 niveles
+        Fuerza Colosal (potenciada, nivel 21 a 30), todo lineal desde el nivel 20:
+        - buff fuerza +40 % -> +100 %, duración 10 -> 25 s, recarga 8 -> 4 s, coste 35 -> 70 En.
         """
         n = self.nivel
+        if n > 20:
+            k = n - 20
+            self.porcentaje_buff = round(0.40 + (COLOSAL_BUFF_MAX - 0.40) * k / 10, 3)
+            self.duracion_activa = round(10.0 + (COLOSAL_DURACION_MAX - 10.0) * k / 10, 2)
+            self.duracion_cooldown = round(8.0 - (8.0 - COLOSAL_RECARGA_MIN) * k / 10, 2)
+            self.costo_energia = int(35 + (COLOSAL_COSTO_MAX - 35) * k / 10 + 0.5)   # redondeo hacia arriba en .5
+            return
         self.porcentaje_buff = round(0.20 + 0.01 * n, 3)
         self.duracion_activa = 6.0 + 1.0 * (n // 5)
         self.duracion_cooldown = max(1.0, 12.0 - 1.0 * (n // 5))
@@ -411,6 +545,24 @@ class BurstDeFuerza(HabilidadBase):
 
     def restaurar_efecto(self, jugador):
         self._recalcular_fuerza(jugador)
+
+    @property
+    def extra_dano_escudo(self):
+        """Fuerza Colosal activa: +30 % de desgaste al escudo fisico enemigo con el arma."""
+        return COLOSAL_EXTRA_ESCUDO if self.estado == "ACTIVA" and self.potenciada_activa else 0.0
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        """Fuerza Colosal: halo rojo que late alrededor del personaje (el Burst normal no lo tiene)."""
+        if not self.potenciada_activa:
+            return
+        cx = round(jugador.posicion.x - desplazamiento[0])
+        cy = round(jugador.posicion.y - desplazamiento[1])
+        pulso = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 1000.0 * 8)
+        r = int(jugador.radio + 6 + 3 * pulso)
+        capa = pygame.Surface((r * 2 + 6, r * 2 + 6), pygame.SRCALPHA)
+        pygame.draw.circle(capa, (255, 40, 30, int(50 + 50 * pulso)), (r + 3, r + 3), r)
+        pygame.draw.circle(capa, (255, 120, 60, 200), (r + 3, r + 3), r, 3)
+        pantalla.blit(capa, (cx - r - 3, cy - r - 3))
 
     def _recalcular_fuerza(self, jugador):
         """
@@ -963,11 +1115,66 @@ def dibujar_tooltip(pantalla, x, y, titulo, lineas, fuente_titulo, fuente_texto,
 # Habilidades cuya tarjeta activa se pinta en tono frío (cian) en lugar de rojizo
 HABILIDADES_TONO_FRIO = ("Destello", "Aura Electrica", "Reforzamiento Mágico", "Paso 0")
 
+# Estilo comun de las habilidades potenciadas (tarjetas del panel derecho y del inventario)
+COLOR_POTENCIADA_TEXTO = (255, 235, 120)
+COLORES_RAYO = ((255, 235, 110), (140, 230, 255))
+
+
+def dibujar_icono_estado(pantalla, tipo, x, y, alto, color):
+    """Icono dibujado a mano (la fuente no tiene los emojis): "rayo" (activa) o "reloj" (recarga).
+    Devuelve el ancho que ocupa, para escribir el texto a continuacion."""
+    h = max(8, alto - 4)
+    y0 = y + (alto - h) // 2
+    if tipo == "rayo":
+        w = h * 0.6
+        pts = [(x + w * 0.65, y0), (x, y0 + h * 0.58), (x + w * 0.45, y0 + h * 0.58),
+               (x + w * 0.3, y0 + h), (x + w, y0 + h * 0.38), (x + w * 0.55, y0 + h * 0.38)]
+        pygame.draw.polygon(pantalla, color, [(round(a), round(b)) for a, b in pts])
+    else:
+        w = h * 0.7
+        pts_sup = [(x, y0), (x + w, y0), (x + w / 2, y0 + h / 2)]
+        pts_inf = [(x + w / 2, y0 + h / 2), (x, y0 + h), (x + w, y0 + h)]
+        pygame.draw.polygon(pantalla, color, [(round(a), round(b)) for a, b in pts_sup], 1)
+        pygame.draw.polygon(pantalla, color, [(round(a), round(b)) for a, b in pts_inf])
+    return int(w) + 5
+
+
+def dibujar_marco_potenciado(pantalla, rect, tiempo):
+    """Borde electrico animado: brillo que late y rayos en zigzag que recorren el contorno."""
+    pulso = 0.5 + 0.5 * math.sin(tiempo * 6)
+    brillo = pygame.Surface((rect.width + 8, rect.height + 8), pygame.SRCALPHA)
+    pygame.draw.rect(brillo, (255, 225, 90, int(40 + 50 * pulso)), brillo.get_rect(), width=4, border_radius=11)
+    pantalla.blit(brillo, (rect.x - 4, rect.y - 4))
+    rng = random.Random(int(tiempo * 14))
+    perimetro = 2 * (rect.width + rect.height)
+    for _ in range(3):
+        inicio = rng.uniform(0, perimetro)
+        pts = []
+        for paso in range(6):
+            p = (inicio + paso * 9) % perimetro
+            if p < rect.width:
+                x, y, nx, ny = rect.x + p, rect.y, 0, -1
+            elif p < rect.width + rect.height:
+                x, y, nx, ny = rect.right, rect.y + p - rect.width, 1, 0
+            elif p < 2 * rect.width + rect.height:
+                x, y, nx, ny = rect.right - (p - rect.width - rect.height), rect.bottom, 0, 1
+            else:
+                x, y, nx, ny = rect.x, rect.bottom - (p - 2 * rect.width - rect.height), -1, 0
+            desv = rng.uniform(-3, 3)
+            pts.append((round(x + nx * desv), round(y + ny * desv)))
+        pygame.draw.lines(pantalla, rng.choice(COLORES_RAYO), False, pts, 2)
+
+
 def resumen_habilidad(hab):
     """Resumen corto del efecto de una habilidad con sus valores reales segun el nivel
     (lo usan el panel derecho y el inventario)."""
+    if hab.nombre == "Burst de Fuerza" and hab.potenciada_activa:
+        return (f"{hab.duracion_activa:g}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:g}s"
+                f" · +{COLOSAL_EXTRA_ESCUDO * 100:.0f}% a escudos")
     if hab.nombre == "Destello":
-        detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) | CD {hab.duracion_cooldown:.0f}s"
+        detalles = f"{hab.duracion_activa:g}s (+{hab.porcentaje_buff * 100:.0f}% Vel) | CD {hab.duracion_cooldown:.0f}s"
+        if hab.potenciada_activa:
+            detalles += f" · Aura {RELAMPAGO_DANO}/{RELAMPAGO_INTERVALO_DANO:g}s"
     elif hab.nombre == "Burst de Fuerza":
         detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:.0f}s"
     elif hab.nombre == "Disparo Veloz":
@@ -1057,9 +1264,13 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
 
         pygame.draw.rect(pantalla, color_fondo, (tarjeta_x, cur_y, tarjeta_w, tarjeta_h), border_radius=8)
         pygame.draw.rect(pantalla, color_borde, (tarjeta_x, cur_y, tarjeta_w, tarjeta_h), width=2, border_radius=8)
+        if hab.potenciada_activa:
+            dibujar_marco_potenciado(pantalla, pygame.Rect(tarjeta_x, cur_y, tarjeta_w, tarjeta_h),
+                                     pygame.time.get_ticks() / 1000.0)
 
         # Nombre y tecla asignada
-        txt_nom = fuente_sub.render(hab.nombre, True, (255, 255, 255))
+        txt_nom = fuente_sub.render(hab.nombre_mostrado, True,
+                                    COLOR_POTENCIADA_TEXTO if hab.potenciada_activa else (255, 255, 255))
         pantalla.blit(txt_nom, (tarjeta_x + pad, cur_y + 8))
 
         txt_tecla = fuente_mini.render(f"[{hab.tecla_str}]", True, (255, 220, 80))
@@ -1130,8 +1341,9 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             pygame.draw.rect(pantalla, (100, 255, 140), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
 
         elif hab.estado == "ACTIVA":
-            txt_est = fuente_mini.render("⚡ ACTIVA", True, (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 140, 100))
-            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
+            col_est = (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 140, 100)
+            dx = dibujar_icono_estado(pantalla, "rayo", tarjeta_x + pad, y_estado, fuente_mini.get_height(), col_est)
+            pantalla.blit(fuente_mini.render("ACTIVA", True, col_est), (tarjeta_x + pad + dx, y_estado))
 
             seg = max(0.0, hab.tiempo_restante_activo)
             txt_tiempo = fuente_contador.render(f"{seg:.1f}s", True, (255, 255, 255))
@@ -1144,8 +1356,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
                 pygame.draw.rect(pantalla, (0, 210, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 90, 60), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         elif hab.estado == "COOLDOWN":
-            txt_est = fuente_mini.render("⏳ ENFRIAMIENTO", True, (255, 165, 80))
-            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
+            dx = dibujar_icono_estado(pantalla, "reloj", tarjeta_x + pad, y_estado, fuente_mini.get_height(), (255, 165, 80))
+            pantalla.blit(fuente_mini.render("ENFRIAMIENTO", True, (255, 165, 80)), (tarjeta_x + pad + dx, y_estado))
 
             seg = max(0.0, hab.tiempo_restante_cooldown)
             txt_tiempo = fuente_contador.render(f"{seg:.1f}s", True, (255, 200, 140))
@@ -1162,8 +1374,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             if criaturas is None:
                 criaturas = getattr(hab, "conejos", None) or getattr(hab, "lobos", [])
             n_inv = len(criaturas)
-            txt_est = fuente_mini.render(f"⚡ ACTIVA ({n_inv} vivos)", True, (140, 240, 170))
-            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
+            dx = dibujar_icono_estado(pantalla, "rayo", tarjeta_x + pad, y_estado, fuente_mini.get_height(), (140, 240, 170))
+            pantalla.blit(fuente_mini.render(f"ACTIVA ({n_inv} vivos)", True, (140, 240, 170)), (tarjeta_x + pad + dx, y_estado))
 
             txt_tiempo = fuente_contador.render(f"{n_inv}", True, (255, 255, 255))
             pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
