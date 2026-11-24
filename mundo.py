@@ -477,7 +477,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         ("Escudo", f"{jugador.escudo:.1f} / {jugador.escudo_max:.0f}", (120, 255, 150), "escudo"),
         ("Escudo M.", f"ANULADO {jugador.anulacion_escudo_magico:.0f}s" if jugador.anulacion_escudo_magico > 0
                       else f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}",
-         (220, 60, 60) if jugador.anulacion_escudo_magico > 0 else (90, 200, 255), "escudo_magico")
+         (220, 60, 60) if jugador.anulacion_escudo_magico > 0 else (90, 200, 255), "escudo_magico"),
+        ("Regen En.", f"+{jugador.bono_regen_energia * 100:.1f}%", (150, 210, 255), "regen_energia")
     ]
 
     puede_subir = jugador.puntos_mejora > 0
@@ -541,6 +542,7 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             "Energía: coste de habilidades. Regenera +1 cada 3s parado, cada 6s en movimiento.",
             "Escudo: absorbe daño físico; se gasta y regenera tras 10s sin recibir golpes.",
             "Escudo M.: absorbe daño mágico (habilidades); se gasta y regenera igual.",
+            "Regen En.: acelera la regeneración de energía (+0.2%/punto); x2 en agua, x4 en zona profunda.",
             "",
             "Clic derecho sobre un enemigo: Autoapuntado (lo miras siempre; -40% Vel;",
             "se suelta a más de 500, en terreno libre o sobre el mismo objetivo).",
@@ -1544,6 +1546,8 @@ def iniciar_mundo(config):
         # Pasto y flores (cobertura de suelo, bajo las entidades)
         vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
         fauna.dibujar_madrigueras(pantalla, vista, desplazamiento)
+        # Cofres escondidos (a ras de suelo; arboles y arbustos los tapan)
+        fauna.dibujar_cofres(pantalla, vista, desplazamiento)
         # Arboles (bosques): sombra + tronco solido bajo las entidades; la copa va al final
         vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
         # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)

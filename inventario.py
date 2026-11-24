@@ -45,6 +45,7 @@ EXPLICACION_STATS = {
     "energia": "Energía: lo que gastan las habilidades. Se regenera +1 cada 3 s quieto y +1 cada 6 s en movimiento. +5 por punto.",
     "escudo": "Escudo físico: absorbe daño de armas, mordidas y garras. Se regenera +1/s tras 10 s sin daño físico. +5 hasta 15, luego +2.",
     "escudo_magico": "Escudo mágico: absorbe daño de habilidades. Se regenera +1/s tras 10 s sin daño mágico. +5 hasta 15, luego +2.",
+    "regen_energia": "Regen de energía: acelera la regeneración de energía. +0.2% por punto. Se duplica en el agua y se cuadruplica en la zona profunda del lago.",
 }
 
 
@@ -323,6 +324,7 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
         ("escudo_magico", "Escudo M.",
          "ANULADO" if jugador.anulacion_escudo_magico > 0 else f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}",
          (90, 200, 255), jugador.escudo_magico / jugador.escudo_magico_max if jugador.escudo_magico_max else 0),
+        ("regen_energia", "Regen En.", f"+{jugador.bono_regen_energia * 100:.1f}%", (150, 210, 255), None),
     ]
     alto_fila = max(30, (r_stats.height - 44) // len(filas))
     fy = r_stats.y + 40

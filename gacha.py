@@ -1,5 +1,5 @@
 """
-Gacha de Level_UP (fase 3): una tirada cuesta 30 monedas y da una herramienta, una habilidad,
+Gacha de Level_UP (fase 3): una tirada cuesta 10 monedas y da una herramienta, una habilidad,
 un anillo, un Tótem de vida o nada. Lo que ya no se puede dar (todas las herramientas o
 habilidades, un anillo al máximo, 5 tótems) devuelve 25 monedas.
 
@@ -11,7 +11,7 @@ import random
 import pygame
 import talismanes as TL
 
-COSTO_TIRADA = 30
+COSTO_TIRADA = 10
 DEVOLUCION = TL.DEVOLUCION_REPETIDO      # 25 monedas
 
 HERRAMIENTA, HABILIDAD, ANILLO, TOTEM, NADA = "herramienta", "habilidad", "anillo", "totem", "nada"

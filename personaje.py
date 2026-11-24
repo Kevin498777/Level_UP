@@ -53,6 +53,10 @@ ESCUDO_REPARTO_VIDA = 0.30
 # recupera REGEN_ESCUDO_POR_SEGUNDO por segundo hasta su máximo.
 REGEN_ESCUDO_RETRASO = 10.0
 REGEN_ESCUDO_POR_SEGUNDO = 1.0
+# Aceleracion de regeneracion de energia (stat mejorable con puntos) y bonos del agua.
+REGEN_ENERGIA_POR_PUNTO = 0.002      # +0.2% de velocidad de regen de energia por punto
+REGEN_ENERGIA_AGUA = 2.0             # x2 en agua
+REGEN_ENERGIA_AGUA_PROFUNDA = 4.0    # x4 en la zona profunda (peligrosa) del lago
 
 # Reparto del daño mágico: se bloquea un 10% del daño total; del resto, el escudo mágico
 # absorbe el 90% y el 10% pasa a la vida. El escudo mágico comparte la progresión y la
@@ -162,6 +166,7 @@ class Personaje:
 
         # Temporizador para la regeneración global de energía
         self.tiempo_regen = 0.0
+        self.bono_regen_energia = 0.0              # +% a la velocidad de regen de energía (stat mejorable)
 
         # Terreno: True si el personaje está pisando un charco de agua (-50% vel)
         self.en_agua = False
@@ -540,6 +545,8 @@ class Personaje:
                 self.escudo_magico_guardado = self.escudo_magico_max   # se rellena al terminar la anulacion
             else:
                 self.escudo_magico = self.escudo_magico_max
+        elif nombre == "regen_energia":
+            self.bono_regen_energia = round(self.bono_regen_energia + REGEN_ENERGIA_POR_PUNTO, 4)
         else:
             return False
         self.puntos_mejora -= 1
@@ -584,10 +591,17 @@ class Personaje:
         """
         if self.energia < self.energia_max:
             intervalo = 6.0 if self.esta_en_movimiento() else 3.0
+            # Velocidad de regen: aceleracion mejorable + agua (x2) / zona profunda (x4).
+            mult = 1.0 + self.bono_regen_energia
+            if self.en_agua_profunda:
+                mult *= REGEN_ENERGIA_AGUA_PROFUNDA
+            elif self.en_agua:
+                mult *= REGEN_ENERGIA_AGUA
+            intervalo_efectivo = intervalo / mult
             self.tiempo_regen += dt
-            if self.tiempo_regen >= intervalo:
+            while self.tiempo_regen >= intervalo_efectivo and self.energia < self.energia_max:
                 self.energia = min(self.energia_max, self.energia + 1)
-                self.tiempo_regen -= intervalo
+                self.tiempo_regen -= intervalo_efectivo
         else:
             self.tiempo_regen = 0.0
 

@@ -332,6 +332,43 @@ class Rana:
         pygame.draw.circle(pantalla, (15, 20, 15), (px + 3, py - 4), 1)
 
 
+# =====================================================================
+# COFRE  (collectible escondido entre la vegetacion; por mundo, no reaparece)
+# =====================================================================
+COFRE_MIN = 20
+COFRE_MAX = 40
+COFRE_MONEDAS = 5
+COFRE_XP = 2
+COFRE_RADIO = 12
+
+
+class Cofre:
+    """Cofre escondido entre arboles y arbustos: al tocarlo da COFRE_MONEDAS y COFRE_XP una
+    sola vez. No reaparece (hay entre COFRE_MIN y COFRE_MAX por mundo)."""
+    def __init__(self, x, y):
+        self.posicion = pygame.Vector2(x, y)
+        self.radio = COFRE_RADIO
+        self.abierto = False
+
+    def intentar_abrir(self, jugador):
+        if self.abierto:
+            return False
+        if (jugador.posicion - self.posicion).length() <= self.radio + jugador.radio:
+            self.abierto = True
+            return True
+        return False
+
+    def dibujar(self, pantalla, desplazamiento):
+        if self.abierto:
+            return
+        px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        pygame.draw.rect(pantalla, (120, 82, 45), (px - 9, py - 4, 18, 11), border_radius=2)
+        pygame.draw.rect(pantalla, (150, 104, 60), (px - 9, py - 9, 18, 6), border_radius=2)
+        pygame.draw.rect(pantalla, (70, 48, 28), (px - 9, py - 9, 18, 16), 1, border_radius=2)
+        pygame.draw.rect(pantalla, (235, 200, 90), (px - 2, py - 7, 4, 8))
+        pygame.draw.circle(pantalla, (255, 230, 130), (px, py - 3), 1)
+
+
 class SistemaFauna:
     def __init__(self, centro_mundo, radio_mundo, vegetacion, charcos, rocas=()):
         self.centro_mundo = pygame.Vector2(centro_mundo)
@@ -395,8 +432,29 @@ class SistemaFauna:
         for r in gigantes[:n_osos]:
             self.osos.append(Oso(r))
 
-        # Cocodrilos: uno por lago grande (con zona profunda peligrosa).
-        self.cocodrilos = [Cocodrilo(c) for c in self.charcos if getattr(c, "es_lago_profundo", False)]
+        # Cocodrilos: 2 por lago profundo; 3 si el lago es muy grande (radio >= COCODRILO_LAGO_GRANDE).
+        self.cocodrilos = []
+        for c in self.charcos:
+            if getattr(c, "es_lago_profundo", False):
+                n = COCODRILO_POR_LAGO_GRANDE if c.radio >= COCODRILO_LAGO_GRANDE else COCODRILO_POR_LAGO
+                self.cocodrilos.extend(Cocodrilo(c) for _ in range(n))
+
+        # Lobos solitarios: hostiles unicos (fuerza de alfa, su propia onda sonora).
+        self.lobos_solitarios = [self._nuevo_lobo_solitario() for _ in range(LOBO_SOL_CANTIDAD)]
+
+        # Cofres escondidos entre arboles y arbustos (por mundo, no reaparecen).
+        self.cofres = []
+        anclas = [a.centro for a in getattr(vegetacion, "arboles", [])] + \
+                 [a.centro for a in getattr(vegetacion, "arbustos", [])]
+        if anclas:
+            for _ in range(random.randint(COFRE_MIN, COFRE_MAX)):
+                base = random.choice(anclas); p = base
+                for _intento in range(6):
+                    ang = random.uniform(0, math.tau); r = random.uniform(12, 42)
+                    p = base + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
+                    if not any(c.contiene(p) for c in self.charcos):
+                        break
+                self.cofres.append(Cofre(p.x, p.y))
 
     def _punto_mariposa(self, zona):
         """Punto para generar una mariposa: sesgado hacia flores visibles."""
@@ -581,6 +639,24 @@ class SistemaFauna:
             if coco.vivo and (zona.collidepoint(coco.posicion.x, coco.posicion.y) or zona.collidepoint(coco.centro_lago.x, coco.centro_lago.y)):
                 coco.actualizar(dt, jugador, amenazas)
 
+        # Lobos solitarios: reaparece otro 1 min tras morir (siempre hay LOBO_SOL_CANTIDAD).
+        for i, ls in enumerate(self.lobos_solitarios):
+            if ls.vivo or not ls._xp_contada:
+                continue
+            ls._t_reaparicion += dt
+            if ls._t_reaparicion >= LOBO_SOL_REAPARICION:
+                self.lobos_solitarios[i] = self._nuevo_lobo_solitario(evitar=zona)
+        for ls in self.lobos_solitarios:
+            if ls.vivo and zona.collidepoint(ls.posicion.x, ls.posicion.y):
+                ls.actualizar(dt, jugador, amenazas, self.rugidos)
+
+        # Cofres escondidos: al tocarlos dan monedas + XP una vez (no reaparecen).
+        for cofre in self.cofres:
+            if not cofre.abierto and zona.collidepoint(cofre.posicion.x, cofre.posicion.y):
+                if cofre.intentar_abrir(jugador):
+                    self.monedas_pendientes += COFRE_MONEDAS
+                    self.xp_pendiente += COFRE_XP
+
     # ---- Dibujo por capas (llamados desde el render de mundo.py) ----
     def dibujar_peces(self, pantalla, vista, desplazamiento):
         for pz in self.peces:
@@ -675,6 +751,10 @@ class SistemaFauna:
         p = self._punto_mundo(evitar)
         return Zorro(p.x, p.y)
 
+    def _nuevo_lobo_solitario(self, evitar=None):
+        p = self._punto_mundo(evitar)
+        return LoboSolitario(p.x, p.y)
+
     # ---- Experiencia y monedas ----
     def _contar_muerte(self, animal):
         """Suma la XP y las monedas de un animal muerto una sola vez. True si las gano el jugador."""
@@ -688,7 +768,7 @@ class SistemaFauna:
         return True
 
     def _recoger_muertes(self):
-        for grupo in (self.conejos, self.venados, self.jabalies, self.zorros, self.osos, self.cocodrilos):
+        for grupo in (self.conejos, self.venados, self.jabalies, self.zorros, self.osos, self.cocodrilos, self.lobos_solitarios):
             for animal in grupo:
                 self._contar_muerte(animal)
         for man in self.manadas:
@@ -731,6 +811,8 @@ class SistemaFauna:
                 z._liberar_robo()
         for man in self.manadas:
             man.alertada = False
+        for ls in self.lobos_solitarios:
+            ls.alertada = False
         for oso in self.osos:
             if oso.vivo and oso.estado == "ataca":
                 oso.estado = "regresa"
@@ -759,6 +841,9 @@ class SistemaFauna:
             for l in man.lobos:
                 if l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y):
                     solidos.append(l)
+        for ls in self.lobos_solitarios:
+            if ls.vivo and zona.collidepoint(ls.posicion.x, ls.posicion.y):
+                solidos.append(ls)
         for o in self.osos:
             if o.vivo and not o.en_cueva and zona.collidepoint(o.posicion.x, o.posicion.y):
                 solidos.append(o)
@@ -776,9 +861,16 @@ class SistemaFauna:
         res += [z for z in self.zorros if z.vivo and not z.invisible and zona.collidepoint(z.posicion.x, z.posicion.y)]
         for man in self.manadas:
             res += [l for l in man.lobos if l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y)]
+        res += [ls for ls in self.lobos_solitarios if ls.vivo and zona.collidepoint(ls.posicion.x, ls.posicion.y)]
         res += [o for o in self.osos if o.vivo and not o.en_cueva and zona.collidepoint(o.posicion.x, o.posicion.y)]
         res += [co for co in self.cocodrilos if co.vivo and not co.sumergido and zona.collidepoint(co.posicion.x, co.posicion.y)]
         return res
+
+    def dibujar_cofres(self, pantalla, vista, desplazamiento):
+        zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
+        for cofre in self.cofres:
+            if not cofre.abierto and zona.collidepoint(cofre.posicion.x, cofre.posicion.y):
+                cofre.dibujar(pantalla, desplazamiento)
 
     def dibujar_madrigueras(self, pantalla, vista, desplazamiento):
         for m in self.madrigueras:
@@ -815,6 +907,9 @@ class SistemaFauna:
             for l in man.lobos:
                 if zona.collidepoint(l.posicion.x, l.posicion.y):
                     l.dibujar(pantalla, desplazamiento)
+        for ls in self.lobos_solitarios:
+            if zona.collidepoint(ls.posicion.x, ls.posicion.y):
+                ls.dibujar(pantalla, desplazamiento)
 
     def dibujar_osos(self, pantalla, vista, desplazamiento):
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
@@ -855,7 +950,7 @@ class SistemaFauna:
         c = cercano(self.conejos)
         if c is not None:
             objetivos.append(("C", (150, 205, 120), pygame.Vector2(c.posicion)))
-        lobos = [l for m in self.manadas for l in m.lobos]
+        lobos = [l for m in self.manadas for l in m.lobos] + list(self.lobos_solitarios)
         lo = cercano(lobos)
         if lo is not None:
             objetivos.append(("L", (205, 205, 225), pygame.Vector2(lo.posicion)))
@@ -874,8 +969,8 @@ class SistemaFauna:
 # =====================================================================
 # CONEJOS SALVAJES Y MADRIGUERAS  (praderas; huyen a su madriguera)
 # =====================================================================
-MADRIGUERAS_MIN = 10
-MADRIGUERAS_MAX = 10
+MADRIGUERAS_MIN = 15
+MADRIGUERAS_MAX = 15
 CONEJOS_POR_MADRIGUERA = (2, 10)
 CONEJO_RADIO = 7
 CONEJO_MASA = 1.0
@@ -1101,7 +1196,7 @@ class ConejoSalvaje(AnimalCombatible):
 # =====================================================================
 # VENADOS  (timidos; huyen lejos y se regeneran si reciben dano)
 # =====================================================================
-VENADO_MAX = 50
+VENADO_MAX = 70
 VENADO_RADIO = 12
 VENADO_MASA = 40.0
 VENADO_VIDA = (20, 40)
@@ -1244,7 +1339,7 @@ class Venado(AnimalCombatible):
 # =====================================================================
 # JABALI  (neutral; si lo golpean entra en RABIA y embiste al atacante)
 # =====================================================================
-JABALI_MAX = 20
+JABALI_MAX = 40
 JABALI_RADIO = 14
 JABALI_MASA = 60.0
 JABALI_VIDA = (40, 70)
@@ -1395,7 +1490,7 @@ class Jabali(AnimalCombatible):
 # =====================================================================
 # ZORRO  (neutral; muerde si lo acorralan/golpean; caza conejos; Paso 0)
 # =====================================================================
-ZORRO_MAX = 15
+ZORRO_MAX = 30
 ZORRO_RADIO = 9
 ZORRO_MASA = 6.0
 ZORRO_VIDA = (15, 30)
@@ -1647,7 +1742,7 @@ class Zorro(AnimalCombatible):
 # =====================================================================
 # LOBOS EN MANADA  (hostiles; cazan al jugador/sombras y, con hambre, presas)
 # =====================================================================
-LOBO_MANADAS = 7
+LOBO_MANADAS = 8
 LOBO_POR_MANADA = 4
 LOBO_VIDA = 25
 LOBO_VIDA_ALFA = 40
@@ -1668,6 +1763,28 @@ LOBO_VEL_PASEO = 40.0
 LOBO_MORDIDA_CD = 2.0              # una mordida cada 2 s por lobo
 LOBO_COLOR = [(90, 92, 100), (76, 78, 86), (108, 110, 118)]
 LOBO_COLOR_ALFA = (58, 60, 70)
+
+
+# ---- Lobo solitario: un unico lobo con fuerza de alfa; no forma manada ----
+LOBO_SOL_CANTIDAD = 6
+LOBO_SOL_VIDA = LOBO_VIDA_ALFA        # 40, fuerza de alfa
+LOBO_SOL_DANO = LOBO_DANO_ALFA        # 15
+LOBO_SOL_DESANGRADO = 0.20            # 20% de probabilidad al morder
+LOBO_SOL_DETECCION = 200.0            # un poco menor que la manada comun (250)
+LOBO_SOL_PIERDE = 600.0               # pierde el rastro si te alejas mas
+LOBO_SOL_VEL = 165.0
+LOBO_SOL_VEL_PASEO = 40.0
+LOBO_SOL_REAPARICION = 60.0           # 1 min tras morir aparece otro (siempre hay 6)
+LOBO_SOL_XP = 10.0
+LOBO_SOL_MONEDAS = (1.0, 10, 10)      # 10 monedas fijas
+LOBO_SOL_RADIO = LOBO_RADIO_ALFA
+LOBO_SOL_COLOR = (70, 62, 70)         # gris oscuro
+LOBO_SOL_ONDA_CD = 10.0               # activa la onda sonora cada 10 s en combate
+LOBO_SOL_ONDA_DANO = 5                # dano magico de la onda
+LOBO_SOL_ONDA_RALENT = 0.10           # ralentiza 10%
+LOBO_SOL_ONDA_DUR = 2.0               # durante 2 s
+LOBO_SOL_ONDA_RADIO = 200.0
+LOBO_SOL_ONDA_VEL = 320.0
 
 
 class Lobo(AnimalCombatible):
@@ -1874,10 +1991,132 @@ class Manada:
                     l.dir_mira = d.normalize()
 
 
+class LoboSolitario(AnimalCombatible):
+    """Lobo unico con la fuerza de un alfa; no forma manada. Ojos rojos siempre, 20% de
+    desangrado al morder y una onda sonora (cada 10 s) que ralentiza 10% y hace dano magico."""
+    XP = LOBO_SOL_XP
+    MONEDAS = LOBO_SOL_MONEDAS
+
+    def __init__(self, x, y):
+        self.posicion = pygame.Vector2(x, y)
+        self.radio = LOBO_SOL_RADIO
+        self.masa = LOBO_MASA
+        self.color = LOBO_SOL_COLOR
+        self.vida = LOBO_SOL_VIDA
+        self.vida_max = LOBO_SOL_VIDA
+        self.dano = LOBO_SOL_DANO
+        self.prob_desangrado = LOBO_SOL_DESANGRADO
+        self.vivo = True
+        self.alertada = False
+        self.destino = pygame.Vector2(self.posicion)
+        self._espera = random.uniform(1.0, 3.0)
+        self._cd_mordida = 0.0
+        self._cd_onda = LOBO_SOL_ONDA_CD
+        self._t_reaparicion = 0.0
+        self.dir_mira = pygame.Vector2(1, 0)
+        self._init_combate()
+
+    def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
+        if not self.vivo:
+            return 0
+        self.vida -= cantidad
+        self.alertada = True
+        if self.vida <= 0:
+            self.vida = 0
+            self.vivo = False
+        return cantidad
+
+    def _mover_hacia(self, objetivo_pos, vel, dt):
+        d = objetivo_pos - self.posicion
+        if d.length() > 0:
+            self.posicion += d.normalize() * vel * dt
+            self.dir_mira = d.normalize()
+        return d.length()
+
+    def _morder(self, objetivo):
+        if self._cd_mordida > 0:
+            return
+        self._cd_mordida = LOBO_MORDIDA_CD
+        if bloqueado_por_escudo(self, objetivo, self.dano):
+            return
+        if hasattr(objetivo, "recibir_dano"):
+            objetivo.recibir_dano(self.dano, "fisico", objetivo.posicion - self.posicion)
+        if random.random() < self.prob_desangrado and hasattr(objetivo, "desangrado"):
+            aplicar_desangrado(objetivo)
+
+    def actualizar(self, dt, jugador, amenazas, ondas):
+        self._tick_efectos(dt)
+        if not self.vivo:
+            return
+        self._cd_mordida -= dt
+        self._cd_onda -= dt
+        if self.inmovilizado is not None:
+            return
+        # Objetivo: la amenaza (jugador detectable o sombra) mas cercana.
+        objetivo = None
+        if amenazas:
+            cand = min(amenazas, key=lambda o: (o.posicion - self.posicion).length_squared())
+            dmin = (cand.posicion - self.posicion).length()
+            if self.alertada:
+                if dmin > LOBO_SOL_PIERDE:
+                    self.alertada = False
+                else:
+                    objetivo = cand
+            elif dmin < LOBO_SOL_DETECCION:
+                self.alertada = True
+                objetivo = cand
+        else:
+            self.alertada = False
+        if self.alertada and objetivo is not None:
+            dist = self._mover_hacia(objetivo.posicion, LOBO_SOL_VEL, dt)
+            if dist <= self.radio + getattr(objetivo, "radio", 10) + 2:
+                self._morder(objetivo)
+            if self._cd_onda <= 0:
+                self._cd_onda = LOBO_SOL_ONDA_CD
+                ondas.append(RugidoOnda(self.posicion, LOBO_SOL_ONDA_RADIO, LOBO_SOL_ONDA_VEL,
+                                        LOBO_SOL_ONDA_RALENT, LOBO_SOL_ONDA_DUR,
+                                        dano=LOBO_SOL_ONDA_DANO, color=(170, 90, 95)))
+        else:
+            self._espera -= dt
+            d = self.destino - self.posicion
+            if self._espera <= 0:
+                ang = random.uniform(0, math.tau)
+                self.destino = self.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * random.uniform(40, 120)
+                self._espera = random.uniform(1.0, 3.0)
+            elif d.length() > 3:
+                self.posicion += d.normalize() * LOBO_SOL_VEL_PASEO * dt
+                self.dir_mira = d.normalize()
+
+    def dibujar(self, pantalla, desplazamiento):
+        if not self.vivo:
+            return
+        px = round(self.posicion.x - desplazamiento[0]); py = round(self.posicion.y - desplazamiento[1])
+        c = self.color
+        s = 1 if self.dir_mira.x >= 0 else -1
+        rr = self.radio
+        for lx in (-rr + 2, rr - 2):
+            pygame.draw.line(pantalla, (48, 46, 54), (px + lx, py + 2), (px + lx, py + rr), 2)
+        pygame.draw.ellipse(pantalla, c, (px - rr, py - rr + 3, rr * 2, rr + 4))
+        nx = px + s * rr
+        pygame.draw.circle(pantalla, c, (nx, py - 1), rr - 3)
+        pygame.draw.polygon(pantalla, c, [(nx - 2, py - 4), (nx - 1, py - 8), (nx + 2, py - 4)])
+        pygame.draw.polygon(pantalla, c, [(nx + 1, py - 4), (nx + 3, py - 8), (nx + 4, py - 4)])
+        pygame.draw.circle(pantalla, (230, 40, 40), (nx + s * 2, py - 1), 2)   # ojo rojo siempre
+        pygame.draw.circle(pantalla, (225, 225, 230), (px - s * rr, py + 2), 2)
+        pygame.draw.circle(pantalla, (170, 50, 55), (px, py - rr - 2), 2)      # marca de lobo solitario
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, (200, 200, 210), (px, py), self.radio + 5, 1)
+        if self.vida < self.vida_max:
+            w = self.radio * 2
+            fw = int(w * self.vida / self.vida_max)
+            pygame.draw.rect(pantalla, (40, 30, 25), (px - self.radio, py - self.radio - 8, w, 3))
+            pygame.draw.rect(pantalla, (200, 90, 90), (px - self.radio, py - self.radio - 8, fw, 3))
+
+
 # =====================================================================
 # OSO  (hostil tanque territorial; vive en una roca gigante = su cueva)
 # =====================================================================
-OSO_MIN = 8
+OSO_MIN = 12
 OSO_MAX = 12
 OSO_VIDA = 150
 OSO_RADIO = 16
@@ -1896,6 +2135,7 @@ OSO_SALIDA_DUR = 10.0           # sale 10 s a "pescar"
 OSO_RUGIDO_CD = 10.0            # en combate
 OSO_RUGIDO_RALENT = 0.30
 OSO_RUGIDO_DUR = 2.0
+OSO_RUGIDO_DANO = 10            # dano magico de la onda (lo frena el escudo magico)
 OSO_RUGIDO_RADIO = 230.0
 OSO_RUGIDO_VEL = 340.0
 OSO_COLOR = [(92, 70, 54), (78, 58, 44), (70, 52, 40)]
@@ -1908,29 +2148,41 @@ ENTRADA_RADIO = 40      # a esta distancia de la entrada estas 'dentro' de la cu
 
 
 class RugidoOnda:
-    """Onda de choque del rugido del oso: anillo que se expande y ralentiza al jugador."""
-    def __init__(self, centro):
+    """Onda de choque (anillo que se expande): ralentiza al jugador y, si lleva dano, le
+    hace dano magico una sola vez al pasar por el. La usan el oso (rugido) y el lobo solitario."""
+    def __init__(self, centro, radio_max=OSO_RUGIDO_RADIO, vel=OSO_RUGIDO_VEL,
+                 ralent=OSO_RUGIDO_RALENT, dur=OSO_RUGIDO_DUR, dano=OSO_RUGIDO_DANO,
+                 tipo_dano="magico", color=(210, 190, 130)):
         self.centro = pygame.Vector2(centro)
         self.radio = 12.0
         self.activa = True
         self._golpeo = False
+        self.radio_max = radio_max
+        self.vel = vel
+        self.ralent = ralent
+        self.dur = dur
+        self.dano = dano
+        self.tipo_dano = tipo_dano
+        self.color = color
 
     def actualizar(self, dt, jugador):
-        self.radio += OSO_RUGIDO_VEL * dt
+        self.radio += self.vel * dt
         if not self._golpeo and getattr(jugador, "detectable", True):
             d = (jugador.posicion - self.centro).length()
             if self.radio - jugador.radio - 10 <= d <= self.radio + jugador.radio:
-                jugador.ralentizacion = max(getattr(jugador, "ralentizacion", 0.0), OSO_RUGIDO_RALENT)
+                jugador.ralentizacion = max(getattr(jugador, "ralentizacion", 0.0), self.ralent)
                 if hasattr(jugador, "tiempo_ralentizacion"):
-                    jugador.tiempo_ralentizacion = max(getattr(jugador, "tiempo_ralentizacion", 0.0), OSO_RUGIDO_DUR)
+                    jugador.tiempo_ralentizacion = max(getattr(jugador, "tiempo_ralentizacion", 0.0), self.dur)
+                if self.dano > 0 and hasattr(jugador, "recibir_dano"):
+                    jugador.recibir_dano(self.dano, self.tipo_dano)     # sin empuje: solo dano + ralentizacion
                 self._golpeo = True
-        if self.radio >= OSO_RUGIDO_RADIO:
+        if self.radio >= self.radio_max:
             self.activa = False
 
     def dibujar(self, pantalla, desplazamiento):
         px = round(self.centro.x - desplazamiento[0]); py = round(self.centro.y - desplazamiento[1])
-        grosor = max(1, 4 - int(3 * self.radio / OSO_RUGIDO_RADIO))
-        pygame.draw.circle(pantalla, (210, 190, 130), (px, py), int(self.radio), grosor)
+        grosor = max(1, 4 - int(3 * self.radio / self.radio_max))
+        pygame.draw.circle(pantalla, self.color, (px, py), int(self.radio), grosor)
 
 
 class OrbeCueva:
@@ -2177,6 +2429,12 @@ COCODRILO_ORILLA = 40.0          # margen de orilla para detectarte
 COCODRILO_PERSIGUE = 120.0       # cuanto sale a tierra tras de ti
 COCODRILO_MORDIDA_CD = 1.2
 COCODRILO_COLOR = (70, 92, 60)
+
+
+# Cocodrilos: 2 por lago profundo; 3 si el lago es muy grande.
+COCODRILO_POR_LAGO = 2
+COCODRILO_POR_LAGO_GRANDE = 3
+COCODRILO_LAGO_GRANDE = 600          # radio a partir del cual el lago lleva 3 cocodrilos
 
 
 class Cocodrilo(AnimalCombatible):
