@@ -408,7 +408,7 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
             borde, col_est, txt_est = None, (120, 255, 160), "LISTA"
         _tarjeta(pantalla, r, h, borde=borde)
         if hab.potenciada_activa:
-            dibujar_marco_potenciado(pantalla, r, tiempo)
+            dibujar_marco_potenciado(pantalla, r, tiempo, hab.COLORES_MARCO)
         # Tecla
         r_tecla = pygame.Rect(r.x + 12, r.y + 12, 28, 28)
         pygame.draw.rect(pantalla, (60, 52, 22), r_tecla, border_radius=6)
@@ -683,7 +683,7 @@ def _pestana_equipo(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, a
         hueco = jugador.huecos_habilidades.index(hab) if hab in jugador.huecos_habilidades else None
         _tarjeta(pantalla, r, hover, borde=(255, 215, 0) if hueco is not None else None)
         if hab.potenciada_activa:
-            dibujar_marco_potenciado(pantalla, r, tiempo)
+            dibujar_marco_potenciado(pantalla, r, tiempo, hab.COLORES_MARCO)
         _texto(pantalla, f_mini, hab.nombre_mostrado, COLOR_POTENCIADA_TEXTO if hab.potenciada_activa else (255, 255, 255),
                (r.x + 10, r.y + 6))
         if hab.potenciada_desbloqueada and not hab.potenciada_activa:

@@ -332,6 +332,21 @@ Aura de radio 100 px que sigue al personaje: buff de velocidad y daño por segun
 | 19 | +12.5 % | 4 | 0.5 | 17.5 s | 55 s | 56 |
 | 20 | +15 % | 5 | 0.5 | 20 s | 60 s | 58 |
 
+**Vestigios Míticos (potenciada, niveles 21 – 30).** Sale en el Gacha mejorado; se usa con Aura Eléctrica en el nivel 20 y cada nivel cuesta **2 puntos**. Todo lineal desde el nivel 20: radio **100 → 120 px**, velocidad **+15 % → +50 %**, daño **5 → 12 por segundo** a cada enemigo dentro (mágico), autodaño **0.5 → 1 por segundo** (mágico), duración **20 → 40 s**, recarga **60 → 80 s** y coste **58 → 80 En.** **Pasiva "Golpes eléctricos"** (solo con el aura activa): los golpes del arma y las flechas hacen **+1 % → +10 %** de daño (se suma al anillo de Fuerza) y **aturden** al enemigo **0.1 → 1 s** (no se mueve ni ataca; no acorta una telaraña más larga); el mismo enemigo no se vuelve a aturdir hasta **1.5 s** después. El aura y el marco son **azules y amarillos** con chispas de esos dos colores.
+
+| Nivel | Radio | Velocidad | Daño/s | Autodaño/s | Duración | Recarga | Coste En. | Arma | Aturde |
+|---|---|---|---|---|---|---|---|---|---|
+| 21 | 102 px | +18.5 % | 5.7 | 0.55 | 22 s | 62 s | 60 | +1 % | 0.1 s |
+| 22 | 104 px | +22 % | 6.4 | 0.6 | 24 s | 64 s | 62 | +2 % | 0.2 s |
+| 23 | 106 px | +25.5 % | 7.1 | 0.65 | 26 s | 66 s | 65 | +3 % | 0.3 s |
+| 24 | 108 px | +29 % | 7.8 | 0.7 | 28 s | 68 s | 67 | +4 % | 0.4 s |
+| 25 | 110 px | +32.5 % | 8.5 | 0.75 | 30 s | 70 s | 69 | +5 % | 0.5 s |
+| 26 | 112 px | +36 % | 9.2 | 0.8 | 32 s | 72 s | 71 | +6 % | 0.6 s |
+| 27 | 114 px | +39.5 % | 9.9 | 0.85 | 34 s | 74 s | 73 | +7 % | 0.7 s |
+| 28 | 116 px | +43 % | 10.6 | 0.9 | 36 s | 76 s | 76 | +8 % | 0.8 s |
+| 29 | 118 px | +46.5 % | 11.3 | 0.95 | 38 s | 78 s | 78 | +9 % | 0.9 s |
+| 30 | 120 px | +50 % | 12 | 1 | 40 s | 80 s | 80 | +10 % | 1 s |
+
 ### 2.7 Reforzamiento Mágico
 
 Campo de fuerza azul celeste (solo contorno), un 10 % más grande que el personaje, que bloquea daño físico y mágico. Absorbe todo el daño hasta agotar su dureza; si se agota antes de terminar la duración se rompe, entra en recarga y el sobrante pasa a los escudos y a la vida.

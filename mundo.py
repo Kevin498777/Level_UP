@@ -1528,6 +1528,7 @@ def iniciar_mundo(config):
             jugador.actualizar_desangrado(dt)
             # Invulnerabilidad breve tras recibir un golpe
             jugador.actualizar_invulnerabilidad(dt)
+            jugador.actualizar_reloj(dt)
             # Veneno activo (ej. el que da Golpe de Suerte al portador)
             jugador.actualizar_veneno(dt)
             # Ralentizacion recibida (ej. Onda Sonora de un enemigo)

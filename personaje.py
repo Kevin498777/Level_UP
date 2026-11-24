@@ -3,7 +3,8 @@ import math
 from herramientas import EspadaLigera, HERRAMIENTAS_DISPONIBLES, crear_herramienta
 from talismanes import ColeccionTalismanes, GestorSombras
 from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
-                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO)
+                         actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO,
+                         aplicar_inmovilizacion)
 
 # Masa del personaje frente a otros cuerpos (conejo 1, lobo 3): apenas lo desplazan sus
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
@@ -200,6 +201,7 @@ class Personaje:
         self.empuje = pygame.Vector2(0, 0)
         # Segundos restantes de invulnerabilidad a golpes (tras recibir uno)
         self.t_invulnerable = 0.0
+        self.reloj = 0.0                 # tiempo de juego acumulado (ver actualizar_reloj)
 
         # Autoapuntado: enemigo fijado (None si no está activo)
         self.objetivo_apuntado = None
@@ -358,6 +360,11 @@ class Personaje:
         """Desgaste extra que hacen tus golpes de arma al escudo fisico enemigo (Fuerza Colosal)."""
         return max((getattr(h, "extra_dano_escudo", 0.0) for h in self.habilidades), default=0.0)
 
+    @property
+    def bono_dano_habilidades(self):
+        """+% al dano del arma que dan las habilidades activas (Golpes electricos)."""
+        return sum(getattr(h, "bono_dano_arma", 0.0) for h in self.habilidades)
+
     def golpear_con_arma(self, enemigo, dano, tipo_dano, direccion=None):
         """Golpe del arma (hoja o flecha) a un enemigo. Con Fuerza Colosal activa, lo que absorbe
         su escudo fisico se le resta un 30 % extra al escudo (la vida recibe lo mismo).
@@ -368,7 +375,21 @@ class Personaje:
         if extra > 0 and tipo_dano == "fisico" and hasattr(enemigo, "escudo"):
             absorbido = max(0.0, escudo_antes - enemigo.escudo)
             enemigo.escudo = max(0.0, round(enemigo.escudo - absorbido * extra, 2))
+        self._aturdir_electrico(enemigo)
         return aplicado
+
+    def _aturdir_electrico(self, enemigo):
+        """Vestigios Miticos activo: el golpe deja al enemigo sin moverse ni atacar unos instantes.
+        El mismo enemigo no se vuelve a aturdir hasta pasado su tiempo de espera."""
+        hab = next((h for h in self.habilidades if getattr(h, "aturdimiento_golpe", 0) > 0), None)
+        if hab is None or not hasattr(enemigo, "inmovilizado") or not getattr(enemigo, "vivo", True):
+            return
+        if getattr(enemigo, "_fin_espera_aturdir", -1.0) > self.reloj:
+            return
+        actual = enemigo.inmovilizado
+        if actual is None or actual.restante < hab.aturdimiento_golpe:      # no acorta una telarana
+            aplicar_inmovilizacion(enemigo, hab.aturdimiento_golpe)
+        enemigo._fin_espera_aturdir = self.reloj + hab.VESTIGIOS_ATURDIR_CD
 
     def potenciar_habilidad(self, nombre):
         """Gacha mejorado: desbloquea la version potenciada de una habilidad de tu coleccion.
@@ -852,6 +873,10 @@ class Personaje:
     def marcar_golpe(self):
         """Lo llaman los ataques que golpean al personaje: empieza la invulnerabilidad breve."""
         self.t_invulnerable = INVULNERABILIDAD_TRAS_GOLPE
+
+    def actualizar_reloj(self, dt):
+        """Tiempo de juego del personaje (esperas por enemigo, p. ej. el aturdimiento electrico)."""
+        self.reloj += dt
 
     def actualizar_invulnerabilidad(self, dt):
         if self.t_invulnerable > 0:

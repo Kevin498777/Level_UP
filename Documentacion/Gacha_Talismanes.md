@@ -46,7 +46,7 @@ Cuándo está agotada cada categoría: **Herramienta** si tienes las 6; **Habili
 
 ### 1.3 Habilidades potenciadas (desde el nivel 20)
 
-- Al llegar al **nivel 20** aparece la categoría **Habilidad potenciada** (peso 20): desbloquea la versión potenciada de una habilidad de tu colección. **Solo salen las que ya están diseñadas** (por ahora: Destello → **Relámpago** y Burst de Fuerza → **Fuerza Colosal** , Disparo Veloz → **Ráfaga Veloz** y Carga de Fuego → **Estrella Ígnea**); si no te queda ninguna, la categoría cuenta como agotada.
+- Al llegar al **nivel 20** aparece la categoría **Habilidad potenciada** (peso 20): desbloquea la versión potenciada de una habilidad de tu colección. **Solo salen las que ya están diseñadas** (por ahora: Destello → **Relámpago** y Burst de Fuerza → **Fuerza Colosal** , Disparo Veloz → **Ráfaga Veloz**, Carga de Fuego → **Estrella Ígnea** y Aura Eléctrica → **Vestigios Míticos**); si no te queda ninguna, la categoría cuenta como agotada.
 - Si ya tienes las 15 habilidades normales, la potenciada **ocupa el sitio de "Habilidad"**; si no, conviven las dos.
 - Si sale con la habilidad por debajo de su nivel máximo normal queda **desbloqueada pero inactiva** (en Equipo aparece "Pot. al Nv 20"); al llegar al máximo se convierte en la potenciada, sube hasta el **nivel 30** y cada nivel extra cuesta **2 puntos**. Detalle de cada una en `Level_UP_Especificaciones.md` (9.x). Se pierden al morir sin tótem.
 

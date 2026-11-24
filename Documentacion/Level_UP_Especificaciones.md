@@ -316,6 +316,8 @@ Tabla completa en `Tablas_Escalado.md` (2.5).
 
 Aura de 100 px de radio que sigue al personaje. Buff de velocidad **+5 % → +15 %** y **1 → 5** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico). Mientras está activa, el portador recibe **0.5 de daño mágico por segundo** (lo amortigua su escudo mágico). Duración **10 → 20 s**, recarga **40 → 60 s**, coste **20 → 58 En.** (+2 por nivel).
 
+**Potenciada: Vestigios Míticos (niveles 21 – 30).** Sale en el Gacha mejorado; se usa con Aura Eléctrica en el nivel 20 y cada nivel cuesta **2 puntos**. Todo lineal desde el nivel 20: radio **100 → 120 px**, velocidad **+15 % → +50 %**, daño **5 → 12 por segundo** a cada enemigo dentro (mágico), autodaño **0.5 → 1 por segundo** (mágico), duración **20 → 40 s**, recarga **60 → 80 s** y coste **58 → 80 En.** **Pasiva "Golpes eléctricos"** (solo con el aura activa): los golpes del arma y las flechas hacen **+1 % → +10 %** de daño (se suma al anillo de Fuerza) y **aturden** al enemigo **0.1 → 1 s** (no se mueve ni ataca; no acorta una telaraña más larga); el mismo enemigo no se vuelve a aturdir hasta **1.5 s** después. El aura y el marco son **azules y amarillos** con chispas de esos dos colores.
+
 ### 9.7 Reforzamiento Mágico
 
 Campo de fuerza **azul celeste** (solo el contorno, delgado) un **10 % más grande** que el personaje. Bloquea **daño físico y mágico**: absorbe todo el daño hasta agotar su **dureza**. Si la dureza se agota antes de terminar la duración, el campo **se rompe**, entra en recarga y el daño sobrante pasa a los escudos y a la vida.

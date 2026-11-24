@@ -229,6 +229,7 @@ class HabilidadBase:
     # nivel por encima del maximo normal}. Se desbloquea con el Gacha y solo se usa cuando la
     # habilidad llega a su nivel maximo normal (ej. Destello -> Relampago desde el nivel 20).
     POTENCIADA = None
+    COLORES_MARCO = ((255, 235, 110), (140, 230, 255))   # rayos del marco de la potenciada
 
     def __init__(self, nombre, descripcion, costo_energia, duracion_activa, duracion_cooldown, tecla, tecla_str):
         self.nombre = nombre
@@ -1229,11 +1230,12 @@ def dibujar_icono_estado(pantalla, tipo, x, y, alto, color):
     return int(w) + 5
 
 
-def dibujar_marco_potenciado(pantalla, rect, tiempo):
-    """Borde electrico animado: brillo que late y rayos en zigzag que recorren el contorno."""
+def dibujar_marco_potenciado(pantalla, rect, tiempo, colores=COLORES_RAYO):
+    """Borde electrico animado: brillo que late y rayos en zigzag que recorren el contorno.
+    'colores': los dos colores de los rayos (el primero tambien tine el brillo)."""
     pulso = 0.5 + 0.5 * math.sin(tiempo * 6)
     brillo = pygame.Surface((rect.width + 8, rect.height + 8), pygame.SRCALPHA)
-    pygame.draw.rect(brillo, (255, 225, 90, int(40 + 50 * pulso)), brillo.get_rect(), width=4, border_radius=11)
+    pygame.draw.rect(brillo, (*colores[0], int(40 + 50 * pulso)), brillo.get_rect(), width=4, border_radius=11)
     pantalla.blit(brillo, (rect.x - 4, rect.y - 4))
     rng = random.Random(int(tiempo * 14))
     perimetro = 2 * (rect.width + rect.height)
@@ -1252,7 +1254,7 @@ def dibujar_marco_potenciado(pantalla, rect, tiempo):
                 x, y, nx, ny = rect.x, rect.bottom - (p - 2 * rect.width - rect.height), -1, 0
             desv = rng.uniform(-3, 3)
             pts.append((round(x + nx * desv), round(y + ny * desv)))
-        pygame.draw.lines(pantalla, rng.choice(COLORES_RAYO), False, pts, 2)
+        pygame.draw.lines(pantalla, rng.choice(colores), False, pts, 2)
 
 
 def resumen_habilidad(hab):
@@ -1287,7 +1289,9 @@ def resumen_habilidad(hab):
     elif hab.nombre == "Onda Sonora":
         detalles = f"{len(hab.danos_ondas)} onda(s) · R{hab.radio:.0f} | CD {hab.duracion_cooldown:.0f}s"
     elif hab.nombre == "Aura Electrica":
-        detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo}/s | CD {hab.duracion_cooldown:.0f}s"
+        detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo:g}/s | CD {hab.duracion_cooldown:.0f}s"
+        if hab.potenciada_activa:
+            detalles += f" · Arma +{hab.bono_arma * 100:.0f}% · Aturde {hab.aturdimiento:g}s"
     elif hab.nombre == "Golpe de Suerte":
         detalles = f"Azar nv{hab.nivel_efecto} · {hab.ultimo_resultado}"
     elif hab.nombre == "Regeneración Inversa":
@@ -1362,7 +1366,7 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         pygame.draw.rect(pantalla, color_borde, (tarjeta_x, cur_y, tarjeta_w, tarjeta_h), width=2, border_radius=8)
         if hab.potenciada_activa:
             dibujar_marco_potenciado(pantalla, pygame.Rect(tarjeta_x, cur_y, tarjeta_w, tarjeta_h),
-                                     pygame.time.get_ticks() / 1000.0)
+                                     pygame.time.get_ticks() / 1000.0, hab.COLORES_MARCO)
 
         # Nombre y tecla asignada
         txt_nom = fuente_sub.render(hab.nombre_mostrado, True,
@@ -2389,6 +2393,19 @@ class AuraElectrica(HabilidadBase):
     RADIO_AURA = 100  # Radio del aura en pixeles (alcance del dano por segundo)
     COSTO_BASE = 20       # Coste de energia en nivel 1
     COSTO_POR_NIVEL = 2   # Coste extra por cada nivel (siempre entero)
+    POTENCIADA = {"nombre": "Vestigios Míticos", "nivel_max": 30, "costo_mejora": 2}
+    COLORES_MARCO = ((70, 150, 255), (255, 220, 60))      # azul y amarillo
+    # Vestigios Miticos: valores del nivel 30 (lineales desde el 20)
+    VESTIGIOS_RADIO_MAX = 120
+    VESTIGIOS_BUFF_MAX = 0.50
+    VESTIGIOS_DANO_MAX = 12.0
+    VESTIGIOS_AUTODANO_MAX = 1.0
+    VESTIGIOS_DURACION_MAX = 40.0
+    VESTIGIOS_RECARGA_MAX = 80.0
+    VESTIGIOS_COSTO_MAX = 80
+    VESTIGIOS_BONO_ARMA_MAX = 0.10       # pasiva "Golpes electricos": +1 % -> +10 % de dano del arma
+    VESTIGIOS_ATURDIR_MAX = 1.0          # aturdimiento por golpe: 0.1 s -> 1 s
+    VESTIGIOS_ATURDIR_CD = 1.5           # el mismo enemigo no se vuelve a aturdir antes de 1.5 s
 
     def __init__(self):
         super().__init__(
@@ -2414,6 +2431,21 @@ class AuraElectrica(HabilidadBase):
         - autodano magico al portador: 0.5 por segundo (fijo)
         """
         n = self.nivel
+        if n > 20:
+            k = n - 20
+            self.radio_aura = round(self.RADIO_AURA + (self.VESTIGIOS_RADIO_MAX - self.RADIO_AURA) * k / 10)
+            self.porcentaje_buff = round(0.15 + (self.VESTIGIOS_BUFF_MAX - 0.15) * k / 10, 3)
+            self.dano_por_segundo = round(5 + (self.VESTIGIOS_DANO_MAX - 5) * k / 10, 1)
+            self.autodano_por_segundo = round(0.5 + (self.VESTIGIOS_AUTODANO_MAX - 0.5) * k / 10, 3)
+            self.duracion_activa = round(20.0 + (self.VESTIGIOS_DURACION_MAX - 20.0) * k / 10, 2)
+            self.duracion_cooldown = round(60.0 + (self.VESTIGIOS_RECARGA_MAX - 60.0) * k / 10, 2)
+            self.costo_energia = int(58 + (self.VESTIGIOS_COSTO_MAX - 58) * k / 10 + 0.5)
+            self.bono_arma = round(self.VESTIGIOS_BONO_ARMA_MAX * k / 10, 3)
+            self.aturdimiento = round(self.VESTIGIOS_ATURDIR_MAX * k / 10, 2)
+            return
+        self.radio_aura = self.RADIO_AURA
+        self.bono_arma = 0.0
+        self.aturdimiento = 0.0
         self.costo_energia = self.COSTO_BASE + self.COSTO_POR_NIVEL * (n - 1)
         self.duracion_activa = min(20.0, 10.0 + 2.5 * (n // 5))
         self.duracion_cooldown = min(60.0, 40.0 + 5.0 * (n // 5))
@@ -2427,7 +2459,20 @@ class AuraElectrica(HabilidadBase):
 
     def zona_dano(self, jugador):
         """Centro y radio del aura, para danar enemigos cuando existan."""
-        return pygame.Vector2(jugador.posicion), AuraElectrica.RADIO_AURA
+        return pygame.Vector2(jugador.posicion), self.radio_aura
+
+    def _vestigios_activo(self):
+        return self.estado == "ACTIVA" and self.potenciada_activa
+
+    @property
+    def bono_dano_arma(self):
+        """Pasiva 'Golpes electricos' (solo con Vestigios Miticos activo): +% al dano del arma."""
+        return self.bono_arma if self._vestigios_activo() else 0.0
+
+    @property
+    def aturdimiento_golpe(self):
+        """Segundos que aturde cada golpe de arma (solo con Vestigios Miticos activo)."""
+        return self.aturdimiento if self._vestigios_activo() else 0.0
 
     def actualizar(self, dt, jugador):
         super().actualizar(dt, jugador)
@@ -2461,12 +2506,25 @@ class AuraElectrica(HabilidadBase):
         ox, oy = desplazamiento
         cx = round(jugador.posicion.x - ox)
         cy = round(jugador.posicion.y - oy)
-        r = AuraElectrica.RADIO_AURA
-
+        r = self.radio_aura
+        mitico = self.potenciada_activa
         capa = pygame.Surface((r * 2 + 6, r * 2 + 6), pygame.SRCALPHA)
-        pygame.draw.circle(capa, (80, 180, 255, 45), (r + 3, r + 3), r)
-        pygame.draw.circle(capa, (130, 220, 255, 110), (r + 3, r + 3), r, 3)
+        if mitico:
+            # Vestigios Miticos: azul con borde amarillo y chispas de los dos colores
+            pygame.draw.circle(capa, (60, 120, 255, 50), (r + 3, r + 3), r)
+            pygame.draw.circle(capa, (255, 220, 60, 150), (r + 3, r + 3), r, 3)
+        else:
+            pygame.draw.circle(capa, (80, 180, 255, 45), (r + 3, r + 3), r)
+            pygame.draw.circle(capa, (130, 220, 255, 110), (r + 3, r + 3), r, 3)
         pantalla.blit(capa, (cx - r - 3, cy - r - 3))
+        if mitico:
+            for _ in range(12):
+                ang = random.uniform(0, math.tau)
+                d1, d2 = r - random.uniform(4, 14), r + random.uniform(4, 10)
+                color = (70, 150, 255) if random.random() < 0.5 else (255, 220, 60)
+                pygame.draw.line(pantalla, color, (round(cx + math.cos(ang) * d1), round(cy + math.sin(ang) * d1)),
+                                 (round(cx + math.cos(ang) * d2), round(cy + math.sin(ang) * d2)), 2)
+            return
 
         for _ in range(8):
             ang = random.uniform(0, math.tau)
