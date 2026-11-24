@@ -16,7 +16,7 @@ TECLAS_HUECOS = ((pygame.K_2, "2"), (pygame.K_3, "3"), (pygame.K_4, "4"))
 # al n + 1. Total 1048 XP: pensado para llegar al nivel 20 en unas 2 horas de caza.
 NIVEL_MAXIMO = 20
 XP_POR_NIVEL = (1, 2, 4, 8, 12, 16, 20, 25, 30, 40, 50, 60, 70, 80, 95, 110, 125, 140, 160)
-PUNTOS_MEJORA_POR_NIVEL = 3
+PUNTOS_MEJORA_POR_NIVEL = 4
 MONEDAS_POR_NIVEL = 20           # monedas que da cada subida de nivel
 
 # Silueta del personaje invisible (Paso 0): transparencias 0-255 de relleno, contorno y ojos
@@ -53,8 +53,12 @@ ESCUDO_REPARTO_VIDA = 0.30
 # recupera REGEN_ESCUDO_POR_SEGUNDO por segundo hasta su máximo.
 REGEN_ESCUDO_RETRASO = 10.0
 REGEN_ESCUDO_POR_SEGUNDO = 1.0
+# Tras recibir un golpe (mordida, zarpazo, embestida, espada) el personaje no puede recibir
+# otro golpe durante este tiempo: una manada no puede encadenar mordidas.
+INVULNERABILIDAD_TRAS_GOLPE = 0.5
 # Aceleracion de regeneracion de energia (stat mejorable con puntos) y bonos del agua.
-REGEN_ENERGIA_POR_PUNTO = 0.002      # +0.2% de velocidad de regen de energia por punto
+REGEN_ENERGIA_POR_PUNTO = 0.05       # +5% de velocidad de regen de energia por punto (~+1 En/min quieto)
+REGEN_ENERGIA_TOPE = 1.0             # maximo +100% (20 puntos): regen al doble
 REGEN_ENERGIA_AGUA = 2.0             # x2 en agua
 REGEN_ENERGIA_AGUA_PROFUNDA = 4.0    # x4 en la zona profunda (peligrosa) del lago
 
@@ -188,6 +192,8 @@ class Personaje:
 
         # Empuje acumulado pendiente de aplicar (retroceso por recibir daño)
         self.empuje = pygame.Vector2(0, 0)
+        # Segundos restantes de invulnerabilidad a golpes (tras recibir uno)
+        self.t_invulnerable = 0.0
 
         # Autoapuntado: enemigo fijado (None si no está activo)
         self.objetivo_apuntado = None
@@ -515,6 +521,11 @@ class Personaje:
         """Devuelve True si el personaje se está desplazando hacia su destino."""
         return (self.destino - self.posicion).length() > 2.0
 
+    @property
+    def regen_energia_al_tope(self):
+        """True si la regeneracion de energia ya llego a su maximo (REGEN_ENERGIA_TOPE)."""
+        return self.bono_regen_energia >= REGEN_ENERGIA_TOPE - 1e-9
+
     def subir_stat(self, nombre):
         """Gasta 1 punto de mejora en la estadística indicada (incrementos fijos)."""
         if self.puntos_mejora <= 0:
@@ -546,14 +557,16 @@ class Personaje:
             else:
                 self.escudo_magico = self.escudo_magico_max
         elif nombre == "regen_energia":
-            self.bono_regen_energia = round(self.bono_regen_energia + REGEN_ENERGIA_POR_PUNTO, 4)
+            if self.regen_energia_al_tope:
+                return False                       # ya esta en el maximo: no gasta el punto
+            self.bono_regen_energia = round(min(REGEN_ENERGIA_TOPE, self.bono_regen_energia + REGEN_ENERGIA_POR_PUNTO), 4)
         else:
             return False
         self.puntos_mejora -= 1
         return True
 
     def subir_nivel(self):
-        """Sube un nivel (hasta NIVEL_MAXIMO): +3 puntos de mejora y +20 monedas. Tambien la usa [L]."""
+        """Sube un nivel (hasta NIVEL_MAXIMO): +PUNTOS_MEJORA_POR_NIVEL puntos de mejora y +20 monedas. Tambien la usa [L]."""
         if self.nivel >= NIVEL_MAXIMO:
             return self.nivel
         self.nivel += 1
@@ -797,6 +810,20 @@ class Personaje:
         if d.length_squared() == 0:
             return
         self.empuje += d.normalize() * (puntos * PIXELES_POR_PUNTO_EMPUJE)
+
+    @property
+    def invulnerable(self):
+        """True durante INVULNERABILIDAD_TRAS_GOLPE s despues de recibir un golpe. Solo protege
+        de golpes (fauna, espada del maniqui); efectos, ondas y terreno siguen haciendo dano."""
+        return self.t_invulnerable > 0
+
+    def marcar_golpe(self):
+        """Lo llaman los ataques que golpean al personaje: empieza la invulnerabilidad breve."""
+        self.t_invulnerable = INVULNERABILIDAD_TRAS_GOLPE
+
+    def actualizar_invulnerabilidad(self, dt):
+        if self.t_invulnerable > 0:
+            self.t_invulnerable = max(0.0, self.t_invulnerable - dt)
 
     def actualizar_empuje(self, dt, centro_mundo=None, radio_mundo=None):
         """Aplica progresivamente el retroceso acumulado (con decaimiento) y respeta el límite del mundo."""

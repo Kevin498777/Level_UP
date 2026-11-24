@@ -56,6 +56,11 @@ ZORRO_REAPARICION = 180.0    # cada 3 min aparece un zorro nuevo en el mundo
 ZORRO_REPRO_INTERVALO = 120.0  # cada 2 min nace +1 si hay al menos 2 zorros
 
 
+# Golpe de arma del jugador a un animal: retrasa su siguiente ataque (y no se encadena)
+ATURDIR_GOLPE = 0.3          # s de retraso del siguiente ataque del animal
+ATURDIR_INMUNE = 1.0         # s sin poder volver a aturdirlo
+
+
 def bloqueado_por_escudo(atacante, objetivo, dano):
     """Si el objetivo lleva el Escudo desenfundado cubriendo al atacante, bloquea el golpe o
     la mordida entera (igual que con el maniqui): sin dano ni efectos, el portador recibe el
@@ -65,6 +70,26 @@ def bloqueado_por_escudo(atacante, objetivo, dano):
     if bloquear is None or dano <= 0 or not bloquear(dano, atacante.posicion):
         return False
     atacante.aplicar_empuje(atacante.posicion - objetivo.posicion, objetivo.herramienta.puntos_empuje)
+    return True
+
+
+def golpear_objetivo(atacante, objetivo, dano, empuje=0):
+    """Golpe de un animal (mordida, embestida, zarpazo). Devuelve True si el golpe entra.
+    No entra si el objetivo esta invulnerable tras otro golpe o si lo bloquea su Escudo.
+    Empuje: con 'empuje' > 0 el objetivo retrocede solo esos puntos (el empuje propio del
+    animal); con 0 retrocede 1 punto por punto de dano (el de recibir_dano). Nunca ambos."""
+    if getattr(objetivo, "invulnerable", False):
+        return False
+    if bloqueado_por_escudo(atacante, objetivo, dano):
+        return False
+    if not hasattr(objetivo, "recibir_dano"):
+        return False
+    hacia = objetivo.posicion - atacante.posicion
+    objetivo.recibir_dano(dano, "fisico", None if empuje > 0 else hacia)
+    if empuje > 0 and hasattr(objetivo, "aplicar_empuje"):
+        objetivo.aplicar_empuje(hacia, empuje)
+    if hasattr(objetivo, "marcar_golpe"):
+        objetivo.marcar_golpe()             # invulnerabilidad breve del jugador
     return True
 
 
@@ -1018,6 +1043,18 @@ class AnimalCombatible:
         self.quemadura = None
         self.inmovilizado = None
         self.ralentizacion = 0.0
+        self._t_inmune_aturdir = 0.0      # tras un aturdimiento no se le puede volver a aturdir
+
+    def aturdir_ataque(self):
+        """Golpe de arma del jugador: retrasa su siguiente ataque ATURDIR_GOLPE s. Despues queda
+        ATURDIR_INMUNE s sin poder aturdirse otra vez (las armas rapidas no lo bloquean del todo)."""
+        if self._t_inmune_aturdir > 0:
+            return False
+        for attr in ("_cd_mordida", "_cd_golpe", "_cd_zarpazo"):
+            if hasattr(self, attr):
+                setattr(self, attr, max(getattr(self, attr), ATURDIR_GOLPE))
+        self._t_inmune_aturdir = ATURDIR_INMUNE
+        return True
 
     @property
     def apuntable(self):
@@ -1032,6 +1069,8 @@ class AnimalCombatible:
         self.posicion += direccion.normalize() * min(float(puntos) * PIXELES_POR_PUNTO_EMPUJE, 96.0)
 
     def _tick_efectos(self, dt):
+        if self._t_inmune_aturdir > 0:
+            self._t_inmune_aturdir = max(0.0, self._t_inmune_aturdir - dt)
         if self.desangrado is not None:
             self.desangrado.actualizar(dt, self)
             if not self.desangrado.activo:
@@ -1432,13 +1471,7 @@ class Jabali(AnimalCombatible):
             if d.length() <= self.radio + getattr(objetivo, "radio", 10) + 4 and self._cd_golpe <= 0:
                 self._cd_golpe = JABALI_GOLPE_CD
                 dano = random.randint(*JABALI_DANO)
-                hacia = objetivo.posicion - self.posicion
-                if bloqueado_por_escudo(self, objetivo, dano):
-                    pass
-                elif hasattr(objetivo, "recibir_dano"):
-                    objetivo.recibir_dano(dano, "fisico", hacia)
-                    if hasattr(objetivo, "aplicar_empuje"):
-                        objetivo.aplicar_empuje(hacia, JABALI_EMPUJE)
+                golpear_objetivo(self, objetivo, dano, JABALI_EMPUJE)
             if self._t_rabia <= 0:
                 self.estado = "huye"
                 self._t_huida = random.uniform(2.5, 4.0)
@@ -1657,8 +1690,7 @@ class Zorro(AnimalCombatible):
             if self._cd_mordida <= 0 and dp < ZORRO_ACORRALA + 6:
                 self._cd_mordida = ZORRO_MORDIDA_CD
                 dano = random.randint(*ZORRO_DANO)
-                if not bloqueado_por_escudo(self, presa, dano) and hasattr(presa, "recibir_dano"):
-                    presa.recibir_dano(dano, "fisico", presa.posicion - self.posicion)
+                golpear_objetivo(self, presa, dano)
             if self.presa is None:
                 presa = None
             if presa is not None:
@@ -1845,10 +1877,8 @@ class Lobo(AnimalCombatible):
         if self._cd_mordida > 0:
             return
         self._cd_mordida = LOBO_MORDIDA_CD
-        if bloqueado_por_escudo(self, objetivo, self.dano):
+        if not golpear_objetivo(self, objetivo, self.dano):
             return
-        if hasattr(objetivo, "recibir_dano"):
-            objetivo.recibir_dano(self.dano, "fisico", objetivo.posicion - self.posicion)
         if random.random() < self.prob_desangrado and hasattr(objetivo, "desangrado"):
             aplicar_desangrado(objetivo)
 
@@ -2037,10 +2067,8 @@ class LoboSolitario(AnimalCombatible):
         if self._cd_mordida > 0:
             return
         self._cd_mordida = LOBO_MORDIDA_CD
-        if bloqueado_por_escudo(self, objetivo, self.dano):
+        if not golpear_objetivo(self, objetivo, self.dano):
             return
-        if hasattr(objetivo, "recibir_dano"):
-            objetivo.recibir_dano(self.dano, "fisico", objetivo.posicion - self.posicion)
         if random.random() < self.prob_desangrado and hasattr(objetivo, "desangrado"):
             aplicar_desangrado(objetivo)
 
@@ -2327,14 +2355,10 @@ class Oso(AnimalCombatible):
                 if self._cd_zarpazo <= 0:
                     self._cd_zarpazo = OSO_ZARPAZO_CD
                     dano = random.randint(*OSO_DANO)
-                    if bloqueado_por_escudo(self, amenaza, dano):
+                    if not golpear_objetivo(self, amenaza, dano, OSO_EMPUJE):
                         return
-                    if hasattr(amenaza, "recibir_dano"):
-                        amenaza.recibir_dano(dano, "fisico", amenaza.posicion - self.posicion)
                     if hasattr(amenaza, "escudo"):
                         amenaza.escudo = max(0.0, amenaza.escudo - dano * OSO_ESCUDO_EXTRA)
-                    if hasattr(amenaza, "aplicar_empuje"):
-                        amenaza.aplicar_empuje(amenaza.posicion - self.posicion, OSO_EMPUJE)
             elif dist > 0:
                 self.posicion += d.normalize() * OSO_VEL_PERSEC * dt
                 self.dir_mira = d.normalize()
@@ -2541,12 +2565,8 @@ class Cocodrilo(AnimalCombatible):
                 if self._cd_mordida <= 0:
                     self._cd_mordida = COCODRILO_MORDIDA_CD
                     dano = random.randint(*COCODRILO_DANO)
-                    if bloqueado_por_escudo(self, objetivo, dano):
+                    if not golpear_objetivo(self, objetivo, dano, COCODRILO_EMPUJE):
                         return
-                    if hasattr(objetivo, "recibir_dano"):
-                        objetivo.recibir_dano(dano, "fisico", objetivo.posicion - self.posicion)
-                    if hasattr(objetivo, "aplicar_empuje"):
-                        objetivo.aplicar_empuje(objetivo.posicion - self.posicion, COCODRILO_EMPUJE)
             elif dist > 0:
                 self.posicion += d.normalize() * self._vel() * dt
                 self.dir_mira = d.normalize()

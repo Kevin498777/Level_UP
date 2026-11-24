@@ -7,26 +7,28 @@
 |---|---|---|
 | 1 | Talismanes: anillos, Tótem de vida, 3 huecos de equipo y pestaña en el inventario | **Hecha** |
 | 2 | Colección de herramientas y habilidades: tener varias y elegir en el inventario cuáles llevar | **Hecha** |
-| 3 | Gacha: tirada de 30 monedas desde un botón del inventario, con ruleta animada | **Hecha** |
+| 3 | Gacha: tirada de 10 monedas desde un botón del inventario, con ruleta animada | **Hecha** |
 | 4 | Documentación, pruebas y simulación de la economía | Pendiente |
 
 ---
 
 ## 1. Gacha
 
-Una tirada cuesta **30 monedas**. Se hace en la pestaña **Gacha** del inventario [I] con el botón **TIRAR** y el mundo sigue en marcha mientras tanto.
+Una tirada cuesta **10 monedas**. Se hace en la pestaña **Gacha** del inventario [I] con el botón **TIRAR** y el mundo sigue en marcha mientras tanto.
 
 - **El premio se aplica al momento de tirar.** La ruleta (≈2.6 s, frena poco a poco y se para en el premio) solo lo muestra: cerrar el inventario o que te ataquen mientras gira no hace perder nada. Mientras gira no se puede volver a tirar.
 - La pestaña muestra tus monedas, el número de tiradas, el premio (con un brillo especial si es épico o legendario), las probabilidades con lo que te falta (herramientas, habilidades, tótems) y las **últimas 8 tiradas**.
-- **Orbe Gacha:** al matar un oso, con un 50 % aparece en la boca de su cueva un orbe dorado (con destellos morados). Al recogerlo gira una **ruleta gratis solo de anillos** que se ve arriba del mundo (no lo pausa); usa las mismas rarezas (60/30/9/1) y si el anillo ya está al máximo devuelve 25 monedas. El premio queda también en el historial del Gacha.
+- **Orbe Gacha:** al matar un oso, con un 50 % aparece en la boca de su cueva un orbe dorado (con destellos morados). Al recogerlo gira una **ruleta gratis solo de anillos** que se ve arriba del mundo (no lo pausa); usa las mismas rarezas (60/30/9/1) y si el anillo ya está al máximo devuelve 5 monedas. El premio queda también en el historial del Gacha.
 - Los anillos y tótems van a la pestaña **Talismanes**; las herramientas y habilidades, a **Equipo** (una habilidad nueva se equipa sola si hay un hueco libre).
 
 | Premio | Probabilidad | Si ya no queda nada que darte |
 |---|---|---|
-| Herramienta (una que no tengas, a nivel 1) | 25 % | Devuelve 25 monedas (ya tienes las 6) |
-| Habilidad (una que no tengas, a nivel 1) | 15 % | Devuelve 25 monedas (ya tienes todas) |
-| Anillo (según su rareza, ver 2) | 45 % | Si el anillo que sale ya está al máximo, devuelve 25 monedas |
-| Tótem de vida | 10 % | Si ya tienes 5, devuelve 25 monedas |
+| Herramienta (una que no tengas, a nivel 1) | 25 % | Devuelve 5 monedas (ya tienes las 6) |
+| Habilidad (una que no tengas, a nivel 1) | 15 % | Devuelve 5 monedas (ya tienes todas) |
+| Anillo (según su rareza, ver 2) | 45 % | Si el anillo que sale ya está al máximo, devuelve 5 monedas |
+| Tótem de vida | 10 % | Si ya tienes 5, devuelve 5 monedas |
+
+La devolución (5) es siempre **menor** que la tirada (10): con todo conseguido cada tirada pierde ≈5.25 monedas de media, así que el Gacha no puede dar monedas infinitas (antes del 24/11/2026 devolvía 25 y cada tirada ganaba ≈13.75).
 | Nada | 5 % | — |
 
 ---
@@ -67,7 +69,7 @@ Detalles:
 
 ### Tótem de vida
 
-- Se acumula hasta **5**. Si ya tienes 5, otro te devuelve 25 monedas. Se puede conseguir de forma infinita (tras gastarlos).
+- Se acumula hasta **5**. Si ya tienes 5, otro te devuelve 5 monedas. Se puede conseguir de forma infinita (tras gastarlos).
 - Ocupa **un hueco con toda su pila**.
 - Si mueres con él equipado: gastas 1, **vuelves al centro** con la vida, la energía y los escudos llenos y sin efectos, y **no pierdes nada** (nivel, XP, monedas, objetos). Tus sombras desaparecen. En pantalla sale **"El Tótem de vida te salvó (quedan N)"**. Al gastar el último se libera su hueco.
 

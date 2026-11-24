@@ -1,7 +1,7 @@
 """
 Gacha de Level_UP (fase 3): una tirada cuesta 10 monedas y da una herramienta, una habilidad,
 un anillo, un Tótem de vida o nada. Lo que ya no se puede dar (todas las herramientas o
-habilidades, un anillo al máximo, 5 tótems) devuelve 25 monedas.
+habilidades, un anillo al máximo, 5 tótems) devuelve 5 monedas.
 
 El premio se aplica al momento de tirar (la ruleta del inventario solo lo muestra), así que
 cerrar el inventario o que te ataquen durante la animación no hace perder nada.
@@ -12,7 +12,7 @@ import pygame
 import talismanes as TL
 
 COSTO_TIRADA = 10
-DEVOLUCION = TL.DEVOLUCION_REPETIDO      # 25 monedas
+DEVOLUCION = TL.DEVOLUCION_REPETIDO      # 5 monedas (siempre menos que COSTO_TIRADA)
 
 HERRAMIENTA, HABILIDAD, ANILLO, TOTEM, NADA = "herramienta", "habilidad", "anillo", "totem", "nada"
 PROBABILIDADES = {HERRAMIENTA: 0.25, HABILIDAD: 0.15, ANILLO: 0.45, TOTEM: 0.10, NADA: 0.05}
@@ -51,7 +51,7 @@ def _dar_anillo(jugador, rng, res):
 
 def tirar_anillo(jugador, rng=random):
     """Ruleta gratis solo de anillos (orbe Gacha de la cueva del oso). Misma rareza que el
-    Gacha; si el anillo ya está al máximo devuelve 25 monedas."""
+    Gacha; si el anillo ya está al máximo devuelve 5 monedas."""
     res = {"categoria": ANILLO, "id": None, "texto": "", "color": COLOR_NADA, "rareza": None, "devolucion": 0,
            "solo_anillos": True}
     _dar_anillo(jugador, rng, res)

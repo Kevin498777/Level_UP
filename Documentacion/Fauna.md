@@ -252,5 +252,12 @@ El zorro tiene **tres pasivas**:
   y su arco frontal cubre al animal, el ataque se bloquea entero (sin daño, sin
   desangrado, sin el desgaste extra de escudo del oso), el escudo se desgasta y el
   animal sale repelido con el empuje del escudo (40).
+- **Empuje de sus golpes (24/11/2026):** jabalí (40), oso (25) y cocodrilo (20) empujan
+  **solo** con su empuje propio; antes se sumaba además 1 punto por punto de daño y el
+  zarpazo del oso te lanzaba ~270 px (ahora 150). Lobos, lobo solitario y zorro no tienen
+  empuje propio: empujan 1 punto por punto de daño.
+- **Combate cuerpo a cuerpo:** cada golpe de arma retrasa 0.3 s el siguiente ataque del
+  animal (como mucho una vez por segundo), y tras recibir un golpe el jugador es
+  invulnerable a golpes 0.5 s (ver 8.5 de la especificación).
 - **Autoapuntado:** se suelta solo si el animal fijado deja de estar al alcance
   (zorro invisible, oso en su cueva, cocodrilo sumergido o conejo en la madriguera).

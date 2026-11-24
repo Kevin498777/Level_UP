@@ -2,7 +2,8 @@ import math
 import random
 import pygame
 from personaje import (Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO,
-                       AUTOAPUNTADO_MARGEN_CLIC, MONEDAS_POR_NIVEL)
+                       AUTOAPUNTADO_MARGEN_CLIC, MONEDAS_POR_NIVEL, PUNTOS_MEJORA_POR_NIVEL,
+                       REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE)
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
                          aplicar_veneno, enemigo_en, COLOR_VENENO)
@@ -478,7 +479,8 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
         ("Escudo M.", f"ANULADO {jugador.anulacion_escudo_magico:.0f}s" if jugador.anulacion_escudo_magico > 0
                       else f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}",
          (220, 60, 60) if jugador.anulacion_escudo_magico > 0 else (90, 200, 255), "escudo_magico"),
-        ("Regen En.", f"+{jugador.bono_regen_energia * 100:.1f}%", (150, 210, 255), "regen_energia")
+        ("Regen En.", f"+{jugador.bono_regen_energia * 100:.0f}%" + (" (máx)" if jugador.regen_energia_al_tope else ""),
+         (150, 210, 255), "regen_energia")
     ]
 
     puede_subir = jugador.puntos_mejora > 0
@@ -542,13 +544,13 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
             "Energía: coste de habilidades. Regenera +1 cada 3s parado, cada 6s en movimiento.",
             "Escudo: absorbe daño físico; se gasta y regenera tras 10s sin recibir golpes.",
             "Escudo M.: absorbe daño mágico (habilidades); se gasta y regenera igual.",
-            "Regen En.: acelera la regeneración de energía (+0.2%/punto); x2 en agua, x4 en zona profunda.",
+            f"Regen En.: acelera la regeneración de energía (+{REGEN_ENERGIA_POR_PUNTO * 100:.0f}%/punto, máx. +{REGEN_ENERGIA_TOPE * 100:.0f}%); x2 en agua, x4 en zona profunda.",
             "",
             "Clic derecho sobre un enemigo: Autoapuntado (lo miras siempre; -40% Vel;",
             "se suelta a más de 500, en terreno libre o sobre el mismo objetivo).",
             "",
             "Mejora con [+]: cuesta 1 punto (el arma cuesta 2).",
-            "[L] sube de nivel y otorga 3 puntos.",
+            f"[L] sube de nivel y otorga {PUNTOS_MEJORA_POR_NIVEL} puntos.",
         ]
         dibujar_tooltip(pantalla, x + ancho + 6, y + 40, "Estadísticas",
                         lineas_info, fuente_sub, fuente_mini)
@@ -595,6 +597,57 @@ DURACION_AVISO_TOTEM = 3.5         # s que se ve "El Tótem de vida te salvó"
 COLOR_TOTEM_AVISO = (120, 240, 150)
 MONEDAS_PRUEBA = 100               # [K] (prueba): monedas para probar el Gacha
 PROB_DEBUG_TOTEM = 0.2             # [T] (prueba): probabilidad de dar un tótem en vez de un anillo
+
+
+# Parpadeo rojo al perder vida (cualquier ser vivo: jugador, maniqui, fauna y sombras)
+PARPADEO_DURACION = 0.3        # s que dura el parpadeo tras perder vida
+PARPADEO_PERIODO = 0.075       # s de cada fase encendido/apagado (2 destellos)
+PARPADEO_ALFA = 170            # opacidad maxima del rojo
+PARPADEO_COLOR = (255, 40, 40)
+_cache_parpadeo = {}
+
+
+def actualizar_parpadeos(entidades, dt):
+    """Detecta quien perdio vida desde el cuadro anterior (golpes, efectos, terreno...) y
+    arranca su parpadeo. Guarda en cada entidad su vida previa y el tiempo de parpadeo."""
+    for e in entidades:
+        vida = getattr(e, "vida", None)
+        if vida is None:
+            continue
+        previa = getattr(e, "_vida_parpadeo", None)
+        if previa is not None and vida < previa:
+            e._t_parpadeo = PARPADEO_DURACION
+        elif getattr(e, "_t_parpadeo", 0.0) > 0:
+            e._t_parpadeo = max(0.0, e._t_parpadeo - dt)
+        e._vida_parpadeo = vida
+
+
+def _visible_para_parpadeo(e):
+    if getattr(e, "vivo", True) is False:
+        return False
+    return not (getattr(e, "invisible", False) or getattr(e, "en_cueva", False)
+                or getattr(e, "sumergido", False) or getattr(e, "estado", "") == "escondido")
+
+
+def dibujar_parpadeos(pantalla, entidades, desplazamiento):
+    """Tinte rojo sobre el cuerpo mientras dura el parpadeo: dos destellos que se apagan."""
+    for e in entidades:
+        t = getattr(e, "_t_parpadeo", 0.0)
+        if t <= 0 or not _visible_para_parpadeo(e):
+            continue
+        transcurrido = PARPADEO_DURACION - t
+        if int(transcurrido / PARPADEO_PERIODO) % 2:
+            continue                                   # fase apagada
+        radio = max(4, int(getattr(e, "radio", 12)))
+        alfa = int(PARPADEO_ALFA * t / PARPADEO_DURACION)
+        clave = (radio, alfa // 10)
+        sup = _cache_parpadeo.get(clave)
+        if sup is None:
+            sup = pygame.Surface((radio * 2 + 2, radio * 2 + 2), pygame.SRCALPHA)
+            pygame.draw.circle(sup, (*PARPADEO_COLOR, (alfa // 10) * 10), (radio + 1, radio + 1), radio)
+            _cache_parpadeo[clave] = sup
+        pantalla.blit(sup, (round(e.posicion.x - desplazamiento[0]) - radio - 1,
+                            round(e.posicion.y - desplazamiento[1]) - radio - 1))
 
 
 def dibujar_mira(pantalla, objetivo, desplazamiento):
@@ -1166,7 +1219,7 @@ def iniciar_mundo(config):
                 elif evento.key == pygame.K_t:
                     dar_talisman_prueba()
 
-                # [L] (debug) Subir de nivel: otorga 3 puntos de mejora
+                # [L] (debug) Subir de nivel: otorga PUNTOS_MEJORA_POR_NIVEL puntos de mejora
                 elif evento.key == pygame.K_l:
                     jugador.subir_nivel()
 
@@ -1330,6 +1383,8 @@ def iniciar_mundo(config):
                     dano = arma_actual.calcular_dano(jugador)
                     if dano > 0 and hasattr(enemigo, "recibir_dano"):
                         enemigo.recibir_dano(dano, arma_actual.tipo_dano)
+                        if hasattr(enemigo, "aturdir_ataque"):
+                            enemigo.aturdir_ataque()     # retrasa su siguiente ataque (animales)
                         if hasattr(enemigo, "aplicar_empuje"):
                             enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
                         arma_actual.desgastar(1)
@@ -1352,6 +1407,8 @@ def iniciar_mundo(config):
                     if not toca:
                         continue
                     arma_enemiga.enemigos_golpeados.add(id(obj))
+                    if obj is jugador and jugador.invulnerable:
+                        continue                        # invulnerable tras otro golpe
                     TL.marcar_agresor(obj, enemigo)     # las sombras de los anillos te defienden
                     dano = arma_enemiga.calcular_dano(enemigo)
                     # Escudo desenfundado cubriendo el golpe: como un choque, no hace daño, el
@@ -1363,6 +1420,8 @@ def iniciar_mundo(config):
                         continue
                     if dano > 0 and hasattr(obj, "recibir_dano"):
                         obj.recibir_dano(dano, arma_enemiga.tipo_dano, obj.posicion - enemigo.posicion)
+                        if obj is jugador:
+                            jugador.marcar_golpe()
                         arma_enemiga.desgastar(1)
 
             # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
@@ -1437,6 +1496,8 @@ def iniciar_mundo(config):
             jugador.actualizar_efectos(dt)
             # Desangrado activo (resta vida por intervalo; preparado para el combate)
             jugador.actualizar_desangrado(dt)
+            # Invulnerabilidad breve tras recibir un golpe
+            jugador.actualizar_invulnerabilidad(dt)
             # Veneno activo (ej. el que da Golpe de Suerte al portador)
             jugador.actualizar_veneno(dt)
             # Ralentizacion recibida (ej. Onda Sonora de un enemigo)
@@ -1580,6 +1641,13 @@ def iniciar_mundo(config):
             if hasattr(hab, "dibujar_ondas"):
                 hab.dibujar_ondas(pantalla, desplazamiento)
         jugador.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
+
+        # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)
+        vivos_parpadeo = [jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
+        for hab in jugador.fuentes_criaturas():
+            vivos_parpadeo.extend(getattr(hab, "criaturas", ()))
+        actualizar_parpadeos(vivos_parpadeo, 0.0 if muerto else dt)
+        dibujar_parpadeos(pantalla, vivos_parpadeo, desplazamiento)
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)

@@ -9,6 +9,7 @@ import math
 import pygame
 from habilidades import resumen_habilidad
 import talismanes as TL
+from personaje import PUNTOS_MEJORA_POR_NIVEL, REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE
 
 # Medidas y colores del inventario
 ANCHO_INVENTARIO = 820
@@ -45,7 +46,8 @@ EXPLICACION_STATS = {
     "energia": "Energía: lo que gastan las habilidades. Se regenera +1 cada 3 s quieto y +1 cada 6 s en movimiento. +5 por punto.",
     "escudo": "Escudo físico: absorbe daño de armas, mordidas y garras. Se regenera +1/s tras 10 s sin daño físico. +5 hasta 15, luego +2.",
     "escudo_magico": "Escudo mágico: absorbe daño de habilidades. Se regenera +1/s tras 10 s sin daño mágico. +5 hasta 15, luego +2.",
-    "regen_energia": "Regen de energía: acelera la regeneración de energía. +0.2% por punto. Se duplica en el agua y se cuadruplica en la zona profunda del lago.",
+    "regen_energia": (f"Regen de energía: acelera la regeneración de energía. +{REGEN_ENERGIA_POR_PUNTO * 100:.0f}% por punto "
+                      f"(hasta +{REGEN_ENERGIA_TOPE * 100:.0f}%). Se duplica en el agua y se cuadruplica en la zona profunda del lago."),
 }
 
 
@@ -229,11 +231,12 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
 
     alto_desc = 62
     if estado["pestana"] == "gacha":
+        import gacha as G
         descripcion = _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y0 + 44,
                                      ancho_util, caja.bottom - 14 - alto_desc - 10, estado)
         _caja_descripcion(pantalla, f_txt, pygame.Rect(x0, caja.bottom - 14 - alto_desc, ancho_util, alto_desc),
                           descripcion, estado, tiempo,
-                          "Gacha: pulsa TIRAR para gastar 30 monedas. Lo que consigas va a las pestañas Equipo y "
+                          f"Gacha: pulsa TIRAR para gastar {G.COSTO_TIRADA} monedas. Lo que consigas va a las pestañas Equipo y "
                           "Talismanes. Cuidado: el mundo sigue en marcha.")
         botones["__inv_fondo__"] = caja
         return botones
@@ -282,7 +285,7 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
                (bx + bw, r_nivel.y + 16), derecha=True)
         _barra(pantalla, bx, r_nivel.y + 40, bw, 10, jugador.xp / jugador.xp_siguiente, COLOR_XP)
     if h:
-        descripcion = ("Nivel y experiencia: cazar animales da XP (tú o tus sombras). Cada nivel da 3 puntos de "
+        descripcion = (f"Nivel y experiencia: cazar animales da XP (tú o tus sombras). Cada nivel da {PUNTOS_MEJORA_POR_NIVEL} puntos de "
                        "mejora; el sobrante de XP pasa al siguiente nivel. Máximo nivel 20.")
 
     h = r_mon.collidepoint(raton)
@@ -324,7 +327,8 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
         ("escudo_magico", "Escudo M.",
          "ANULADO" if jugador.anulacion_escudo_magico > 0 else f"{jugador.escudo_magico:.1f} / {jugador.escudo_magico_max:.0f}",
          (90, 200, 255), jugador.escudo_magico / jugador.escudo_magico_max if jugador.escudo_magico_max else 0),
-        ("regen_energia", "Regen En.", f"+{jugador.bono_regen_energia * 100:.1f}%", (150, 210, 255), None),
+        ("regen_energia", "Regen En.", f"+{jugador.bono_regen_energia * 100:.0f}%" + (" (máx)" if jugador.regen_energia_al_tope else ""),
+         (150, 210, 255), None),
     ]
     alto_fila = max(30, (r_stats.height - 44) // len(filas))
     fy = r_stats.y + 40
@@ -820,14 +824,14 @@ def _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, an
     faltan_h = len(jugador.herramientas_faltantes())
     faltan_a = len(jugador.habilidades_faltantes())
     filas = [
-        (G.HERRAMIENTA, f"Herramienta  25%", f"te faltan {faltan_h}" if faltan_h else "tienes todas: +25 monedas",
-         "Una herramienta que no tengas, a nivel 1. Si ya tienes las 6, te devuelve 25 monedas."),
-        (G.HABILIDAD, f"Habilidad  15%", f"te faltan {faltan_a}" if faltan_a else "tienes todas: +25 monedas",
-         "Una habilidad que no tengas, a nivel 1 (se equipa sola si hay hueco libre). Si ya las tienes todas, +25 monedas."),
+        (G.HERRAMIENTA, f"Herramienta  25%", f"te faltan {faltan_h}" if faltan_h else f"tienes todas: +{G.DEVOLUCION} monedas",
+         f"Una herramienta que no tengas, a nivel 1. Si ya tienes las 6, te devuelve {G.DEVOLUCION} monedas."),
+        (G.HABILIDAD, f"Habilidad  15%", f"te faltan {faltan_a}" if faltan_a else f"tienes todas: +{G.DEVOLUCION} monedas",
+         f"Una habilidad que no tengas, a nivel 1 (se equipa sola si hay hueco libre). Si ya las tienes todas, +{G.DEVOLUCION} monedas."),
         (G.ANILLO, f"Anillo  45%", "Común 60 · Especial 30 · Épico 9 · Legendario 1",
-         "Primero se sortea la rareza y luego un anillo de esa rareza. Repetido: sube de nivel; si ya está al máximo, +25 monedas."),
+         f"Primero se sortea la rareza y luego un anillo de esa rareza. Repetido: sube de nivel; si ya está al máximo, +{G.DEVOLUCION} monedas."),
         (G.TOTEM, f"Tótem de vida  10%", f"tienes {jugador.talismanes.totems}/{TL.TOTEM_MAX}",
-         "Se acumula hasta 5. Equipado, te salva de una muerte. Si ya tienes 5, +25 monedas."),
+         f"Se acumula hasta {TL.TOTEM_MAX}. Equipado, te salva de una muerte. Si ya tienes {TL.TOTEM_MAX}, +{G.DEVOLUCION} monedas."),
         (G.NADA, f"Nada  5%", "", "No te toca nada."),
     ]
     paso = max(18, (alto4 - 30) // len(filas))

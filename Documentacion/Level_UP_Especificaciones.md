@@ -106,7 +106,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 
 | Estadística | Valor inicial | Mejora por punto |
 |---|---|---|
-| Vida | 20 | +2 |
+| Vida | 30 | +2 |
 | Fuerza (Daño) | 2 | +0.2 |
 | Velocidad | 1 | +0.1 |
 | Cadencia (bonus) | +0 golpes/s | +0.1 golpes/s |
@@ -124,6 +124,7 @@ Se mueve haciendo clic; gira hacia donde se desplaza. Colisiona con rocas y arbu
 - **Escudo (físico):** reserva que absorbe el **daño físico** (armas e invocaciones). Se gasta al recibir golpes y se regenera.
 - **Escudo mágico:** reserva que absorbe el **daño mágico** (habilidades que consumen energía). Se gasta y regenera igual que el físico.
 - **Energía:** coste de las habilidades. Regenera **+1 cada 3 s** quieto y **+1 cada 6 s** en movimiento.
+- **Regen. de energía:** acelera esa regeneración **+5 % por punto** hasta **+100 %** (20 puntos; el botón ya no gasta puntos en el tope). Un punto da ≈ **+1 de energía por minuto** quieto, lo mismo que 1 punto de Energía (+5) cada 5 minutos. Se multiplica con el agua (**x2**) y la zona profunda del lago (**x4**).
 
 ### 6.3 Tipos de daño y escudos
 
@@ -159,7 +160,7 @@ Con el **clic derecho sobre un enemigo** (sin mantener la tecla de una invocaci�
 
 ## 7. Progresión y puntos de mejora
 
-El personaje empieza con **3 puntos de mejora** y gana **3 por cada nivel** (además de **+20 monedas** por nivel). Son un **recurso compartido** para mejorar estadísticas, arma o habilidades con los botones **[+]** verdes.
+El personaje empieza con **3 puntos de mejora** y gana **4 por cada nivel** (además de **+20 monedas** por nivel). Son un **recurso compartido** para mejorar estadísticas, arma o habilidades con los botones **[+]** verdes.
 
 - **Coste:** una estadística cuesta **1 punto**, una habilidad **1 punto** y el arma **2 puntos** por nivel.
 - **Subir de nivel:** con **experiencia (XP)** al cazar animales (tú o tus sombras). Nivel máximo **20**; llegar a él cuesta **1048 XP**, pensado para unas **2 horas** de juego. Al subir, la XP vuelve a 0 más lo que sobró. La tecla de prueba **[L]** sigue subiendo un nivel. Tablas de XP por nivel y por animal en `sistema_xp.md`.
@@ -228,6 +229,9 @@ Solo visual: Espada Ligera 20 % más grande; Espada Larga 20 % más larga y 10 %
 - **Cadencia:** golpes por segundo = cadencia del arma (sube con su nivel) **+** bonus de cadencia del personaje (+0.1 por punto). El tiempo entre golpes es 1 / cadencia. El panel izquierdo muestra la cadencia real.
 - **Al acertar en el cuerpo:** hace el daño del arma (físico, Fuerza × multiplicador), gasta 1 de durabilidad y **empuja** al enemigo con los puntos de empuje fijos del arma (dagas 4, ligera 8, larga 12, mandoble 20).
 - **Choque de armas:** si durante el golpe tu hoja toca la espada del enemigo, **chocan**: ambos salen repelidos con la misma fuerza (la mayor de los empujes de las dos armas), las **dos armas pierden 1 de durabilidad** y ese golpe ya no daña el cuerpo. El choque tiene **prioridad** sobre el golpe al cuerpo.
+- **Aturdir (animales):** cada golpe de arma que acierta a un animal **retrasa su siguiente ataque 0.3 s** (si ya estaba en recarga, no se la alarga). Después ese animal queda **1 s** sin poder aturdirse otra vez, para que las armas rápidas no lo bloqueen del todo. Pegar primero tiene ventaja.
+- **Invulnerabilidad tras un golpe:** al recibir un golpe (mordida, zarpazo, embestida o la espada del maniquí) el personaje queda **0.5 s** sin poder recibir otro golpe: ni daño, ni desangrado, ni desgaste del Escudo. Así una manada no encadena mordidas. No protege de efectos que ya tienes (desangrado, veneno, quemadura), de las ondas (rugido del oso, onda del lobo solitario) ni del terreno.
+- **Parpadeo rojo:** todo lo que tiene vida (personaje, maniquí, animales y sombras) **parpadea en rojo** dos veces durante 0.3 s cada vez que pierde vida, por cualquier causa. No se ve si el ser está invisible, en su cueva, sumergido o escondido.
 
 ### 8.6 Arco (daño físico a distancia)
 
@@ -536,7 +540,7 @@ Reglas comunes:
 - **Indicadores de terreno:** avisan cuando estás en agua, en un lago profundo, oculto en un arbusto, **invisible** (Paso 0) o en **autoapuntado**. Dentro de la cueva de un oso muerto el mapa se oscurece como en un arbusto.
 - **Textos flotantes:** **"+X XP"** y **"+X monedas"** sobre el personaje al cazar y **"NIVEL N"** al subir.
 - **Pantalla de muerte:** velo oscuro sobre el mundo con **Reaparecer [R]** y **Volver al menú principal [M]** (ver 7.1). Si tienes un **Tótem de vida** equipado no sale: vuelves al centro sin perder nada y aparece "El Tótem de vida te salvó (quedan N)".
-- **Inventario [I]:** ventana sobre el mundo con el **nivel y la XP** (cuánto falta para el siguiente), las **monedas**, los **puntos de mejora**, las **estadísticas** (con barras de vida, energía y escudos), la **herramienta** elegida (nivel, daño, cadencia, velocidad, estado y durabilidad) y **solo las 3 habilidades equipadas** (tecla, nivel, coste, estado o recarga y resumen). Tiene cuatro pestañas: **Personaje** (lo anterior), **Equipo** (las 6 herramientas y las 15 habilidades: equipar la herramienta y elegir qué habilidad va en [2] [3] [4]; las que faltan salen bloqueadas) **Gacha** (tirada de 30 monedas con ruleta, probabilidades e historial; ver `Gacha_Talismanes.md`) y **Talismanes** (los 3 huecos equipados y la colección de anillos y tótems, con botones Equipar y Quitar; ver `Gacha_Talismanes.md`). Es **interactivo**: las tarjetas se iluminan al pasar el ratón y abajo se muestra su descripción, y sus botones **[+]** gastan puntos igual que los paneles. **No pausa el juego**: el mundo sigue detrás (se puede morir con él abierto; con poca vida el borde parpadea en rojo). Se cierra con **[I]** o con la **X**; al morir se cierra solo. Un clic dentro no mueve al personaje.
+- **Inventario [I]:** ventana sobre el mundo con el **nivel y la XP** (cuánto falta para el siguiente), las **monedas**, los **puntos de mejora**, las **estadísticas** (con barras de vida, energía y escudos), la **herramienta** elegida (nivel, daño, cadencia, velocidad, estado y durabilidad) y **solo las 3 habilidades equipadas** (tecla, nivel, coste, estado o recarga y resumen). Tiene cuatro pestañas: **Personaje** (lo anterior), **Equipo** (las 6 herramientas y las 15 habilidades: equipar la herramienta y elegir qué habilidad va en [2] [3] [4]; las que faltan salen bloqueadas) **Gacha** (tirada de 10 monedas con ruleta, probabilidades e historial; ver `Gacha_Talismanes.md`) y **Talismanes** (los 3 huecos equipados y la colección de anillos y tótems, con botones Equipar y Quitar; ver `Gacha_Talismanes.md`). Es **interactivo**: las tarjetas se iluminan al pasar el ratón y abajo se muestra su descripción, y sus botones **[+]** gastan puntos igual que los paneles. **No pausa el juego**: el mundo sigue detrás (se puede morir con él abierto; con poca vida el borde parpadea en rojo). Se cierra con **[I]** o con la **X**; al morir se cierra solo. Un clic dentro no mueve al personaje.
 - **Brújula [C]:** flechas alrededor del personaje hacia el **conejo (C)**, **lobo (L)** y **oso (O)** más cercanos y hacia el **maniquí (M)**, con la distancia a cada uno y una leyenda arriba a la izquierda.
 
 ---
@@ -561,7 +565,7 @@ Reglas comunes:
 | [T] | (Prueba) Conseguir un talismán al azar (anillo o Tótem de vida) hasta que exista el Gacha |
 | [Y] | (Prueba) Conseguir una herramienta o habilidad que no tengas, a nivel 1 |
 | [K] | (Prueba) +100 monedas para probar el Gacha |
-| [L] | (Prueba) Subir de nivel al personaje (+3 puntos, hasta el 20) |
+| [L] | (Prueba) Subir de nivel al personaje (+4 puntos, hasta el 20) |
 | [R] / [M] (al morir) | Reaparecer desde el nivel 1 / volver al menú principal |
 | [J] | (Prueba) Simular un golpe del arma (desgasta durabilidad) |
 | [M] | Volver a la pantalla de selección (también con el botón del panel izquierdo) |

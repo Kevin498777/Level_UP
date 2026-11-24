@@ -96,7 +96,7 @@ CATEGORIAS_HABILIDADES = [
 def generar_estadisticas():
     # Estadísticas FIJAS de nivel 1 (sin aleatoriedad). Se mejoran con los puntos de nivel.
     return {
-        "vida": 20,
+        "vida": 30,
         "fuerza": 2,
         "velocidad": 1,
         "energia": 100,
