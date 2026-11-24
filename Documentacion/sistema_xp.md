@@ -41,6 +41,8 @@ La tabla está pensada para llegar al nivel 20 en **unas 2 horas** de caza. Las 
 | Cocodrilo | 10 | 100 % | 6 – 12 | 9 |
 | Oso | 15 | 100 % | 8 – 12 | 10 |
 | Orbe de curación de la cueva del oso | +2 | — | — | — |
+| Orbe de XP de la cueva del oso | +5 | — | — | — |
+| Orbe Gacha de la cueva del oso (50 % de que aparezca) | — | ruleta gratis de anillos | — | — |
 | Manada completa (bono) | +3 | — | — | — |
 
 Una manada completa da **26 XP** (3 lobos × 5 + alfa 8 + bono 3) y unas **31 monedas** de promedio.

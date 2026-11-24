@@ -18,6 +18,7 @@ Una tirada cuesta **30 monedas**. Se hace en la pestaña **Gacha** del inventari
 
 - **El premio se aplica al momento de tirar.** La ruleta (≈2.6 s, frena poco a poco y se para en el premio) solo lo muestra: cerrar el inventario o que te ataquen mientras gira no hace perder nada. Mientras gira no se puede volver a tirar.
 - La pestaña muestra tus monedas, el número de tiradas, el premio (con un brillo especial si es épico o legendario), las probabilidades con lo que te falta (herramientas, habilidades, tótems) y las **últimas 8 tiradas**.
+- **Orbe Gacha:** al matar un oso, con un 50 % aparece en la boca de su cueva un orbe dorado (con destellos morados). Al recogerlo gira una **ruleta gratis solo de anillos** que se ve arriba del mundo (no lo pausa); usa las mismas rarezas (60/30/9/1) y si el anillo ya está al máximo devuelve 25 monedas. El premio queda también en el historial del Gacha.
 - Los anillos y tótems van a la pestaña **Talismanes**; las herramientas y habilidades, a **Equipo** (una habilidad nueva se equipa sola si hay un hueco libre).
 
 | Premio | Probabilidad | Si ya no queda nada que darte |

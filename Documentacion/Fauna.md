@@ -202,8 +202,10 @@ El zorro tiene **tres pasivas**:
   que la distingue de una roca normal.
 - **Orbe de la cueva:** solo se puede **entrar a la cueva cuando el oso muere**.
   Al llegar a la entrada, el **mapa se oscurece** (simula estar dentro de la cueva)
-  y recoges un **orbe que cura +20** de vida y da **+2 XP** (un solo uso; más
-  recompensas más adelante). El orbe aparece también si el oso muere por un
+  y recoges un **orbe que cura +20** de vida y da **+2 XP** (un solo uso). En la
+  boca de la cueva hay además un **orbe de XP (+5 XP)** y, con un **50 %** de
+  probabilidad, un **orbe Gacha** dorado: al recogerlo gira una **ruleta gratis
+  solo de anillos** (ver `Gacha_Talismanes.md`). Los orbes aparecen también si el oso muere por un
   efecto (desangrado, quemadura, veneno).
 - **Reaparición:** **3 min** después de morir aparece un **oso nuevo en su
   cueva** (si no estás dentro y la roca sigue en pie; si Cortar la destruyó, ya no

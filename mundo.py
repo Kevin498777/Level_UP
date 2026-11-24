@@ -11,6 +11,7 @@ from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA
 from fauna import SistemaFauna
 from inventario import dibujar_inventario, rect_inventario, nuevo_estado_inventario, manejar_clic_inventario
 import talismanes as TL
+import gacha as GACHA
 
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
@@ -974,6 +975,8 @@ def iniciar_mundo(config):
     inventario_abierto = False  # [I]: inventario superpuesto (NO pausa el mundo)
     estado_inv = nuevo_estado_inventario()
     aviso_totem = None          # [texto, segundos transcurridos] tras salvarte un tótem
+    cola_ruletas = []           # premios de orbes Gacha por mostrar
+    ruleta_mundo = None         # ruleta de anillos que se está mostrando sobre el mundo
     botones_muerte = {}
     textos_flotantes = []     # [texto, color, posicion en el mundo, segundos transcurridos]
     motivo_salida = "salir"   # "salir" = cerrar juego; "menu" = volver a seleccion
@@ -1509,6 +1512,12 @@ def iniciar_mundo(config):
                 jugador.monedas += monedas
                 textos_flotantes.append([f"+{monedas} monedas", COLOR_MONEDAS,
                                          jugador.posicion - pygame.Vector2(0, 16), 0.0])
+            # Orbes Gacha de la cueva del oso: ruleta gratis de anillos (el premio se aplica ya)
+            for _ in range(fauna.tomar_ruletas()):
+                premio = GACHA.tirar_anillo(jugador)
+                cola_ruletas.append(premio)
+                estado_inv.setdefault("historial", []).insert(0, premio)
+                del estado_inv["historial"][8:]
             if jugador.vida <= 0 and jugador.talismanes.usar_totem():
                 salvar_con_totem()
                 aviso_totem = [f"El Tótem de vida te salvó (quedan {jugador.talismanes.totems})", 0.0]
@@ -1729,6 +1738,16 @@ def iniciar_mundo(config):
         if inventario_abierto and not muerto:
             botones_stats.update(dibujar_inventario(pantalla, area_mundo_pantalla, jugador, fuentes,
                                                     pygame.time.get_ticks() / 1000.0, estado_inv))
+
+        # Ruleta del orbe Gacha (encima del mundo y del inventario; no bloquea)
+        t_ruleta = pygame.time.get_ticks() / 1000.0
+        if ruleta_mundo is None and cola_ruletas:
+            ruleta_mundo = GACHA.nueva_ruleta(cola_ruletas.pop(0), t_ruleta, solo_anillos=True)
+        if ruleta_mundo is not None:
+            if GACHA.ruleta_mundo_terminada(ruleta_mundo, t_ruleta):
+                ruleta_mundo = None
+            else:
+                GACHA.dibujar_ruleta_mundo(pantalla, area_mundo_pantalla, ruleta_mundo, t_ruleta, fuentes)
 
         botones_muerte = dibujar_pantalla_muerte(pantalla, area_mundo_pantalla, fuentes) if muerto else {}
 

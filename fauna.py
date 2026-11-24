@@ -29,7 +29,9 @@ XP_ZORRO = 3.0
 XP_JABALI = 5.0
 XP_COCODRILO = 10.0
 XP_OSO = 15.0
-XP_ORBE_CUEVA = 2.0          # al recoger el orbe de la cueva de un oso
+XP_ORBE_CUEVA = 2.0          # al recoger el orbe de vida de la cueva de un oso
+XP_ORBE_XP = 5.0             # orbe de XP de la cueva del oso
+PROB_ORBE_GACHA = 0.5        # probabilidad de que el oso deje además un orbe Gacha (ruleta de anillos)
 XP_LOBO = 5.0
 XP_LOBO_ALFA = 8.0
 XP_MANADA_COMPLETA = 3.0     # bono al acabar con toda la manada (alfa incluido)
@@ -340,6 +342,7 @@ class SistemaFauna:
         self._rocas_mundo = rocas          # lista viva: Cortar puede destruir rocas (cuevas)
         self.mariposas = []
         self.xp_pendiente = 0.0            # XP ganada por el jugador y aun no entregada
+        self.ruletas_pendientes = 0        # orbes Gacha recogidos (ruleta de anillos por girar)
         self.monedas_pendientes = 0        # monedas ganadas y aun no entregadas
 
         # Pajaros: una fraccion de los arboles existentes.
@@ -560,6 +563,14 @@ class SistemaFauna:
                 oso.orbe.actualizar(dt, jugador)
                 if not oso.orbe.activo:
                     self.xp_pendiente += XP_ORBE_CUEVA
+            for orbe in oso.orbes_extra:
+                if orbe.activo:
+                    orbe.actualizar(dt, jugador)
+                    if not orbe.activo:
+                        if orbe.tipo == "xp":
+                            self.xp_pendiente += XP_ORBE_XP
+                        elif orbe.tipo == "gacha":
+                            self.ruletas_pendientes += 1
         # Ondas de choque de los rugidos
         for r in self.rugidos:
             r.actualizar(dt, jugador)
@@ -693,7 +704,12 @@ class SistemaFauna:
         # Un oso muerto por un efecto (desangrado, quemadura...) tambien deja su orbe.
         for oso in self.osos:
             if not oso.vivo and oso.orbe is None:
-                oso.orbe = OrbeCueva(oso.entrada)
+                oso.dejar_orbes()
+
+    def tomar_ruletas(self):
+        """Orbes Gacha recogidos desde la última llamada (cada uno = una ruleta de anillos)."""
+        n, self.ruletas_pendientes = self.ruletas_pendientes, 0
+        return n
 
     def tomar_xp(self):
         """Devuelve la XP ganada por el jugador desde la ultima llamada y la reinicia."""
@@ -825,6 +841,8 @@ class SistemaFauna:
         for oso in self.osos:
             if oso.orbe is not None and zona.collidepoint(oso.cueva.x, oso.cueva.y):
                 oso.orbe.dibujar(pantalla, desplazamiento)
+                for orbe in oso.orbes_extra:
+                    orbe.dibujar(pantalla, desplazamiento)
 
     def brujula(self, pos):
         """Devuelve [(etiqueta, color, posicion)] del conejo, lobo y oso vivos mas cercanos."""
@@ -1884,6 +1902,8 @@ OSO_COLOR = [(92, 70, 54), (78, 58, 44), (70, 52, 40)]
 LAGO_MIN_PESCA = 120
 ORBE_CURA = 20
 ORBE_RADIO = 9
+ORBE_SEPARACION = 36    # px a cada lado del orbe de vida para los de XP / Gacha (en la boca de la cueva)
+ORBE_AFUERA = 20        # y algo hacia afuera de la roca
 ENTRADA_RADIO = 40      # a esta distancia de la entrada estas 'dentro' de la cueva
 
 
@@ -1914,9 +1934,14 @@ class RugidoOnda:
 
 
 class OrbeCueva:
-    """Orbe de vida dentro de la cueva (aparece al morir el oso): cura +20, un solo uso."""
-    def __init__(self, centro):
+    """Orbe dentro de la cueva (aparece al morir el oso), un solo uso. tipo: "vida" (cura +20),
+    "xp" (+5 XP) o "gacha" (ruleta gratis de anillos). La XP y la ruleta las entrega SistemaFauna."""
+    COLORES = {"vida": ((60, 180, 90), (120, 240, 150)), "xp": ((60, 120, 200), (120, 200, 255)),
+               "gacha": ((200, 150, 40), (255, 215, 90))}
+
+    def __init__(self, centro, tipo="vida"):
         self.centro = pygame.Vector2(centro)
+        self.tipo = tipo
         self.activo = True
         self._fase = 0.0
 
@@ -1925,7 +1950,7 @@ class OrbeCueva:
             return
         self._fase += dt
         if (jugador.posicion - self.centro).length() <= jugador.radio + ORBE_RADIO:
-            if hasattr(jugador, "curar"):
+            if self.tipo == "vida" and hasattr(jugador, "curar"):
                 jugador.curar(ORBE_CURA)
             self.activo = False
 
@@ -1934,9 +1959,19 @@ class OrbeCueva:
             return
         px = round(self.centro.x - desplazamiento[0]); py = round(self.centro.y - desplazamiento[1])
         pulso = int(abs(math.sin(self._fase * 2.5)) * 3)
-        pygame.draw.circle(pantalla, (60, 180, 90), (px, py), ORBE_RADIO + 3 + pulso, 1)
-        pygame.draw.circle(pantalla, (120, 240, 150), (px, py), ORBE_RADIO)
-        pygame.draw.circle(pantalla, (235, 255, 240), (px - 2, py - 2), 2)
+        oscuro, claro = self.COLORES[self.tipo]
+        pygame.draw.circle(pantalla, oscuro, (px, py), ORBE_RADIO + 3 + pulso, 1)
+        pygame.draw.circle(pantalla, claro, (px, py), ORBE_RADIO)
+        if self.tipo == "gacha":
+            # destellos que giran alrededor
+            for k in range(4):
+                ang = self._fase * 2.0 + k * math.pi / 2
+                sx = px + round(math.cos(ang) * (ORBE_RADIO + 7)); sy = py + round(math.sin(ang) * (ORBE_RADIO + 7))
+                pygame.draw.circle(pantalla, (190, 120, 255), (sx, sy), 2)
+        elif self.tipo == "xp":
+            pygame.draw.line(pantalla, (235, 245, 255), (px - 4, py - 4), (px + 4, py + 4), 2)
+            pygame.draw.line(pantalla, (235, 245, 255), (px - 4, py + 4), (px + 4, py - 4), 2)
+        pygame.draw.circle(pantalla, (240, 250, 255), (px - 2, py - 3), 2)
 
 
 class Oso(AnimalCombatible):
@@ -1965,6 +2000,7 @@ class Oso(AnimalCombatible):
         self._destino_pesca = None
         self.dir_mira = pygame.Vector2(1, 0)
         self.orbe = None
+        self.orbes_extra = []            # orbes de XP y Gacha (al morir)
         self._t_reaparicion = 0.0
         self._init_combate()
 
@@ -1990,8 +2026,18 @@ class Oso(AnimalCombatible):
         if self.vida <= 0:
             self.vida = 0
             self.vivo = False
-            self.orbe = OrbeCueva(self.entrada)
+            self.dejar_orbes()
         return cantidad
+
+    def dejar_orbes(self):
+        """Al morir: orbe de vida en la entrada, orbe de XP a un lado y, con un 50 %, un orbe
+        Gacha al otro (todos dentro de la cueva, separados para recogerlos uno a uno)."""
+        lado = pygame.Vector2(-self.entrada_dir.y, self.entrada_dir.x) * ORBE_SEPARACION
+        fuera = self.entrada + self.entrada_dir * ORBE_AFUERA     # un poco hacia afuera de la roca
+        self.orbe = OrbeCueva(self.entrada, "vida")
+        self.orbes_extra = [OrbeCueva(fuera + lado, "xp")]
+        if random.random() < PROB_ORBE_GACHA:
+            self.orbes_extra.append(OrbeCueva(fuera - lado, "gacha"))
 
     def actualizar(self, dt, jugador, amenazas, charcos, rugidos):
         self._tick_efectos(dt)
