@@ -208,8 +208,8 @@ El zorro tiene **tres pasivas**:
   solo de anillos** (ver `Gacha_Talismanes.md`). Los orbes aparecen también si el oso muere por un
   efecto (desangrado, quemadura, veneno).
 - **Reaparición:** **3 min** después de morir aparece un **oso nuevo en su
-  cueva** (si no estás dentro y la roca sigue en pie; si Cortar la destruyó, ya no
-  vuelve). El orbe que no recogiste se pierde.
+  cueva** (si no estás dentro). La cueva no se puede destruir: ni Cortar ni Estrella Ígnea
+  la rompen. El orbe que no recogiste se pierde.
 - **Velocidad:** lento (paseo 90, persecución 120).
 
 ### Cocodrilo (zona profunda del lago)

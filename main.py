@@ -43,7 +43,7 @@ COLOR_HERRAMIENTAS = {
 DESC_HABILIDADES = {
     "Destello": "Buff de velocidad +52% a +90% por 10-18s. Recarga 5-1s con fatiga al acabar. Costo 10-40 En. Máx nivel 20.",
     "Burst de Fuerza": "Buff de fuerza +21% a +40% por 6-10s. Recarga 12-8s. Costo 15-35 En.",
-    "Disparo Veloz": "Mágica. Esfera recta muy rápida (velocidad 14-40) con daño fijo 8-30 (no depende del arma). Costo 15-35 En. Recarga 2-0.5s.",
+    "Disparo Veloz": "Mágica. Esfera recta muy rápida (velocidad 14-35) con daño fijo 8-25 (no depende del arma). Costo 15-35 En. Recarga 4-2s.",
     "Onda Sonora": "Mágica. Anillos blancos en 360° desde donde la lanzas (1 onda de 10; 2 desde nv10: 10+20; 3 a nv20: 10+20+30), uno cada 0.8s. Radio 200-400. Atraviesan obstáculos sin destruir nada y solo afectan a enemigos. Ralentizan -5%/-10%/-20% (3s) según cuántas ondas golpeen. Agua->agua: daño y ralentización x2; si la onda cambia de medio: x0.5. Desde el agua viajan al doble de velocidad. Costo 10-30 En., recarga 10-30s.",
     "Cortar": "Mágica. Cuchilla recta que se detiene en el primer enemigo. Daño 5-40, velocidad 5-24, costo 15-53 En., recarga 2-10s (sube con el nivel). Si hace daño, anula el escudo mágico del enemigo 8s. Destruye una roca o arbusto al chocar, salvo el arbusto en el que estás (gigantes y arbustos grandes solo a nivel 20).",
     "Invocar Conejos": "Invoca 5 conejos que se reproducen (máx 50), más despacio cuantos más hay. Vida 5-20, velocidad 3-12.5, daño 0.1-7.7. Costo 80 En. Mantén la tecla para modo combate (clic derecho: persiguen al enemigo marcado; mantén y suelta de nuevo para volver a pasivo). 30s de recarga al morir todos.",

@@ -455,6 +455,7 @@ class SistemaFauna:
         random.shuffle(gigantes)
         n_osos = min(len(gigantes), random.randint(OSO_MIN, OSO_MAX))
         for r in gigantes[:n_osos]:
+            r.es_cueva = True             # nada puede destruir la cueva de un oso
             self.osos.append(Oso(r))
 
         # Cocodrilos: 2 por lago profundo; 3 si el lago es muy grande (radio >= COCODRILO_LAGO_GRANDE).
@@ -810,6 +811,11 @@ class SistemaFauna:
         for oso in self.osos:
             if not oso.vivo and oso.orbe is None:
                 oso.dejar_orbes()
+
+    def quitar_fauna_acuatica(self, centro, radio):
+        """Agua evaporada (Estrella Ignea): los peces y ranas de ese circulo desaparecen."""
+        self.peces = [p for p in self.peces if (p.centro - centro).length() > radio]
+        self.ranas = [r for r in self.ranas if (r.centro - centro).length() > radio]
 
     def tomar_ruletas(self):
         """Orbes Gacha recogidos desde la última llamada (cada uno = una ruleta de anillos)."""

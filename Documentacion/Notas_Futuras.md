@@ -225,7 +225,7 @@ Nada│15 % (fijo)
 Fase 3 habilidades potenciadas
 Deja las planteo una por una y las aplicamos y probamos
 
-### Destello → Relampago
+ Destello → Relampago
 Destello solo puedes potenciarlo si esta al maximo 
 Estadisticas de destello nv20
 Buff de velocidad **90 %**
@@ -270,7 +270,7 @@ Buff de velocidad **15→30%/50→100%**
 Duración **Ultimos 10 segundos**
 Cuesta 2 puntos de mejora subir 1 nivel
 
-### Burst de Fuerza → Fuerza Colozal
+ Burst de Fuerza → Fuerza Colozal
 Estadisticas de Burst de Fuerza nv20
 Buff de fuerza**+21 % → +40 %**
 duración **6 → 10 s**
@@ -287,8 +287,8 @@ Los ataques hace un 30% estra de daño a escudos fisicos
 Cuesta 2 puntos de mejora subir 1 nivel
 
 
-### Disparo Veloz → Rafaga veloz
-Ajuste de habilidad
+ Disparo Veloz → Rafaga veloz
+Ajuste balance de habilidad
 Estadisticas Disparo Veloz
 Esfera recta **muy rápida**: su punto fuerte es la velocidad del proyectil, **14 → 35** (lineal, la más alta del juego).
 Daño mágico **fijo 8 → 25**
@@ -296,14 +296,65 @@ coste fijo **15 → 35 En.**
 recarga **4 → 2 s**. 
 Se detiene en el **primer enemigo** que toca (daño mágico)
 **Disparo veloz pasa a llamarse Refaga veloz**
-1 disparos en forma conica en forma de esfera recta a nivel maximo 5 esferas 
+nivel maximo 30
+1 disparos en forma conica en forma de esfera recta a nivel maximo 10 esferas de forma lineal
+21-2,22-3,23-4,24-5,25-6,26-7,27-8,28-9,29-10, 30-10 pero 2 de color rojo ejemplo 8 normales y 2 rojas de salen de forma aleatoria
 velocidad de los proyectiles **35 → 45**
-Daño mágico **fijo 25 → 40**
+Daño mágico **fijo 25 → 30/nivel 30 daño 35 de las balas rojas**
 coste fijo **35 → 50 En.** 
 recarga **2 → 0.5 s**. 
 Se detiene en el **primer enemigo** que toca (daño mágico)
+Estos disparos no salen todos juntos ni rectos
+salen con un intervalo de 0.5s por disparo y desde el frente del personaje de forma conica unos 15 grados de dispersion
 
 
 
+### Carga de Fuego → Estrella ignea
+Estadisticas de Carga de Fuego nv20
+Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **39**. Se detiene en el **primer enemigo** que toca y le aplica **quemadura**: 1 de daño por segundo (**ignora escudos**, como el desangrado). Cada segundo completo de carga cambia el daño, el tamaño, la quemadura y la recarga:
+| Carga | Daño (× base) | Nv 1 | Nv 20 | Quemadura | Recarga |
+|---    |---            |---   |---    |---        |---      |
+| Toque | ×0.6          | 12   | 23.4  | 2 s       | 8 s     |
+| 1 s   | ×0.8          | 16   | 31.2  | 3 s       | 9.4 s   |
+| 2 s   | ×1.0          | 20   | 39    | 4 s       | 10.8 s  |
+| 3 s   | ×1.3          | 26   | 50.7  | 5 s       | 12.2 s  |
+| 4 s   | ×1.6          | 32   | 62.4  | 6 s       | 13.6 s  |
+| 5 s   | ×2.0          | 40   | 78    | 7 s       | 15 s    |
+**Carga de Fuego pasa a llamarse Estrella ignea**
+nivel maximo 30
+nueva skin en el centro del circulo un estrella roja
+Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **8 s** = carga más daño y tamaño, y dispara al soltar. Daño base **39-**. Se detiene en el **primer enemigo** que toca y le aplica **quemadura**: 1 de daño por segundo (**ignora escudos**, como el desangrado). Cada segundo completo de carga cambia el daño, el tamaño, la quemadura y la recarga:
+| Carga | Daño (× base) | Nv 20| Nv 30 | Quemadura | Recarga |
+|---    |---            |---   |---    |---        |---      |
+| Toque | ×0.6          | 23.4 | 29.4  | 3 s       | 15 s     |
+| 1 s   | ×0.8          | 31.2 | 29.4  | 4 s       | 16 s   |
+| 2 s   | ×1.0          | 39   | 49    | 5 s       | 17 s  |
+| 3 s   | ×1.3          | 50.7 | 63.7  | 6 s       | 18 s  |
+| 4 s   | ×1.6          | 62.4 | 78.4  | 7 s       | 19 s  |
+| 5 s   | ×2.0          | 78   | 98    | 8 s       | 21 s    |
+| 6 s   | ×2.2          | 85.8 | 107.8 | 6 s       | 23 s  |
+| 7 s   | ×2.4          | 93.6 | 117.6 | 7 s       | 25 s  |
+| 8 s   | ×2.6          | 101.4| 127.4 | 8 s       | 28 s    |
+Cunado toca a alguien le hace daño y 0.5 segundos despues explota en un radio de 100 pixeles generando un 30% del daño todal y dejando en el suelo por 10s el efecto de quemadura realizando 1 de daño por segundo meintras estas dentro de este radio
 
 
+### Aura Eléctrica → Vestigios Miticos
+Estadisticas de Aura Eléctrica nv20
+Aura de 100 px de radio que sigue al personaje.
+Buff de velocidad **+5 % → +15 %**
+**5** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico).
+Mientras está activa, el portador recibe **0.5 de daño mágico por segundo** (lo amortigua su escudo mágico).
+Duración **20 s**
+recarga **60 s**
+coste **58 En.** (+2 por nivel).
+
+Estadisticas de Aura Eléctrica nv30
+Aura de 120 px de radio que sigue al personaje.
+Buff de velocidad **15 % → + 50 %**
+**5→15** de daño mágico por segundo a cada enemigo dentro del aura (lo amortigua su escudo mágico).
+Mientras está activa, el portador recibe **0.5→1 de daño mágico por segundo** (lo amortigua su escudo mágico).
+Duración **20s→40s**
+recarga **60s→80s**
+coste **58En.→80**
+Pasiva **golpes electricos** aumenta el daño de la arma **1%→10%**
+Los golpes aturder a los enemigos un **0.1%s→1s** cd de 1.5s 

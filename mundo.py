@@ -83,6 +83,8 @@ class Charco:
             pos = pygame.Vector2(x + math.cos(ang) * dist, y + math.sin(ang) * dist)
             self.circulos.append((pos, r_lobulo))
 
+        self.evaporados = []      # circulos evaporados por Estrella Ignea (ya no son agua)
+
         # Pre-renderizar el charco una sola vez (barro + agua + brillo)
         extension = radio + ANCHO_BARRO + 18
         lado = int(extension * 2)
@@ -137,13 +139,30 @@ class Charco:
                 if random.random() < 0.5:
                     pygame.draw.circle(self.superficie, COLOR_JUNCO_PUNTA, (round(tx), round(ty - h)), 2)
 
+    def evaporar(self, centro, radio):
+        """Estrella Ignea: el agua dentro del circulo desaparece para siempre (queda la orilla)."""
+        self.evaporados.append((pygame.Vector2(centro), radio))
+        origen = pygame.Vector2(self.rect.topleft)
+        # Mancha de orilla solo dentro de la forma del charco (con su borde de barro)
+        forma = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        for c, r in self.circulos:
+            pygame.draw.circle(forma, (255, 255, 255, 255), (round(c.x - origen.x), round(c.y - origen.y)), round(r + ANCHO_BARRO))
+        mancha = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        pygame.draw.circle(mancha, (*COLOR_BARRO, 255), (round(centro.x - origen.x), round(centro.y - origen.y)), round(radio))
+        mancha.blit(forma, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        self.superficie.blit(mancha, (0, 0))
+
+    def _evaporado(self, punto):
+        return any((punto - c).length() <= r for c, r in self.evaporados)
+
     def contiene(self, punto):
         """True si el punto (centro del jugador) está sobre el agua."""
-        return any((punto - c).length() <= r for c, r in self.circulos)
+        return any((punto - c).length() <= r for c, r in self.circulos) and not self._evaporado(punto)
 
     def en_zona_peligro(self, punto):
         """True si el punto está en la zona central peligrosa de un lago grande."""
-        return self.es_lago_profundo and (punto - self.centro).length() <= self.radio_peligro
+        return (self.es_lago_profundo and (punto - self.centro).length() <= self.radio_peligro
+                and not self._evaporado(punto))
 
     def dibujar(self, pantalla, desplazamiento):
         pantalla.blit(self.superficie, (self.rect.x - desplazamiento[0], self.rect.y - desplazamiento[1]))
@@ -1454,6 +1473,8 @@ def iniciar_mundo(config):
                             aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
                         if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
                             aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
+                        if hasattr(p, "impactar"):
+                            p.impactar()            # Estrella Ignea: explota 0.5 s despues
                         p.activo = False
                         break
             jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
@@ -1479,6 +1500,14 @@ def iniciar_mundo(config):
                 if hasattr(hab, "actualizar_cuchillas"):
                     destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, vegetacion.arboles, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
                     vegetacion.liberar_obstaculos(destruidas)
+            # Estrella Ignea: choques con troncos/arbustos, explosiones y suelo en llamas
+            for hab in jugador.habilidades:
+                if hasattr(hab, "actualizar_explosiones"):
+                    destruidas, evaporado = hab.actualizar_explosiones(dt, jugador, enemigos, rocas, vegetacion.arbustos,
+                                                                       vegetacion.arboles, charcos)
+                    vegetacion.liberar_obstaculos(destruidas)
+                    for centro_ev, radio_ev in evaporado:
+                        fauna.quitar_fauna_acuatica(centro_ev, radio_ev)
 
             # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
             maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
@@ -1616,6 +1645,8 @@ def iniciar_mundo(config):
         for hab in jugador.habilidades:
             if hasattr(hab, "dibujar_telaranas"):
                 hab.dibujar_telaranas(pantalla, desplazamiento)
+            if hasattr(hab, "dibujar_suelo"):
+                hab.dibujar_suelo(pantalla, desplazamiento)
         # Maniqui de pruebas en el centro
         maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
 
@@ -1641,6 +1672,8 @@ def iniciar_mundo(config):
                 hab.dibujar_cuchillas(pantalla, desplazamiento)
             if hasattr(hab, "dibujar_ondas"):
                 hab.dibujar_ondas(pantalla, desplazamiento)
+            if hasattr(hab, "dibujar_explosiones"):
+                hab.dibujar_explosiones(pantalla, desplazamiento)
         jugador.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
 
         # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)

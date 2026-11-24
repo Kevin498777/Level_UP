@@ -284,7 +284,9 @@ Buff de fuerza **+21 % → +40 %**, duración **6 → 10 s**, recarga **12 → 8
 
 ### 9.3 Disparo Veloz
 
-Esfera recta **muy rápida**: su punto fuerte es la velocidad del proyectil, **14 → 40** (lineal, la más alta del juego). Daño mágico **fijo 8 → 30** (lineal; ya no depende del arma), coste fijo **15 → 35 En.** (15 +5 cada 5 niveles), recarga **2 → 0.5 s**. Se detiene en el **primer enemigo** que toca (daño mágico) o en las rocas (se comprueba su trayecto en cada frame para que no salte rocas pequeñas).
+Esfera recta **muy rápida**: su punto fuerte es la velocidad del proyectil, **14 → 35** (lineal). Daño mágico **fijo 8 → 25** (lineal; no depende del arma), coste fijo **15 → 35 En.** (15 +5 cada 5 niveles), recarga **4 → 2 s** (lineal). Ajuste (nerf) del 24/11/2026: antes era velocidad 14 → 40, daño 8 → 30 y recarga 2 → 0.5 s. Se detiene en el **primer enemigo** que toca (daño mágico) o en las rocas (se comprueba su trayecto en cada frame para que no salte rocas pequeñas).
+
+**Potenciada: Ráfaga Veloz (niveles 21 – 30).** Sale en el **Gacha mejorado**; se usa con Disparo Veloz en el nivel 20 y cada nivel cuesta **2 puntos**. Cada activación lanza una **ráfaga**: **2 disparos (nv21) → 10 (nv29 y nv30)**, uno cada **0.5 s**, cada uno hacia donde miras en ese momento con un desvío al azar dentro de un **cono de 15°**. En el nivel 30, **2 de los 10 son rojos** (al azar) y hacen **35** de daño. Lineal desde el 20: velocidad **36 → 45**, daño **25.5 → 30**, coste **37 → 50 En.** (una vez por ráfaga) y recarga **1.85 → 0.5 s**, que empieza tras el último disparo. Cada disparo se detiene en el primer enemigo (daño mágico). Durante la ráfaga no se puede relanzar; si la guardas a mitad se cancelan los disparos que faltan.
 
 ### 9.4 Invocar Conejos
 
@@ -306,6 +308,9 @@ Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla h
 **No es acumulable**: reaplicarla reinicia la duración y se queda con el mayor daño por segundo. El enemigo quemado muestra un **anillo naranja**.
 
 La energía se gasta **en tiempo real**: al pulsar se cobran 15 y cada segundo completo de carga cobra su parte (+5, +5, +5, +5 y +10; 45 en total a 5 s). Si no queda energía para el siguiente segundo, la carga se detiene en el nivel ya pagado y dispara con él al soltar.
+
+**Potenciada: Estrella Ígnea (niveles 21 – 30).** Sale en el Gacha mejorado; se usa con Carga de Fuego en el nivel 20 y cada nivel cuesta **2 puntos**. Daño base **40 → 49** (+1 por nivel). La carga llega a **8 s** (×2.2, ×2.4, ×2.6); la recarga sigue la regla de siempre (8 s + 1.4 s por segundo de carga) y la quemadura dura **1 s más** que en Carga de Fuego (3 → 11 s). Lleva una **estrella roja** en el centro. Al chocar con **cualquier cosa** (enemigo, roca, tronco o arbusto) se apaga y **0.5 s después explota** en **100 px**: **30 % del daño del impacto** (mágico) a todos los enemigos dentro, incluido el golpeado (al jugador no le hace daño); **destruye** rocas (salvo gigantes y cuevas de oso), árboles y arbustos (salvo el arbusto donde estás escondido); el **agua** que toca se **evapora para siempre** (queda tierra del color de la orilla: ya no frena, no hace daño de lago profundo y desaparecen sus peces y ranas); y deja **suelo en llamas 10 s** que hace **1 de daño por segundo** a los enemigos dentro (ignora escudos; varias zonas no se suman).
+Tabla completa en `Tablas_Escalado.md` (2.5).
 
 ### 9.6 Aura Eléctrica
 
@@ -400,7 +405,7 @@ El personaje, el maniquí, las invocaciones y los **animales con cuerpo** de la 
 Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
 
 - **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 8 s** (ver 6.3).
-- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Si hay arbustos solapados (matorral), corta el más cercano.
+- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Las **cuevas de oso** no se destruyen nunca (ni con Cortar ni con Estrella Ígnea). Si hay arbustos solapados (matorral), corta el más cercano.
 - **Árbol:** lo **destruye al tocar cualquier parte** (incluida la copa), **a cualquier nivel**, y la cuchilla se rompe con él.
 - Los objetos destruidos **no reaparecen** (tampoco los frutales) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
 

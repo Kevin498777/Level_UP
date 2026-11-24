@@ -58,7 +58,8 @@ def actualizar_anulacion_escudo_magico(objetivo, dt):
 # CLASE PROYECTIL DE ENERGÍA (DISPARO VELOZ)
 # -----------------------------
 class ProyectilEnergia:
-    def __init__(self, x, y, dx, dy, velocidad=10.0, dano=1.0, radio=6):
+    def __init__(self, x, y, dx, dy, velocidad=10.0, dano=1.0, radio=6, roja=False):
+        self.roja = roja              # bala roja de Rafaga Veloz (mas dano), solo cambia el color
         self.posicion = pygame.Vector2(x, y)
         if dx != 0 or dy != 0:
             self.direccion = pygame.Vector2(dx, dy).normalize()
@@ -98,12 +99,14 @@ class ProyectilEnergia:
         px = round(self.posicion.x - desplazamiento[0])
         py = round(self.posicion.y - desplazamiento[1])
 
+        halo, nucleo, centro = (((255, 90, 80), (255, 220, 220), (220, 30, 30)) if self.roja
+                                else ((255, 235, 90), (255, 255, 255), (255, 175, 20)))
         # Resplandor exterior
-        pygame.draw.circle(pantalla, (255, 235, 90), (px, py), self.radio + 2)
-        # Núcleo blanco brillante
-        pygame.draw.circle(pantalla, (255, 255, 255), (px, py), self.radio)
-        # Centro energético dorado
-        pygame.draw.circle(pantalla, (255, 175, 20), (px, py), max(2, self.radio - 2))
+        pygame.draw.circle(pantalla, halo, (px, py), self.radio + 2)
+        # Núcleo brillante
+        pygame.draw.circle(pantalla, nucleo, (px, py), self.radio)
+        # Centro energético
+        pygame.draw.circle(pantalla, centro, (px, py), max(2, self.radio - 2))
 
 
 # -----------------------------
@@ -111,8 +114,13 @@ class ProyectilEnergia:
 # -----------------------------
 class ProyectilFuego:
     """Esfera de fuego recta. Daño y radio dependen de la carga; al golpear aplica quemadura."""
-    def __init__(self, x, y, dx, dy, velocidad, dano, radio, quemadura_dano=1, quemadura_duracion=5.0):
+    def __init__(self, x, y, dx, dy, velocidad, dano, radio, quemadura_dano=1, quemadura_duracion=5.0,
+                 al_impactar=None):
         self.posicion = pygame.Vector2(x, y)
+        self.origen = pygame.Vector2(x, y)
+        # Estrella Ignea: funcion(posicion) a la que se avisa al chocar con algo (explosion).
+        # None en la Carga de Fuego normal.
+        self.al_impactar = al_impactar
         self.direccion = pygame.Vector2(dx, dy).normalize() if (dx != 0 or dy != 0) else pygame.Vector2(0, -1)
         self.velocidad = velocidad
         self.dano = dano
@@ -138,6 +146,16 @@ class ProyectilFuego:
         pygame.draw.circle(pantalla, (255, 110, 20), (px, py), self.radio + 2)          # resplandor
         pygame.draw.circle(pantalla, (255, 170, 55), (px, py), self.radio)              # cuerpo
         pygame.draw.circle(pantalla, (255, 240, 180), (px, py), max(2, self.radio - 3)) # núcleo
+        if self.al_impactar is not None:
+            dibujar_estrella(pantalla, (px, py), max(4, self.radio - 2))
+
+    def impactar(self):
+        """Choca con algo: se apaga y, si es Estrella Ignea, avisa para la explosion."""
+        if not self.activo:
+            return
+        self.activo = False
+        if self.al_impactar is not None:
+            self.al_impactar(pygame.Vector2(self.posicion), self.dano)
 
 
 # -----------------------------
@@ -579,10 +597,25 @@ class BurstDeFuerza(HabilidadBase):
 # -----------------------------
 # HABILIDAD 3: DISPARO VELOZ (NUEVA)
 # -----------------------------
+# Rafaga Veloz (Disparo Veloz potenciado): valores del nivel 30 (lineales desde el 20)
+RAFAGA_INTERVALO = 0.5            # s entre disparos de la rafaga
+RAFAGA_DISPERSION = 15.0          # grados de cono en total (+-7.5 respecto al frente)
+RAFAGA_DISPAROS_MAX = 10
+RAFAGA_ROJAS_NV30 = 2             # en el nivel 30, 2 de los 10 disparos (al azar) son rojos
+RAFAGA_DANO_ROJA = 35.0
+RAFAGA_VELOCIDAD_MAX = 45.0
+RAFAGA_DANO_MAX = 30.0
+RAFAGA_COSTO_MAX = 50
+RAFAGA_RECARGA_MIN = 0.5
+
+
 class DisparoVeloz(HabilidadBase):
-    # Daño mágico fijo y velocidad del proyectil (su punto fuerte), lineales de nivel 1 a 20
-    DANO_NV1, DANO_NV_MAX = 8.0, 30.0
-    VELOCIDAD_NV1, VELOCIDAD_NV_MAX = 14.0, 40.0
+    # Daño mágico fijo, velocidad del proyectil (su punto fuerte) y recarga, lineales de nivel 1 a 20
+    DANO_NV1, DANO_NV_MAX = 8.0, 25.0
+    VELOCIDAD_NV1, VELOCIDAD_NV_MAX = 14.0, 35.0
+    RECARGA_NV1, RECARGA_NV_MAX = 4.0, 2.0
+    NIVEL_MAX_NORMAL = 20
+    POTENCIADA = {"nombre": "Ráfaga Veloz", "nivel_max": 30, "costo_mejora": 2}
 
     def __init__(self):
         super().__init__(
@@ -594,29 +627,83 @@ class DisparoVeloz(HabilidadBase):
             tecla=pygame.K_4,
             tecla_str="4"
         )
+        self.rafaga = []            # disparos pendientes de la rafaga (True = bala roja)
+        self._en_rafaga = False
+        self._t_rafaga = 0.0
 
     def _aplicar_nivel(self):
         """
-        Escalado de Disparo Veloz (nivel 1 a 20):
-        - velocidad del proyectil: 14 -> 40 lineal (a 1 decimal)
-        - daño mágico fijo: 8 -> 30 lineal (a 1 decimal); ya no depende del arma
-        - coste: 15 energía, +5 cada 5 niveles (rediseño: coste fijo, ya no porcentaje)
-        - recarga: 2s a nivel 1, baja de forma lineal hasta 0.5s a nivel máximo
+        Escalado de Disparo Veloz (nivel 1 a 20, ajuste del 24/11/2026):
+        - velocidad del proyectil: 14 -> 35 lineal (a 1 decimal)
+        - daño mágico fijo: 8 -> 25 lineal (a 1 decimal)
+        - coste: 15 energía, +5 cada 5 niveles (15 -> 35)
+        - recarga: 4 s -> 2 s lineal
+        Rafaga Veloz (potenciada, nivel 21 a 30), lineal desde el nivel 20:
+        - disparos por rafaga: nivel - 19 (nv21: 2 ... nv29: 10); nv30: 10, 2 de ellos rojos
+        - velocidad 35 -> 45, daño 25 -> 30 (rojas 35), coste 35 -> 50, recarga 2 -> 0.5 s
         """
         n = self.nivel
-        t = (n - 1) / (self.nivel_max - 1)
+        if n > self.NIVEL_MAX_NORMAL:
+            k = n - self.NIVEL_MAX_NORMAL
+            self.disparos = min(RAFAGA_DISPAROS_MAX, k + 1)
+            self.rojas = RAFAGA_ROJAS_NV30 if n >= 30 else 0
+            self.velocidad_proyectil = round(self.VELOCIDAD_NV_MAX + (RAFAGA_VELOCIDAD_MAX - self.VELOCIDAD_NV_MAX) * k / 10, 1)
+            self.dano = round(self.DANO_NV_MAX + (RAFAGA_DANO_MAX - self.DANO_NV_MAX) * k / 10, 1)
+            self.costo_energia = int(35 + (RAFAGA_COSTO_MAX - 35) * k / 10 + 0.5)
+            self.duracion_cooldown = round(self.RECARGA_NV_MAX - (self.RECARGA_NV_MAX - RAFAGA_RECARGA_MIN) * k / 10, 2)
+            self.duracion_activa = (self.disparos - 1) * RAFAGA_INTERVALO   # lo que dura la rafaga
+            return
+        t = (n - 1) / (self.NIVEL_MAX_NORMAL - 1)
+        self.disparos, self.rojas = 1, 0
         self.velocidad_proyectil = round(self.VELOCIDAD_NV1 + (self.VELOCIDAD_NV_MAX - self.VELOCIDAD_NV1) * t, 1)
         self.dano = round(self.DANO_NV1 + (self.DANO_NV_MAX - self.DANO_NV1) * t, 1)
         self.costo_energia = 15 + 5 * (n // 5)
-        self.duracion_cooldown = round(max(0.5, 2.0 - 1.5 * (n - 1) / (self.nivel_max - 1)), 2)
+        self.duracion_cooldown = round(self.RECARGA_NV1 + (self.RECARGA_NV_MAX - self.RECARGA_NV1) * t, 2)
+        self.duracion_activa = 0.0
 
     def obtener_costo_base(self, jugador):
         """Coste fijo de energía según el nivel (rediseño: ya no es un porcentaje de la energía máxima)."""
         return self.costo_energia
 
     def ejecutar_activacion(self, jugador):
-        """Dispara una esfera recta en la dirección a la que apunta el personaje."""
-        rad = math.radians(jugador.angulo)
+        """Disparo Veloz: una esfera recta hacia donde miras. Rafaga Veloz: 'disparos' esferas,
+        una cada RAFAGA_INTERVALO s, cada una hacia donde miras en ese momento con hasta
+        RAFAGA_DISPERSION / 2 grados de desvio al azar. La recarga empieza tras el ultimo."""
+        if not self.potenciada_activa:
+            self._disparar(jugador)
+            self.estado = "COOLDOWN"
+            self.tiempo_restante_activo = 0.0
+            self.tiempo_restante_cooldown = self.duracion_cooldown
+            return
+        rojas = set(random.sample(range(self.disparos), self.rojas)) if self.rojas else set()
+        self.rafaga = [i in rojas for i in range(self.disparos)]
+        self._en_rafaga = True
+        self._t_rafaga = 0.0
+        self.estado = "ACTIVA"
+        self._disparar(jugador, self.rafaga.pop(0), RAFAGA_DISPERSION)
+        self._continuar_rafaga(jugador, 0.0)
+
+    def _continuar_rafaga(self, jugador, dt):
+        self._t_rafaga += dt
+        while self.rafaga and self._t_rafaga >= RAFAGA_INTERVALO:
+            self._t_rafaga -= RAFAGA_INTERVALO
+            self._disparar(jugador, self.rafaga.pop(0), RAFAGA_DISPERSION)
+        if not self.rafaga:
+            self._en_rafaga = False
+            self.estado = "COOLDOWN"
+            self.tiempo_restante_activo = 0.0
+            self.tiempo_restante_cooldown = self.duracion_cooldown
+        else:
+            # tiempo que queda de rafaga (para el panel); +dt para que la base no la corte antes
+            self.tiempo_restante_activo = len(self.rafaga) * RAFAGA_INTERVALO - self._t_rafaga + dt
+
+    def actualizar(self, dt, jugador):
+        if self._en_rafaga:
+            self._continuar_rafaga(jugador, dt)
+        super().actualizar(dt, jugador)
+
+    def _disparar(self, jugador, roja=False, dispersion=0.0):
+        rad = math.radians(jugador.angulo + random.uniform(-dispersion / 2, dispersion / 2))
         frente_x = math.sin(rad)
         frente_y = -math.cos(rad)
 
@@ -630,17 +717,13 @@ class DisparoVeloz(HabilidadBase):
             dx=frente_x,
             dy=frente_y,
             velocidad=self.velocidad_proyectil,
-            dano=self.dano,
-            radio=6
+            dano=RAFAGA_DANO_ROJA if roja else self.dano,
+            radio=6,
+            roja=roja
         )
 
         if hasattr(jugador, "proyectiles"):
             jugador.proyectiles.append(proyectil)
-
-        # Pasa inmediatamente a su recarga
-        self.estado = "COOLDOWN"
-        self.tiempo_restante_activo = 0.0
-        self.tiempo_restante_cooldown = self.duracion_cooldown
 
 
 # -----------------------------
@@ -769,6 +852,8 @@ class CuchillaCortante:
             for roca in rocas:
                 if roca.rect.clipline(a, b):
                     self.activo = False
+                    if getattr(roca, "es_cueva", False):
+                        return None             # la cueva de un oso no se destruye nunca
                     if not getattr(roca, "gigante", False) or self.corta_grandes:
                         rocas.remove(roca)
                         return roca
@@ -1125,6 +1210,11 @@ def dibujar_icono_estado(pantalla, tipo, x, y, alto, color):
     Devuelve el ancho que ocupa, para escribir el texto a continuacion."""
     h = max(8, alto - 4)
     y0 = y + (alto - h) // 2
+    if tipo == "fuego":
+        w = h * 0.7
+        pts = [(x + w / 2, y0), (x + w, y0 + h * 0.65), (x + w * 0.75, y0 + h), (x + w * 0.25, y0 + h), (x, y0 + h * 0.65)]
+        pygame.draw.polygon(pantalla, color, [(round(a), round(b)) for a, b in pts])
+        return int(w) + 5
     if tipo == "rayo":
         w = h * 0.6
         pts = [(x + w * 0.65, y0), (x, y0 + h * 0.58), (x + w * 0.45, y0 + h * 0.58),
@@ -1178,14 +1268,20 @@ def resumen_habilidad(hab):
     elif hab.nombre == "Burst de Fuerza":
         detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Fza) | CD {hab.duracion_cooldown:.0f}s"
     elif hab.nombre == "Disparo Veloz":
-        detalles = f"Daño {hab.dano:g} mág. · Vel {hab.velocidad_proyectil:g} | CD {hab.duracion_cooldown:.1f}s"
+        detalles = f"Daño {hab.dano:g} mág. · Vel {hab.velocidad_proyectil:g} | CD {hab.duracion_cooldown:g}s"
+        if hab.potenciada_activa:
+            detalles = (f"{hab.disparos} disparos" + (f" ({hab.rojas} rojos {RAFAGA_DANO_ROJA:g})" if hab.rojas else "")
+                        + f" · Daño {hab.dano:g} · Vel {hab.velocidad_proyectil:g} | CD {hab.duracion_cooldown:g}s")
     elif hasattr(hab, "conejos"):
         detalles = f"Conejo: Vida {hab.vida_conejo} · Vel {hab.velocidad_conejo:.1f} · Daño {hab.dano_conejo:.1f}"
     elif hasattr(hab, "lobos"):
         detalles = f"Lobo: Vida {hab.vida_lobo} · Vel {hab.velocidad_lobo} · Daño {hab.dano_lobo:.1f} (33% desangrado)"
     elif hab.nombre == "Carga de Fuego":
-        detalles = (f"Daño {round(hab.dano_base * hab.MULT_CARGA[0], 1):g}-{round(hab.dano_base * hab.MULT_CARGA[5], 1):g}"
-                    f" · CD {hab.RECARGA_BASE:g}-{hab.RECARGA_BASE + hab.RECARGA_POR_SEGUNDO * 5:g}s")
+        tmax = hab.tier_max
+        detalles = (f"Daño {round(hab.dano_base * hab.MULT_CARGA[0], 1):g}-{round(hab.dano_base * hab.MULT_CARGA[tmax], 1):g}"
+                    f" · CD {hab.RECARGA_BASE:g}-{round(hab.RECARGA_BASE + hab.RECARGA_POR_SEGUNDO * tmax, 1):g}s")
+        if hab.potenciada_activa:
+            detalles += f" · Explosión {ESTRELLA_FRACCION_EXPLOSION * 100:.0f}%"
     elif hab.nombre == "Cortar":
         detalles = f"Daño {hab.dano} mág. · Vel {hab.velocidad_cuchilla} | CD {hab.duracion_cooldown:.0f}s"
     elif hab.nombre == "Onda Sonora":
@@ -1321,13 +1417,13 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
                 pygame.draw.rect(pantalla, (255, 120, 190), (tarjeta_x + pad, bar_y, ancho_l, 7), border_radius=3)
 
         elif getattr(hab, "cargando", False):
-            txt_est = fuente_mini.render(f"🔥 CARGANDO {hab.tiempo_carga:.1f}s", True, (255, 180, 80))
-            pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
+            dx = dibujar_icono_estado(pantalla, "fuego", tarjeta_x + pad, y_estado, fuente_mini.get_height(), (255, 180, 80))
+            pantalla.blit(fuente_mini.render(f"CARGANDO {hab.tiempo_carga:.1f}s", True, (255, 180, 80)), (tarjeta_x + pad + dx, y_estado))
 
             txt_tiempo = fuente_contador.render(f"{hab.tiempo_carga:.1f}", True, (255, 220, 150))
             pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
-            prog = hab.tiempo_carga / max(0.1, hab.TIEMPO_MAX_CARGA)
+            prog = hab.tiempo_carga / max(0.1, getattr(hab, "tiempo_max_carga", hab.TIEMPO_MAX_CARGA))
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
             pygame.draw.rect(pantalla, (50, 40, 30), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
             if ancho_l > 0:
@@ -2001,6 +2097,25 @@ class InvocacionLobos(OrdenesSombrias, HabilidadBase):
 # -----------------------------
 # HABILIDAD: CARGA DE FUEGO (disparo rápido o mantener para cargar)
 # -----------------------------
+# Estrella Ignea (Carga de Fuego potenciada): explosion al chocar y suelo en llamas
+ESTRELLA_RETRASO = 0.5                # s entre el impacto y la explosion
+ESTRELLA_RADIO_EXPLOSION = 100        # px
+ESTRELLA_FRACCION_EXPLOSION = 0.30    # dano de la explosion = 30 % del dano del impacto
+ESTRELLA_DURACION_SUELO = 10.0        # s que queda el suelo en llamas
+ESTRELLA_DANO_SUELO = 1               # dano por segundo dentro (ignora escudos, solo enemigos)
+
+
+def dibujar_estrella(pantalla, centro, radio, color=(220, 30, 30)):
+    """Estrella roja de 5 puntas (sello de Estrella Ignea)."""
+    cx, cy = centro
+    pts = []
+    for i in range(10):
+        r = radio if i % 2 == 0 else radio * 0.45
+        ang = -math.pi / 2 + i * math.pi / 5
+        pts.append((round(cx + math.cos(ang) * r), round(cy + math.sin(ang) * r)))
+    pygame.draw.polygon(pantalla, color, pts)
+
+
 class CargaDeFuego(HabilidadBase):
     """
     Esfera de fuego con dos modos: pulsar = disparo rápido; mantener = cargar (máx 5s)
@@ -2014,14 +2129,18 @@ class CargaDeFuego(HabilidadBase):
     """
     # Por segundo completo de carga (0 = sin carga): multiplicador del daño base, segundos de
     # quemadura, coste de energía acumulado y radio visual
-    MULT_CARGA = {0: 0.6, 1: 0.8, 2: 1.0, 3: 1.3, 4: 1.6, 5: 2.0}
+    # Los segundos 6 a 8 solo existen en Estrella Ignea (potenciada)
+    MULT_CARGA = {0: 0.6, 1: 0.8, 2: 1.0, 3: 1.3, 4: 1.6, 5: 2.0, 6: 2.2, 7: 2.4, 8: 2.6}
     QUEMADURA_CARGA = {0: 2.0, 1: 3.0, 2: 4.0, 3: 5.0, 4: 6.0, 5: 7.0}
+    QUEMADURA_ESTRELLA = {0: 3.0, 1: 4.0, 2: 5.0, 3: 6.0, 4: 7.0, 5: 8.0, 6: 9.0, 7: 10.0, 8: 11.0}
     QUEMADURA_DANO = 1                 # daño por segundo de la quemadura
     RECARGA_BASE = 8.0                 # recarga tras un disparo sin carga
     RECARGA_POR_SEGUNDO = 1.4          # cada segundo de carga suma recarga (5 s -> 15 s)
-    COSTO_CARGA = {0: 15, 1: 20, 2: 25, 3: 30, 4: 35, 5: 45}
-    RADIO_CARGA = {0: 6, 1: 8, 2: 11, 3: 14, 4: 17, 5: 22}
+    COSTO_CARGA = {0: 15, 1: 20, 2: 25, 3: 30, 4: 35, 5: 45, 6: 53, 7: 62, 8: 70}
+    RADIO_CARGA = {0: 6, 1: 8, 2: 11, 3: 14, 4: 17, 5: 22, 6: 25, 7: 28, 8: 32}
     TIEMPO_MAX_CARGA = 5.0
+    TIEMPO_MAX_CARGA_ESTRELLA = 8.0
+    POTENCIADA = {"nombre": "Estrella Ígnea", "nivel_max": 30, "costo_mejora": 2}
     VELOCIDAD = 10.0
 
     def __init__(self):
@@ -2040,14 +2159,26 @@ class CargaDeFuego(HabilidadBase):
         self.tier_pagado = 0            # Nivel de carga cuya energía ya se cobró
         self.carga_detenida = False     # True si se quedó sin energía para seguir cargando
         self.pos_carga = pygame.Vector2(0, 0)
+        self.explosiones = []           # Estrella Ignea: explosiones programadas [posicion, dano, t]
+        self.zonas_fuego = []           # suelo en llamas [posicion, t restante]
+        self.destellos = []             # efecto visual de cada explosion [posicion, t]
+        self._t_zonas = 0.0
 
     def _aplicar_nivel(self):
         """Daño base: 20 + 1 por nivel (desde nivel 1). El coste base (sin carga) es 15."""
         self.dano_base = 20 + (self.nivel - 1)
         self.costo_energia = self.COSTO_CARGA[0]
 
+    @property
+    def tiempo_max_carga(self):
+        return self.TIEMPO_MAX_CARGA_ESTRELLA if self.potenciada_activa else self.TIEMPO_MAX_CARGA
+
+    @property
+    def tier_max(self):
+        return int(self.tiempo_max_carga)
+
     def _tier(self, tiempo):
-        return max(0, min(5, int(tiempo)))
+        return max(0, min(self.tier_max, int(tiempo)))
 
     def obtener_costo_base(self, jugador):
         return self.COSTO_CARGA[0]  # coste al pulsar; cada segundo de carga cobra su parte
@@ -2093,8 +2224,11 @@ class CargaDeFuego(HabilidadBase):
         rad = math.radians(jugador.angulo)
         dx, dy = math.sin(rad), -math.cos(rad)
         origen = jugador.posicion + pygame.Vector2(dx, dy) * (jugador.radio + radio + 2)
+        estrella = self.potenciada_activa
+        quemadura = self.QUEMADURA_ESTRELLA[tier] if estrella else self.QUEMADURA_CARGA[tier]
         jugador.proyectiles.append(ProyectilFuego(origen.x, origen.y, dx, dy, self.VELOCIDAD, dano, radio,
-                                                  self.QUEMADURA_DANO, self.QUEMADURA_CARGA[tier]))
+                                                  self.QUEMADURA_DANO, quemadura,
+                                                  al_impactar=self.programar_explosion if estrella else None))
 
         # La recarga depende de la carga disparada (8 s sin carga -> 15 s a 5 s)
         self.duracion_cooldown = round(self.RECARGA_BASE + self.RECARGA_POR_SEGUNDO * tier, 1)
@@ -2105,7 +2239,7 @@ class CargaDeFuego(HabilidadBase):
         super().actualizar(dt, jugador)
         if self.cargando:
             if not self.carga_detenida:
-                self.tiempo_carga = min(self.TIEMPO_MAX_CARGA, self.tiempo_carga + dt)
+                self.tiempo_carga = min(self.tiempo_max_carga, self.tiempo_carga + dt)
                 self._cobrar_carga(jugador)
             rad = math.radians(jugador.angulo)
             dx, dy = math.sin(rad), -math.cos(rad)
@@ -2122,6 +2256,120 @@ class CargaDeFuego(HabilidadBase):
         pygame.draw.circle(pantalla, (255, 110, 20), (px, py), radio + 2)
         pygame.draw.circle(pantalla, (255, 170, 55), (px, py), radio)
         pygame.draw.circle(pantalla, (255, 240, 180), (px, py), max(2, radio - 3))
+        if self.potenciada_activa:
+            dibujar_estrella(pantalla, (px, py), max(4, radio - 2))
+
+    # ---- Estrella Ignea: explosion y suelo en llamas
+    def programar_explosion(self, posicion, dano_impacto):
+        """La esfera choco con algo: explota ESTRELLA_RETRASO s despues con el 30 % de su dano."""
+        self.explosiones.append([pygame.Vector2(posicion), dano_impacto * ESTRELLA_FRACCION_EXPLOSION, ESTRELLA_RETRASO])
+
+    def actualizar_explosiones(self, dt, jugador, enemigos, rocas, arbustos, arboles, charcos):
+        """Choques de la esfera con arboles y arbustos, explosiones pendientes y suelo en llamas.
+        Devuelve (obstaculos destruidos, circulos de agua evaporada [(centro, radio)])."""
+        destruidos, evaporado = [], []
+        # 1) La esfera tambien choca con troncos y arbustos (las rocas y los enemigos ya los ve el mundo)
+        for p in jugador.proyectiles:
+            if not p.activo or getattr(p, "al_impactar", None) != self.programar_explosion:
+                continue
+            if any((p.posicion - a.centro).length() <= a.radio_tronco + p.radio for a in arboles) or any(
+                    not (arb.contiene(p.origen) or arb.contiene(jugador.posicion)) and any((p.posicion - c).length() <= r + p.radio for c, r in arb.circulos)
+                    for arb in arbustos):
+                p.impactar()
+        # 2) Explosiones que ya toca detonar
+        for exp in self.explosiones:
+            exp[2] -= dt
+        listas = [e for e in self.explosiones if e[2] <= 0]
+        self.explosiones = [e for e in self.explosiones if e[2] > 0]
+        for centro, dano, _ in listas:
+            d, ev = self._detonar(centro, dano, jugador, enemigos, rocas, arbustos, arboles, charcos)
+            destruidos += d
+            evaporado += ev
+        # 3) Suelo en llamas: 1 de dano por segundo a cada enemigo dentro (no se suma entre zonas)
+        for z in self.zonas_fuego:
+            z[1] -= dt
+        self.zonas_fuego = [z for z in self.zonas_fuego if z[1] > 0]
+        for dst in self.destellos:
+            dst[1] -= dt
+        self.destellos = [x for x in self.destellos if x[1] > 0]
+        if self.zonas_fuego:
+            self._t_zonas += dt
+            while self._t_zonas >= 1.0:
+                self._t_zonas -= 1.0
+                for e in enemigos:
+                    if getattr(e, "vivo", True) and any(
+                            (e.posicion - c).length() <= ESTRELLA_RADIO_EXPLOSION + getattr(e, "radio", 0)
+                            for c, _ in self.zonas_fuego):
+                        e.vida = max(0.0, round(e.vida - ESTRELLA_DANO_SUELO, 2))   # ignora escudos
+        else:
+            self._t_zonas = 0.0
+        return destruidos, evaporado
+
+    def _detonar(self, centro, dano, jugador, enemigos, rocas, arbustos, arboles, charcos):
+        r = ESTRELLA_RADIO_EXPLOSION
+        for e in enemigos:
+            if getattr(e, "vivo", True) and hasattr(e, "recibir_dano") and \
+                    (e.posicion - centro).length() <= r + getattr(e, "radio", 0):
+                e.recibir_dano(round(dano, 1), "magico", e.posicion - centro)
+        destruidos = []
+        # Rocas: nunca las gigantes (ni las cuevas de oso)
+        for roca in list(rocas):
+            if getattr(roca, "gigante", False) or getattr(roca, "es_cueva", False):
+                continue
+            cx = max(roca.rect.left, min(centro.x, roca.rect.right))
+            cy = max(roca.rect.top, min(centro.y, roca.rect.bottom))
+            if (pygame.Vector2(cx, cy) - centro).length() <= r:
+                rocas.remove(roca)
+                destruidos.append(roca)
+        for arbol in list(arboles):
+            if (arbol.centro - centro).length() <= r + arbol.radio_tronco:
+                arboles.remove(arbol)
+                destruidos.append(arbol)
+        for arb in list(arbustos):
+            if arb.contiene(jugador.posicion):
+                continue                    # el arbusto donde estas escondido no se quema
+            if any((c - centro).length() <= r + rc for c, rc in arb.circulos):
+                arbustos.remove(arb)
+                destruidos.append(arb)
+        evaporado = []
+        for charco in charcos:
+            if any((c - centro).length() <= r + rc for c, rc in charco.circulos):
+                charco.evaporar(centro, r)
+                evaporado.append((pygame.Vector2(centro), r))
+        self.zonas_fuego.append([pygame.Vector2(centro), ESTRELLA_DURACION_SUELO])
+        self.destellos.append([pygame.Vector2(centro), 0.35])
+        return destruidos, evaporado
+
+    def dibujar_suelo(self, pantalla, desplazamiento=(0, 0)):
+        """Suelo en llamas (bajo las entidades)."""
+        t = pygame.time.get_ticks() / 1000.0
+        r = ESTRELLA_RADIO_EXPLOSION
+        for c, restante in self.zonas_fuego:
+            px, py = round(c.x - desplazamiento[0]), round(c.y - desplazamiento[1])
+            alfa = int(70 * min(1.0, restante / 2.0) * (0.8 + 0.2 * math.sin(t * 9)))
+            capa = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(capa, (255, 90, 20, alfa), (r + 2, r + 2), r)
+            pygame.draw.circle(capa, (255, 160, 40, min(255, alfa * 2)), (r + 2, r + 2), r, 2)
+            pantalla.blit(capa, (px - r - 2, py - r - 2))
+            rng = random.Random(int(t * 8) + int(c.x))
+            for _ in range(6):
+                ang, dist = rng.uniform(0, math.tau), rng.uniform(0, r * 0.9)
+                fx, fy = px + math.cos(ang) * dist, py + math.sin(ang) * dist
+                pygame.draw.polygon(pantalla, (255, 140, 30), [(fx, fy - 7), (fx + 3, fy), (fx - 3, fy)])
+
+    def dibujar_explosiones(self, pantalla, desplazamiento=(0, 0)):
+        """Aviso de la explosion pendiente y destello al detonar (encima de las entidades)."""
+        for c, _, restante in self.explosiones:
+            px, py = round(c.x - desplazamiento[0]), round(c.y - desplazamiento[1])
+            prog = 1.0 - restante / ESTRELLA_RETRASO
+            pygame.draw.circle(pantalla, (255, 80, 40), (px, py), max(2, int(ESTRELLA_RADIO_EXPLOSION * prog)), 1)
+            dibujar_estrella(pantalla, (px, py), 6)
+        for c, restante in self.destellos:
+            px, py = round(c.x - desplazamiento[0]), round(c.y - desplazamiento[1])
+            r = ESTRELLA_RADIO_EXPLOSION
+            capa = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(capa, (255, 200, 80, int(200 * restante / 0.35)), (r + 2, r + 2), r)
+            pantalla.blit(capa, (px - r - 2, py - r - 2))
 
 
 # -----------------------------

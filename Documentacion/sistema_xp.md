@@ -95,7 +95,7 @@ Para que el mundo no se agote, los animales vuelven sin pasar nunca el máximo d
 | Jabalí | Cada 60 s nace +1 si quedan 2 o más (máx. 20). |
 | Zorro | Cada **3 min** aparece uno nuevo en el mundo (fuera de tu vista) y cada **2 min** nace +1 si quedan 2 o más (máx. 15). |
 | Lobos | Cada **1 min** la manada crece **+1** (hasta 4) si no está en combate. Al llegar a 4 sin alfa, **uno evoluciona a alfa**. Si exterminas una manada, al minuto **se inicia otra con 2 lobos en otro bosque** (a más de 1500 px y fuera de tu vista). Siempre hay **7 manadas** como máximo. |
-| Oso | **3 min** después de morir aparece un oso nuevo **en su misma cueva**, salvo que estés dentro de ella o que la roca se haya destruido con Cortar. |
+| Oso | **3 min** después de morir aparece un oso nuevo **en su misma cueva**, salvo que estés dentro de ella (la cueva no se puede destruir). |
 | Cocodrilo | No reaparece. |
 
 ---

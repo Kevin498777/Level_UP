@@ -182,30 +182,45 @@ Buff de fuerza temporal; potencia el golpe del arma (el daño sigue siendo físi
 
 ### 2.3 Disparo Veloz
 
-Esfera de energía recta (daño mágico) **muy rápida**: la velocidad del proyectil es su punto fuerte. Daño **fijo** (ya no depende del arma). Se destruye al chocar con rocas (también comprueba el trayecto de cada frame para no saltarse rocas pequeñas).
+Esfera de energía recta (daño mágico) **muy rápida**: la velocidad del proyectil es su punto fuerte. Daño **fijo** (no depende del arma). Se destruye al chocar con rocas (también comprueba el trayecto de cada frame para no saltarse rocas pequeñas). **Ajuste del 24/11/2026 (nerf):** velocidad 14 → 35 (antes 40), daño 8 → 25 (antes 30) y recarga 4 → 2 s (antes 2 → 0.5 s), todo lineal; el coste no cambia.
 
 | Nivel | Velocidad proyectil | Daño | Recarga | Coste En. |
 |---|---|---|---|---|
-| 1 | 14 | 8 | 2 s | 15 |
-| 2 | 15.4 | 9.2 | 1.92 s | 15 |
-| 3 | 16.7 | 10.3 | 1.84 s | 15 |
-| 4 | 18.1 | 11.5 | 1.76 s | 15 |
-| 5 | 19.5 | 12.6 | 1.68 s | 20 |
-| 6 | 20.8 | 13.8 | 1.61 s | 20 |
-| 7 | 22.2 | 14.9 | 1.53 s | 20 |
-| 8 | 23.6 | 16.1 | 1.45 s | 20 |
-| 9 | 24.9 | 17.3 | 1.37 s | 20 |
-| 10 | 26.3 | 18.4 | 1.29 s | 25 |
-| 11 | 27.7 | 19.6 | 1.21 s | 25 |
-| 12 | 29.1 | 20.7 | 1.13 s | 25 |
-| 13 | 30.4 | 21.9 | 1.05 s | 25 |
-| 14 | 31.8 | 23.1 | 0.97 s | 25 |
-| 15 | 33.2 | 24.2 | 0.89 s | 30 |
-| 16 | 34.5 | 25.4 | 0.82 s | 30 |
-| 17 | 35.9 | 26.5 | 0.74 s | 30 |
-| 18 | 37.3 | 27.7 | 0.66 s | 30 |
-| 19 | 38.6 | 28.8 | 0.58 s | 30 |
-| 20 | 40 | 30 | 0.5 s | 35 |
+| 1 | 14 | 8 | 4 s | 15 |
+| 2 | 15.1 | 8.9 | 3.89 s | 15 |
+| 3 | 16.2 | 9.8 | 3.79 s | 15 |
+| 4 | 17.3 | 10.7 | 3.68 s | 15 |
+| 5 | 18.4 | 11.6 | 3.58 s | 20 |
+| 6 | 19.5 | 12.5 | 3.47 s | 20 |
+| 7 | 20.6 | 13.4 | 3.37 s | 20 |
+| 8 | 21.7 | 14.3 | 3.26 s | 20 |
+| 9 | 22.8 | 15.2 | 3.16 s | 20 |
+| 10 | 23.9 | 16.1 | 3.05 s | 25 |
+| 11 | 25.1 | 16.9 | 2.95 s | 25 |
+| 12 | 26.2 | 17.8 | 2.84 s | 25 |
+| 13 | 27.3 | 18.7 | 2.74 s | 25 |
+| 14 | 28.4 | 19.6 | 2.63 s | 25 |
+| 15 | 29.5 | 20.5 | 2.53 s | 30 |
+| 16 | 30.6 | 21.4 | 2.42 s | 30 |
+| 17 | 31.7 | 22.3 | 2.32 s | 30 |
+| 18 | 32.8 | 23.2 | 2.21 s | 30 |
+| 19 | 33.9 | 24.1 | 2.11 s | 30 |
+| 20 | 35 | 25 | 2 s | 35 |
+
+**Niveles 21 – 30: Ráfaga Veloz** (versión potenciada, sale en el Gacha mejorado; solo se usa con Disparo Veloz en el nivel 20 y cada nivel cuesta **2 puntos**). Lanza una **ráfaga**: un disparo cada **0.5 s** hacia donde miras en ese momento, con un desvío al azar dentro de un **cono de 15°** (±7.5°). En el nivel 30, **2 de los 10 disparos (al azar) son rojos** y hacen 35. El coste se paga una vez por ráfaga y la recarga empieza tras el último disparo. Todo lo demás, lineal desde el nivel 20.
+
+| Nivel | Disparos | Velocidad | Daño | Recarga | Coste En. |
+|---|---|---|---|---|---|
+| 21 | 2 | 36 | 25.5 | 1.85 s | 37 |
+| 22 | 3 | 37 | 26 | 1.7 s | 38 |
+| 23 | 4 | 38 | 26.5 | 1.55 s | 40 |
+| 24 | 5 | 39 | 27 | 1.4 s | 41 |
+| 25 | 6 | 40 | 27.5 | 1.25 s | 43 |
+| 26 | 7 | 41 | 28 | 1.1 s | 44 |
+| 27 | 8 | 42 | 28.5 | 0.95 s | 46 |
+| 28 | 9 | 43 | 29 | 0.8 s | 47 |
+| 29 | 10 | 44 | 29.5 | 0.65 s | 49 |
+| 30 | 10 (2 rojos) | 45 | 30 (rojos 35) | 0.5 s | 50 |
 
 ### 2.4 Invocar Conejos
 
@@ -275,6 +290,20 @@ Esfera de fuego (daño mágico). Pulsar = disparo rápido; mantener hasta 5 s = 
 | 3 s | x1.3 | 5 s | 12.2 s | 5 | 30 | 14 px |
 | 4 s | x1.6 | 6 s | 13.6 s | 5 | 35 | 17 px |
 | 5 s | x2.0 | 7 s | 15 s | 10 | 45 | 22 px |
+
+**Estrella Ígnea (potenciada, niveles 21 – 30).** Sale en el Gacha mejorado; se usa con Carga de Fuego en el nivel 20 y cada nivel cuesta **2 puntos**. Daño base **40 → 49** (+1 por nivel). La carga llega a **8 s** (×2.2, ×2.4, ×2.6); la recarga sigue la regla de siempre (8 s + 1.4 s por segundo de carga) y la quemadura dura **1 s más** que en Carga de Fuego (3 → 11 s). Lleva una **estrella roja** en el centro. Al chocar con **cualquier cosa** (enemigo, roca, tronco o arbusto) se apaga y **0.5 s después explota** en **100 px**: **30 % del daño del impacto** (mágico) a todos los enemigos dentro, incluido el golpeado (al jugador no le hace daño); **destruye** rocas (salvo gigantes y cuevas de oso), árboles y arbustos (salvo el arbusto donde estás escondido); el **agua** que toca se **evapora para siempre** (queda tierra del color de la orilla: ya no frena, no hace daño de lago profundo y desaparecen sus peces y ranas); y deja **suelo en llamas 10 s** que hace **1 de daño por segundo** a los enemigos dentro (ignora escudos; varias zonas no se suman).
+
+| Carga | Multiplicador | Daño nv30 (base 49) | Quemadura | Recarga | Energía en ese segundo | Coste acumulado | Radio |
+|---|---|---|---|---|---|---|---|
+| Sin carga | x0.6 | 29.4 | 3 s | 8 s | 15 | 15 | 6 px |
+| 1 s | x0.8 | 39.2 | 4 s | 9.4 s | 5 | 20 | 8 px |
+| 2 s | x1 | 49 | 5 s | 10.8 s | 5 | 25 | 11 px |
+| 3 s | x1.3 | 63.7 | 6 s | 12.2 s | 5 | 30 | 14 px |
+| 4 s | x1.6 | 78.4 | 7 s | 13.6 s | 5 | 35 | 17 px |
+| 5 s | x2 | 98 | 8 s | 15 s | 10 | 45 | 22 px |
+| 6 s | x2.2 | 107.8 | 9 s | 16.4 s | 8 | 53 | 25 px |
+| 7 s | x2.4 | 117.6 | 10 s | 17.8 s | 9 | 62 | 28 px |
+| 8 s | x2.6 | 127.4 | 11 s | 19.2 s | 8 | 70 | 32 px |
 
 ### 2.6 Aura Eléctrica
 

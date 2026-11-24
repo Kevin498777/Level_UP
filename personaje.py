@@ -435,7 +435,7 @@ class Personaje:
                 for c in getattr(h, lista):
                     c.vivo = False
                 setattr(h, lista, [])
-        for lista in ("telaranas", "cuchillas", "emisiones"):
+        for lista in ("telaranas", "cuchillas", "emisiones", "rafaga", "explosiones", "zonas_fuego"):
             if hasattr(h, lista):
                 setattr(h, lista, [])
         if getattr(h, "cargando", False):
@@ -932,7 +932,10 @@ class Personaje:
             if rocas and p.activo and not getattr(p, "clavada", False):
                 for roca in rocas:
                     if p.hitbox.colliderect(roca.rect) or roca.rect.clipline(previa, p.posicion):
-                        p.activo = False
+                        if hasattr(p, "impactar"):
+                            p.impactar()        # Estrella Ignea: explota al chocar
+                        else:
+                            p.activo = False
                         break
         # Filtrar proyectiles inactivos (que salieron del mundo o chocaron)
         self.proyectiles = [p for p in self.proyectiles if p.activo]
