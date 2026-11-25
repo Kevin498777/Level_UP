@@ -723,6 +723,8 @@ class Personaje:
             elif hab.nombre == "Aura Electrica" and hab.estado == "ACTIVA":
                 buffs_aura.append(hab)
         modificador += combinar_buffs(buffs_destello) - fatiga_destello + combinar_buffs(buffs_aura)
+        # Habilidades canalizadas que frenan mientras se mantiene la tecla (Regeneracion Inversa)
+        modificador -= sum(getattr(hab, "ralentizacion_canalizando", 0.0) for hab in self.habilidades_en_efecto())
 
         # Modificador acumulable de herramienta activa
         if self.herramienta and self.herramienta.activa:

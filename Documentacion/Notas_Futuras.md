@@ -358,3 +358,80 @@ recarga **60s→80s**
 coste **58En.→80**
 Pasiva **golpes electricos** aumenta el daño de la arma **1%→10%**
 Los golpes aturder a los enemigos un **0.1%s→1s** cd de 1.5s 
+
+
+### Reforzamiento Mágico → Reforzamiento inverso
+Estaditicas de reforzamiento magico 20
+Campo de fuerza **azul celeste** (solo el contorno, delgado) un **10 % más grande** que el personaje. Bloquea **daño físico y mágico**: absorbe todo el daño hasta agotar su **dureza**. Si la dureza se agota antes de terminar la duración, el campo **se rompe**, entra en recarga y el daño sobrante pasa a los escudos y a la vida.
+Ajuste de habilidad
+
+| Nivel | Dureza | Duración | Recarga | Coste En. |
+|---    |---     |---       |---      |--- |
+| 1     | 200    | 1 s      | 20 s    | 10 |
+| 5     | 260    | 3 s      | 18 s    | 15 |
+| 10    | 335    | 5 s      | 15 s    | 20 |
+| 15    | 410    | 7 s      | 10 s    | 25 |
+| 20    | **500**| 10 s     | 8 s     | 30 |
+
+**Reforzamiento inverso**
+Estaditicas de reforzamiento inverso 20  → 30 
+Campo de fuerza **azul marino** (solo el contorno, delgado) un **10 % más grande** que el personaje. Bloquea **daño físico y mágico**: absorbe todo el daño hasta agotar su **dureza**. Si la dureza se agota antes de terminar la duración, el campo **se rompe**, entra en recarga y el daño sobrante pasa a los escudos y a la vida.
+
+| Nivel | Dureza | Duración | Recarga | Coste En. |
+|---    |---     |---       |---      |--- |
+| 20    | 500    | Infinita | 8 s     | 5 de energia por segundo    |
+| 22    | 600    | Infinita | 7 s     | 4.5 de energia por segundo  |
+| 25    | 700    | Infinita | 6 s     | 4 de energia por segundo    |
+| 27    | 800    | Infinita | 5 s     | 3.5 de energia por segundo  |
+| 30    | 900    | Infinita | 3 s     | 3 de energia por segundo    | 
+
+Este escudo consume energia por segundo se activa con la tecla normal donde esa posisionada y se desactiva volvendola a precionar si ya no hay energia se desactiva automaticaemnte
+Este escudo no se regenera la unica forma de que se regenere es desactivarlo y activarlo
+
+### Regeneración Inversa → Invercion Vital
+Estadistica de regeneracion inversa
+Ajsute de habilidad
+Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; con la vida llena no cobra). Si no hay energía para el siguiente intervalo, deja de curar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **rosa**. Nivel máximo **10**; cada mejora cuesta **2 puntos** (como las armas).
+Tiene un debuff de -20% de velocidad cuando se esta curando
+
+| Nivel | Cura | Energía | Cada |
+|---    |---   |---      |---   |
+| 1 – 2 | +2   | −5      | 4 s  |
+| 3 – 5 | +4   | −10     | 3.5 s  |
+| 6 – 8 | +8   | −15     | 3 s  |
+| 9     | +10  | −20     | 2.5 s  |
+| 10    | +12  | −25     | 2 s 
+
+**Inversion vital**
+Esta aparece Un boton de cambio en el panel de la habilidad en el juego el cual intercambie entre 
+Regeneracion inversa y Inversion Vital
+Regeneracion inversa realiza lo mismo con el sigueinte escalado
+Nivel maximo 15
+Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; con la vida llena no cobra). Si no hay energía para el siguiente intervalo, deja de curar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **rosa**. Nivel máximo **10**; cada mejora cuesta **2 puntos** (como las armas).
+Tiene un debuff de -20% de velocidad cuando se esta curando
+
+| Nivel | Cura | Energía | Cada |-velocidad
+|---    |---   |---      |---   |---------
+| 15    | +12  | −25     | 2 s  | -20%
+| 16    | +14  | −26     | 2 s  | -16
+| 17    | +16  | −27     | 2 s  | -12
+| 18    | +18  | −28     | 2 s  | -8
+| 19    | +20  | −29     | 2 s  | -4
+| 20    | +20  | −30     | 2 s  | -0
+Inversion vital 
+(Comparte el mismo nivel escala igual)
+Nivel maximo 15
+Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra vida y regenera energia (sin pasar de la energia maxima; con la nergia llena no cobra). Si hay menos de 5 de vida no se puede activar, deja de regenerar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **Azul marino y rosa**. Nivel máximo **15**; cada mejora cuesta **3 puntos**.
+Tiene un debuff de -20% de velocidad cuando se esta curando
+energia 113/100    100/100   2+2+2=6           1 98/100  2 99/100   3 
+vida   54/100    50/100                     1 58/100     2 56/100   3
+| Nivel | Daño | Energía | Cada |-velocidad|Curacion en area|
+|---    |---   |---      |---   |--------- |----------------|
+| 15    | -4   | +20     | 2 s  | -20%     | +2
+| 16    | -8   | +25     | 2 s  | -16      | +4
+| 17    | -12  | +30     | 2 s  | -12      | +6
+| 18    | -16  | +40     | 2 s  | -8       | +8
+| 19    | -20  | +50     | 2 s  | -4       | +10
+| 20    | -25  | +60     | 2 s  | -0       | +12
+Pasiva genera una onda color rosa que cada 2s que cura a los aliados (sombras) solo a aliados no a si mismo
+cd en intervalo de cambio entre regeneracion inversa e inversion vital 4s en todos los niveles 10-15

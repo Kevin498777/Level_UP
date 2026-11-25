@@ -349,47 +349,74 @@ Aura de radio 100 px que sigue al personaje: buff de velocidad y daño por segun
 
 ### 2.7 Reforzamiento Mágico
 
-Campo de fuerza azul celeste (solo contorno), un 10 % más grande que el personaje, que bloquea daño físico y mágico. Absorbe todo el daño hasta agotar su dureza; si se agota antes de terminar la duración se rompe, entra en recarga y el sobrante pasa a los escudos y a la vida.
+Campo de fuerza azul celeste (solo contorno), un 10 % más grande que el personaje, que bloquea daño físico y mágico. Absorbe todo el daño hasta agotar su dureza; si se agota antes de terminar la duración se rompe, entra en recarga y el sobrante pasa a los escudos y a la vida. Todo sube **lineal** entre los niveles 1, 5, 10, 15 y 20 (el coste se redondea al entero).
 
 | Nivel | Dureza | Duración | Recarga | Coste En. |
 |---|---|---|---|---|
-| 1 | 200 | 1 s | 10 s | 25 |
-| 2 | 215 | 1 s | 10 s | 25 |
-| 3 | 230 | 1 s | 10 s | 25 |
-| 4 | 245 | 1 s | 10 s | 25 |
-| 5 | 260 | 2 s | 15 s | 30 |
-| 6 | 275 | 2 s | 15 s | 30 |
-| 7 | 290 | 2 s | 15 s | 30 |
-| 8 | 305 | 2 s | 15 s | 30 |
-| 9 | 320 | 2 s | 15 s | 30 |
-| 10 | 335 | 3 s | 20 s | 35 |
-| 11 | 350 | 3 s | 20 s | 35 |
-| 12 | 365 | 3 s | 20 s | 35 |
-| 13 | 380 | 3 s | 20 s | 35 |
-| 14 | 395 | 3 s | 20 s | 35 |
-| 15 | 410 | 4 s | 25 s | 40 |
-| 16 | 425 | 4 s | 25 s | 40 |
-| 17 | 440 | 4 s | 25 s | 40 |
-| 18 | 455 | 4 s | 25 s | 40 |
-| 19 | 470 | 4 s | 25 s | 40 |
-| 20 | 500 | 6 s | 35 s | 50 |
+| 1 | 200 | 1 s | 20 s | 10 |
+| 2 | 215 | 1.5 s | 19.5 s | 11 |
+| 3 | 230 | 2 s | 19 s | 13 |
+| 4 | 245 | 2.5 s | 18.5 s | 14 |
+| 5 | 260 | 3 s | 18 s | 15 |
+| 6 | 275 | 3.4 s | 17.4 s | 16 |
+| 7 | 290 | 3.8 s | 16.8 s | 17 |
+| 8 | 305 | 4.2 s | 16.2 s | 18 |
+| 9 | 320 | 4.6 s | 15.6 s | 19 |
+| 10 | 335 | 5 s | 15 s | 20 |
+| 11 | 350 | 5.4 s | 14 s | 21 |
+| 12 | 365 | 5.8 s | 13 s | 22 |
+| 13 | 380 | 6.2 s | 12 s | 23 |
+| 14 | 395 | 6.6 s | 11 s | 24 |
+| 15 | 410 | 7 s | 10 s | 25 |
+| 16 | 428 | 7.6 s | 9.6 s | 26 |
+| 17 | 446 | 8.2 s | 9.2 s | 27 |
+| 18 | 464 | 8.8 s | 8.8 s | 28 |
+| 19 | 482 | 9.4 s | 8.4 s | 29 |
+| 20 | 500 | 10 s | 8 s | 30 |
+
+**Reforzamiento Inverso (potenciada, nivel 20 con la potenciada desbloqueada y niveles 21 – 30).** Sale en el Gacha mejorado; cada nivel cuesta **2 puntos**. Campo **azul marino**. Se **enciende y se apaga con su tecla** y **no tiene duración**: gasta energía por segundo (la regeneración de energía sigue normal) y **encenderlo cuesta lo mismo que un segundo**. Si no queda energía se apaga solo. La dureza **no se regenera**: solo se rellena al volver a encenderlo. Al apagarse por cualquier motivo (tecla, rotura o sin energía) entra en recarga. Lineal entre los niveles 20, 22, 25, 27 y 30.
+
+| Nivel | Dureza | Duración | Recarga | Energía por segundo (y al encender) |
+|---|---|---|---|---|
+| 20 | 500 | Infinita | 8 s | 5 |
+| 21 | 550 | Infinita | 7.5 s | 4.75 |
+| 22 | 600 | Infinita | 7 s | 4.5 |
+| 23 | 633 | Infinita | 6.67 s | 4.333 |
+| 24 | 667 | Infinita | 6.33 s | 4.167 |
+| 25 | 700 | Infinita | 6 s | 4 |
+| 26 | 750 | Infinita | 5.5 s | 3.75 |
+| 27 | 800 | Infinita | 5 s | 3.5 |
+| 28 | 833 | Infinita | 4.33 s | 3.333 |
+| 29 | 867 | Infinita | 3.67 s | 3.167 |
+| 30 | 900 | Infinita | 3 s | 3 |
 
 ### 2.8 Regeneración Inversa
 
-Habilidad mágica que se **mantiene pulsada**, sin recarga. Cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima); si no hay energía suficiente deja de curar. Nivel máximo **10**; cada mejora cuesta **2 puntos**. Mientras está activa muestra un contorno rosa.
+Habilidad mágica que se **mantiene pulsada**, sin recarga. Cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; si falta menos de lo que cura, cura solo eso con el coste normal); si no hay energía suficiente deja de curar. Mientras mantienes la tecla vas un **20 % más lento** (la Regeneración de Golpe de Suerte no frena). Nivel máximo **10**; cada mejora cuesta **2 puntos**. Mientras está activa muestra un contorno rosa.
 
-| Nivel | Vida curada | Energía gastada | Intervalo | Vida por segundo | Energía por vida |
-|---|---|---|---|---|---|
-| 1 | +1 | -10 | 2 s | 0.5 | 10 |
-| 2 | +1 | -10 | 2 s | 0.5 | 10 |
-| 3 | +2 | -15 | 2 s | 1 | 7.5 |
-| 4 | +2 | -15 | 2 s | 1 | 7.5 |
-| 5 | +2 | -15 | 2 s | 1 | 7.5 |
-| 6 | +3 | -20 | 2 s | 1.5 | 6.67 |
-| 7 | +3 | -20 | 2 s | 1.5 | 6.67 |
-| 8 | +3 | -20 | 2 s | 1.5 | 6.67 |
-| 9 | +4 | -25 | 2 s | 2 | 6.25 |
-| 10 | +6 | -40 | 3 s | 2 | 6.67 |
+| Nivel | Vida curada | Energía gastada | Intervalo | Vida por segundo | Energía por vida | Velocidad |
+|---|---|---|---|---|---|---|
+| 1 | +2 | -5 | 4 s | 0.5 | 2.5 | -20 % |
+| 2 | +2 | -5 | 4 s | 0.5 | 2.5 | -20 % |
+| 3 | +4 | -10 | 3.5 s | 1.14 | 2.5 | -20 % |
+| 4 | +4 | -10 | 3.5 s | 1.14 | 2.5 | -20 % |
+| 5 | +4 | -10 | 3.5 s | 1.14 | 2.5 | -20 % |
+| 6 | +8 | -20 | 3 s | 2.67 | 2.5 | -20 % |
+| 7 | +8 | -20 | 3 s | 2.67 | 2.5 | -20 % |
+| 8 | +8 | -20 | 3 s | 2.67 | 2.5 | -20 % |
+| 9 | +10 | -20 | 2.5 s | 4 | 2 | -20 % |
+| 10 | +12 | -25 | 2 s | 6 | 2.08 | -20 % |
+
+**Inversión Vital (potenciada, nivel 10 con la potenciada desbloqueada y niveles 11 – 15).** Sale en el Gacha mejorado; los niveles 11 – 15 cuestan **3 puntos**. Un botón **Modo** (tarjeta del panel e inventario) alterna entre **Regeneración Inversa** e **Inversión Vital**; comparten nivel, cambiar corta la canalización y hay **4 s** de espera entre cambios. Todo cada **2 s**. **Inversión Vital** cobra vida **directa** (sin escudos ni campos) y da energía sin pasar del máximo (con la energía llena no cobra); no se enciende ni sigue si el cobro te dejaría con menos de **5 de vida**. Cada cobro lanza una **onda rosa de 150 px** que cura a todas las sombras aliadas (invocaciones y anillos), no al personaje. Contorno rosa y azul marino. **Antiabuso:** una vuelta vida → energía → vida siempre pierde (nv15: 25 vida → 30 En. → 15 vida).
+
+| Nivel | Regeneración: vida | Regeneración: energía | Inversión: vida | Inversión: energía | Onda a sombras | Velocidad |
+|---|---|---|---|---|---|---|
+| 10 | +12 | -25 | -4 | +5 | +2 | -20 % |
+| 11 | +14 | -28 | -8 | +10 | +4 | -16 % |
+| 12 | +16 | -32 | -12 | +14 | +6 | -12 % |
+| 13 | +18 | -36 | -16 | +19 | +8 | -8 % |
+| 14 | +20 | -40 | -20 | +24 | +10 | -4 % |
+| 15 | +22 | -44 | -25 | +30 | +12 | -0 % |
 
 ### 2.9 Golpe de Suerte
 

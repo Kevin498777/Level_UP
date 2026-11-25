@@ -7,7 +7,8 @@ abierto). Se cierra con [I] o con la X. Sus botones [+] gastan puntos igual que 
 """
 import math
 import pygame
-from habilidades import resumen_habilidad, dibujar_marco_potenciado, COLOR_POTENCIADA_TEXTO
+from habilidades import (resumen_habilidad, dibujar_marco_potenciado, COLOR_POTENCIADA_TEXTO, texto_costo,
+                         dibujar_boton_modo)
 import talismanes as TL
 from personaje import PUNTOS_MEJORA_POR_NIVEL, REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE, NIVEL_MAXIMO
 
@@ -423,8 +424,10 @@ def dibujar_inventario(pantalla, area, jugador, fuentes, tiempo, estado=None):
         nivel_txt = f"Nv {hab.nivel}/{hab.nivel_max}" if hab.escalable else "Nv —"
         _texto(pantalla, f_txt, nivel_txt, COLOR_MAX if hab.escalable and hab.nivel >= hab.nivel_max else (170, 205, 255),
                (der, r.y + 10), derecha=True)
-        costo = hab.obtener_costo_base(jugador) if hasattr(hab, "obtener_costo_base") else hab.costo_energia
-        _texto(pantalla, f_mini, f"Costo {costo} En.", (200, 165, 255), (r.x + 50, r.y + 31))
+        _texto(pantalla, f_mini, f"Costo {texto_costo(hab, jugador)}", (200, 165, 255), (r.x + 50, r.y + 31))
+        rect_modo = dibujar_boton_modo(pantalla, hab, f_mini, (r.right - 14, r.y + 30))
+        if rect_modo is not None:
+            botones[f"__modo__{idx}"] = rect_modo
         _texto(pantalla, f_mini, txt_est, col_est, (r.x + 150, r.y + 31))
         if alto_hab >= 70:
             _texto(pantalla, f_mini, resumen_habilidad(hab), COLOR_TEXTO, (r.x + 12, r.y + 50))

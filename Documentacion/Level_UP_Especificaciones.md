@@ -325,25 +325,53 @@ Campo de fuerza **azul celeste** (solo el contorno, delgado) un **10 % más gran
 
 | Nivel | Dureza | Duración | Recarga | Coste En. |
 |---|---|---|---|---|
-| 1 | 200 | 1 s | 10 s | 25 |
-| 5 | 260 | 2 s | 15 s | 30 |
-| 10 | 335 | 3 s | 20 s | 35 |
-| 15 | 410 | 4 s | 25 s | 40 |
-| 20 | **500** | 6 s | 35 s | 50 |
+| 1 | 200 | 1 s | 20 s | 10 |
+| 5 | 260 | 3 s | 18 s | 15 |
+| 10 | 335 | 5 s | 15 s | 20 |
+| 15 | 410 | 7 s | 10 s | 25 |
+| 20 | **500** | 10 s | 8 s | 30 |
 
-La dureza sube **+15 por nivel** y en el nivel 20 recibe un bono final hasta **500**. Duración, recarga y coste se mantienen por tramos hasta el siguiente nivel de la tabla.
+Todo sube **lineal** entre los niveles de la tabla (ej. nivel 3: 230 de dureza, 2 s, 19 s, 13 En.). Golpe de Suerte otorga el campo con estos mismos valores.
+
+**Potenciada: Reforzamiento Inverso (niveles 21 – 30).** Sale en el Gacha mejorado; se usa con Reforzamiento Mágico en el nivel 20 y cada nivel cuesta **2 puntos**. Campo **azul marino** (mismo contorno) y marco azul marino y celeste. Se **enciende y se apaga con la misma tecla** y **no tiene duración**: gasta **energía por segundo** y encenderlo cuesta lo mismo que un segundo (sin esa energía no se enciende). La regeneración de energía sigue normal. Si se queda sin energía **se apaga solo**. La dureza **no se regenera**: solo se rellena al apagarlo y volver a encenderlo. Al apagarse por cualquier motivo (tecla, rotura o sin energía) entra en **recarga**. Con el campo de Golpe de Suerte activo a la vez, absorbe primero el otorgado y luego el Inverso al 50 % (regla general).
+
+| Nivel | Dureza | Duración | Recarga | Energía por segundo |
+|---|---|---|---|---|
+| 20 | 500 | Infinita | 8 s | 5 |
+| 22 | 600 | Infinita | 7 s | 4.5 |
+| 25 | 700 | Infinita | 6 s | 4 |
+| 27 | 800 | Infinita | 5 s | 3.5 |
+| 30 | **900** | Infinita | 3 s | 3 |
+
+Lineal entre los niveles de la tabla (ej. nivel 21: 550 de dureza, 7.5 s, 4.75 En./s).
 
 ### 9.8 Regeneración Inversa
 
-Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; con la vida llena no cobra). Si no hay energía para el siguiente intervalo, deja de curar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **rosa**. Nivel máximo **10**; cada mejora cuesta **2 puntos** (como las armas).
+Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; con la vida llena no cobra; si falta menos de lo que cura, cura solo eso con el coste normal). Si no hay energía para el siguiente intervalo, deja de curar hasta volver a pulsar. Mientras mantienes la tecla vas un **20 % más lento** (la Regeneración que otorga Golpe de Suerte no frena). Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **rosa**. Nivel máximo **10**; cada mejora cuesta **2 puntos** (como las armas).
 
 | Nivel | Cura | Energía | Cada |
 |---|---|---|---|
-| 1 – 2 | +1 | −10 | 2 s |
-| 3 – 5 | +2 | −15 | 2 s |
-| 6 – 8 | +3 | −20 | 2 s |
-| 9 | +4 | −25 | 2 s |
-| 10 | +6 | −40 | 3 s |
+| 1 – 2 | +2 | −5 | 4 s |
+| 3 – 5 | +4 | −10 | 3.5 s |
+| 6 – 8 | +8 | −20 | 3 s |
+| 9 | +10 | −20 | 2.5 s |
+| 10 | +12 | −25 | 2 s |
+
+**Potenciada: Inversión Vital (niveles 11 – 15).** Sale en el Gacha mejorado; se usa con la habilidad en el nivel 10 y los niveles 11 – 15 cuestan **3 puntos**. Aparece un botón **Modo** en la tarjeta del panel y del inventario que alterna entre dos modos con el **mismo nivel**: cambiar corta la canalización y hay **4 s** de espera entre cambios. Los dos se mantienen pulsados, actúan cada **2 s** y frenan lo que marca la tabla.
+
+- **Regeneración Inversa:** igual que la normal, con más curación.
+- **Inversión Vital:** cobra **vida directa** (no pasa por escudos ni por Reforzamiento) y da **energía** sin pasar del máximo; con la energía llena no cobra. **No te puede matar:** no se enciende ni sigue si el cobro te dejaría con menos de **5 de vida**. Cada cobro lanza una **onda rosa** de **150 px** que cura a todas las sombras aliadas (invocaciones y sombras de anillo), no al personaje. Contorno **rosa y azul marino**.
+
+| Nivel | Regeneración (vida / energía) | Inversión (vida / energía) | Onda a sombras | Velocidad |
+|---|---|---|---|---|
+| 10 | +12 / −25 | −4 / +5 | +2 | −20 % |
+| 11 | +14 / −28 | −8 / +10 | +4 | −16 % |
+| 12 | +16 / −32 | −12 / +14 | +6 | −12 % |
+| 13 | +18 / −36 | −16 / +19 | +8 | −8 % |
+| 14 | +20 / −40 | −20 / +24 | +10 | −4 % |
+| 15 | **+22 / −44** | **−25 / +30** | **+12** | 0 % |
+
+**Antiabuso:** Regeneración cuesta ~2 En. por vida e Inversión da 1.2 En. por vida, así que una vuelta completa siempre pierde (nv15: 25 vida → 30 En. → 15 vida); no se puede fabricar vida ni energía alternando los modos.
 
 ### 9.9 Golpe de Suerte
 

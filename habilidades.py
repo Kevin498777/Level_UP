@@ -1295,10 +1295,18 @@ def resumen_habilidad(hab):
     elif hab.nombre == "Golpe de Suerte":
         detalles = f"Azar nv{hab.nivel_efecto} · {hab.ultimo_resultado}"
     elif hab.nombre == "Regeneración Inversa":
-        detalles = f"+{hab.curacion} vida / -{hab.costo_energia} En. cada {hab.intervalo:.0f}s (mantén)"
+        if hab.modo_inversion:
+            detalles = f"-{hab.costo_vida} vida / +{hab.energia_ganada} En. cada {hab.intervalo:g}s · Sombras +{hab.curacion_onda}"
+        else:
+            detalles = f"+{hab.curacion} vida / -{hab.costo_energia} En. cada {hab.intervalo:g}s"
+        if hab.ralentizacion > 0:
+            detalles += f" · Vel -{hab.ralentizacion * 100:.0f}%"
     elif hab.nombre == "Reforzamiento Mágico":
         dureza = hab.dureza if hab.estado == "ACTIVA" else hab.dureza_max
-        detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
+        if hab.es_inverso:
+            detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.costo_por_segundo:g} En./s | CD {hab.duracion_cooldown:g}s"
+        else:
+            detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:g}s | CD {hab.duracion_cooldown:g}s"
     elif hab.nombre == "Disparo Venenoso":
         detalles = f"Veneno {hab.veneno_total:g} en {hab.veneno_duracion:g}s | CD {hab.duracion_cooldown:g}s"
     elif hab.nombre == "Paso 0":
@@ -1308,6 +1316,30 @@ def resumen_habilidad(hab):
     else:
         detalles = hab.descripcion[:52]
     return detalles
+
+
+def texto_costo(hab, jugador):
+    """Coste mostrado en las tarjetas: en energia, o en vida en el modo Inversion Vital."""
+    if getattr(hab, "modo_inversion", False):
+        return f"{hab.costo_vida} vida"
+    return f"{hab.obtener_costo_base(jugador)} En."
+
+
+def dibujar_boton_modo(pantalla, hab, fuente, arriba_derecha):
+    """Boton 'Modo' de la potenciada de Regeneracion Inversa (alineado arriba a la derecha).
+    Durante la espera muestra los segundos que faltan y no se puede pulsar. Devuelve su Rect
+    si se puede pulsar; None si la habilidad no tiene modos o esta en espera."""
+    if not (hasattr(hab, "cambiar_modo") and hab.potenciada_activa):
+        return None
+    listo = hab.puede_cambiar_modo
+    sup = fuente.render("Modo" if listo else f"{hab.espera_cambio_modo:.1f}s", True,
+                        (255, 200, 230) if listo else (140, 144, 156))
+    rect = pygame.Rect(0, 0, sup.get_width() + 12, sup.get_height() + 2)
+    rect.topright = arriba_derecha
+    pygame.draw.rect(pantalla, (70, 30, 60) if listo else (36, 40, 50), rect, border_radius=4)
+    pygame.draw.rect(pantalla, (255, 105, 180) if listo else (70, 78, 92), rect, width=1, border_radius=4)
+    pantalla.blit(sup, sup.get_rect(center=rect.center))
+    return rect if listo else None
 
 
 def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador, fuentes, info_abierta=None):
@@ -1395,9 +1427,13 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             txt_nivel = fuente_mini.render("Nv —", True, (150, 160, 180))
         pantalla.blit(txt_nivel, (tarjeta_x + pad, cur_y + 32))
 
-        costo_mostrado = hab.obtener_costo_base(jugador)
-        txt_costo = fuente_mini.render(f"Costo: {costo_mostrado} En.", True, (200, 165, 255))
+        txt_costo = fuente_mini.render(f"Costo: {texto_costo(hab, jugador)}", True, (200, 165, 255))
         pantalla.blit(txt_costo, (tarjeta_x + pad + 110, cur_y + 32))
+
+        # Inversion Vital: boton para cambiar de modo (Regeneracion Inversa / Inversion Vital)
+        rect_modo = dibujar_boton_modo(pantalla, hab, fuente_mini, (tarjeta_x + tarjeta_w - pad, cur_y + 28))
+        if rect_modo is not None:
+            botones[f"__modo__{idx}"] = rect_modo
 
         # Geometria comun de la barra de progreso
         bw = tarjeta_w - 2 * pad
@@ -1407,7 +1443,8 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
 
         # Estado y cuenta regresiva
         if getattr(hab, "canalizando", False):
-            txt_est = fuente_mini.render("REGENERANDO", True, (255, 160, 210))
+            txt_est = fuente_mini.render("INVIRTIENDO" if getattr(hab, "modo_inversion", False) else "REGENERANDO",
+                                         True, (255, 160, 210))
             pantalla.blit(txt_est, (tarjeta_x + pad, y_estado))
 
             falta = max(0.0, hab.intervalo - hab.tiempo_tick)
@@ -1445,11 +1482,16 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
             dx = dibujar_icono_estado(pantalla, "rayo", tarjeta_x + pad, y_estado, fuente_mini.get_height(), col_est)
             pantalla.blit(fuente_mini.render("ACTIVA", True, col_est), (tarjeta_x + pad + dx, y_estado))
 
-            seg = max(0.0, hab.tiempo_restante_activo)
-            txt_tiempo = fuente_contador.render(f"{seg:.1f}s", True, (255, 255, 255))
+            if getattr(hab, "es_inverso", False):
+                # Sin duracion: el contador y la barra muestran la dureza que le queda
+                txt_tiempo = fuente_contador.render(f"{hab.dureza:.0f}", True, (255, 255, 255))
+                prog = hab.dureza / max(1, hab.dureza_max)
+            else:
+                seg = max(0.0, hab.tiempo_restante_activo)
+                txt_tiempo = fuente_contador.render(f"{seg:.1f}s", True, (255, 255, 255))
+                prog = seg / max(0.1, hab.duracion_activa)
             pantalla.blit(txt_tiempo, (tarjeta_x + tarjeta_w - txt_tiempo.get_width() - pad, y_cont))
 
-            prog = seg / max(0.1, hab.duracion_activa)
             ancho_l = int(bw * max(0.0, min(1.0, prog)))
             pygame.draw.rect(pantalla, (35, 45, 55), (tarjeta_x + pad, bar_y, bw, 7), border_radius=3)
             if ancho_l > 0:
@@ -2547,6 +2589,17 @@ def _valor_por_tramo(nivel, tramos):
     return valor
 
 
+def _valor_interpolado(nivel, puntos):
+    """Interpola linealmente entre los puntos de una tabla. puntos = ((nivel, valor), ...) en
+    orden; antes del primero o despues del ultimo se queda en el valor del extremo."""
+    if nivel <= puntos[0][0]:
+        return puntos[0][1]
+    for (n0, v0), (n1, v1) in zip(puntos, puntos[1:]):
+        if nivel <= n1:
+            return v0 + (v1 - v0) * (nivel - n0) / (n1 - n0)
+    return puntos[-1][1]
+
+
 class ReforzamientoMagico(HabilidadBase):
     """
     Campo de fuerza alrededor del personaje que bloquea daño físico y mágico.
@@ -2554,52 +2607,117 @@ class ReforzamientoMagico(HabilidadBase):
     termine la duración, el campo se rompe, entra en recarga y el daño sobrante pasa
     a los escudos del personaje y a su vida. El daño de terreno no lo atraviesa porque
     no pasa por recibir_dano (lago profundo y veneno van directo a la vida).
+
+    Potenciada: Reforzamiento Inverso (nivel 20 con la potenciada desbloqueada, hasta el 30).
+    Se enciende y se apaga con la misma tecla; no tiene duración (dura hasta apagarlo, hasta
+    romperse o hasta quedarse sin energía) y gasta energía por segundo. Encenderlo cuesta lo
+    mismo que un segundo. La dureza no se regenera: solo se rellena al volver a encenderlo, y
+    al apagarse por cualquier motivo entra en recarga.
     """
     FACTOR_RADIO = 1.10                 # El campo es un 10% más grande que el personaje
     COLOR_CAMPO = (135, 206, 250)       # Azul celeste
+    COLOR_CAMPO_INVERSO = (25, 50, 150)  # Azul marino (Reforzamiento Inverso)
     GROSOR_CAMPO = 2                    # Solo contorno, delgado (sin relleno)
-    DUREZA_BASE = 200                   # Dureza en nivel 1
-    DUREZA_POR_NIVEL = 15               # Dureza extra por cada nivel
-    DUREZA_NIVEL_MAX = 500              # Bono final: en nivel 20 la dureza llega a 500
-    # Valores por tramos de nivel: (nivel desde el que aplica, valor)
-    TRAMOS_DURACION = ((1, 1.0), (5, 2.0), (10, 3.0), (15, 4.0), (20, 6.0))
-    TRAMOS_COSTE = ((1, 25), (5, 30), (10, 35), (15, 40), (20, 50))
-    TRAMOS_RECARGA = ((1, 10.0), (5, 15.0), (10, 20.0), (15, 25.0), (20, 35.0))
+    POTENCIADA = {"nombre": "Reforzamiento Inverso", "nivel_max": 30, "costo_mejora": 2}
+    COLORES_MARCO = ((40, 80, 200), (135, 206, 250))      # azul marino y azul celeste
+    # Tablas (nivel, valor): todo se interpola linealmente entre los puntos.
+    PUNTOS_DUREZA = ((1, 200), (5, 260), (10, 335), (15, 410), (20, 500))
+    PUNTOS_DURACION = ((1, 1.0), (5, 3.0), (10, 5.0), (15, 7.0), (20, 10.0))
+    PUNTOS_RECARGA = ((1, 20.0), (5, 18.0), (10, 15.0), (15, 10.0), (20, 8.0))
+    PUNTOS_COSTE = ((1, 10), (5, 15), (10, 20), (15, 25), (20, 30))
+    # Reforzamiento Inverso (nivel 20 a 30)
+    INVERSO_PUNTOS_DUREZA = ((20, 500), (22, 600), (25, 700), (27, 800), (30, 900))
+    INVERSO_PUNTOS_RECARGA = ((20, 8.0), (22, 7.0), (25, 6.0), (27, 5.0), (30, 3.0))
+    INVERSO_PUNTOS_COSTE_SEG = ((20, 5.0), (22, 4.5), (25, 4.0), (27, 3.5), (30, 3.0))
 
     def __init__(self):
         super().__init__(
             nombre="Reforzamiento Mágico",
             descripcion="Campo de fuerza que bloquea daño físico y mágico hasta agotar su dureza.",
-            costo_energia=25,
+            costo_energia=10,
             duracion_activa=1.0,
-            duracion_cooldown=10.0,
+            duracion_cooldown=20.0,
             tecla=pygame.K_2,
             tecla_str="2"
         )
         self.dureza = 0.0
+        self._deuda_energia = 0.0    # Inverso: energía gastada aún sin cobrar (se cobra entera)
 
     def _aplicar_nivel(self):
         """
-        Escalado (nivel 1 a 20):
-        - dureza: 200, +15 por nivel (470 en nivel 19) y 500 en nivel 20 (bono final)
-        - duración: 1s (nv1), 2s (nv5), 3s (nv10), 4s (nv15), 6s (nv20)
-        - coste: 25 (nv1), 30 (nv5), 35 (nv10), 40 (nv15), 50 (nv20)
-        - recarga: 10s (nv1), 15s (nv5), 20s (nv10), 25s (nv15), 35s (nv20)
+        Escalado lineal entre los puntos de la tabla (nivel 1 a 20):
+        - dureza: 200 (nv1), 260 (nv5), 335 (nv10), 410 (nv15), 500 (nv20)
+        - duración: 1 s, 3 s, 5 s, 7 s, 10 s
+        - recarga: 20 s, 18 s, 15 s, 10 s, 8 s
+        - coste: 10, 15, 20, 25, 30 En.
+        Reforzamiento Inverso (nivel 20 a 30), lineal entre los niveles 20, 22, 25, 27 y 30:
+        - dureza: 500, 600, 700, 800, 900
+        - recarga: 8 s, 7 s, 6 s, 5 s, 3 s
+        - energía por segundo: 5, 4.5, 4, 3.5, 3 (encenderlo cuesta lo mismo)
         """
         n = self.nivel
-        if n >= self.nivel_max:
-            self.dureza_max = self.DUREZA_NIVEL_MAX
+        if n > 20:
+            self.dureza_max = round(_valor_interpolado(n, self.INVERSO_PUNTOS_DUREZA))
+            self.duracion_cooldown = round(_valor_interpolado(n, self.INVERSO_PUNTOS_RECARGA), 2)
         else:
-            self.dureza_max = self.DUREZA_BASE + self.DUREZA_POR_NIVEL * (n - 1)
-        self.duracion_activa = _valor_por_tramo(n, self.TRAMOS_DURACION)
-        self.costo_energia = _valor_por_tramo(n, self.TRAMOS_COSTE)
-        self.duracion_cooldown = _valor_por_tramo(n, self.TRAMOS_RECARGA)
+            self.dureza_max = round(_valor_interpolado(n, self.PUNTOS_DUREZA))
+            self.duracion_cooldown = round(_valor_interpolado(n, self.PUNTOS_RECARGA), 2)
+        self.duracion_activa = round(_valor_interpolado(n, self.PUNTOS_DURACION), 2)
+        self.costo_energia = int(_valor_interpolado(n, self.PUNTOS_COSTE) + 0.5)
+        self.costo_por_segundo = round(_valor_interpolado(n, self.INVERSO_PUNTOS_COSTE_SEG), 3)
+
+    @property
+    def es_inverso(self):
+        """Reforzamiento Inverso: potenciada activa (la otorgada por Golpe de Suerte nunca lo es)."""
+        return self.potenciada_activa and not self.otorgada
+
+    def obtener_costo_base(self, jugador):
+        # Inverso: encenderlo cuesta un segundo de energía (la parte decimal se cobra después)
+        return int(self.costo_por_segundo) if self.es_inverso else self.costo_energia
+
+    def intentar_activar(self, jugador):
+        """Inverso encendido: la tecla lo apaga (y entra en recarga)."""
+        if self.es_inverso and self.estado == "ACTIVA":
+            self._apagar(jugador, "Campo desactivado")
+            return True
+        return super().intentar_activar(jugador)
+
+    def ejecutar_activacion(self, jugador):
+        super().ejecutar_activacion(jugador)
+        if self.es_inverso:
+            self.tiempo_restante_activo = math.inf     # sin duración: dura hasta apagarlo
+            self._deuda_energia = self.costo_por_segundo - int(self.costo_por_segundo)
 
     def aplicar_efecto_activo(self, jugador):
         self.dureza = float(self.dureza_max)
 
     def aplicar_efecto_cooldown(self, jugador):
         self.dureza = 0.0
+        self._deuda_energia = 0.0
+
+    def _apagar(self, jugador, mensaje):
+        """Apaga el campo (rotura, tecla o falta de energía) y empieza la recarga."""
+        self.estado = "COOLDOWN"
+        self.tiempo_restante_activo = 0.0
+        self.tiempo_restante_cooldown = self.duracion_cooldown
+        self.aplicar_efecto_cooldown(jugador)
+        self.mensaje_alerta = mensaje
+        self.tiempo_alerta = 2.0
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)
+        # Inverso encendido: cobra la energía por segundo en unidades enteras
+        if self.estado != "ACTIVA" or not self.es_inverso:
+            return
+        self._deuda_energia += self.costo_por_segundo * dt
+        pagar = int(self._deuda_energia)
+        if pagar <= 0:
+            return
+        if jugador.energia < pagar:
+            self._apagar(jugador, "¡Sin energía! Campo apagado")
+            return
+        jugador.energia -= pagar
+        self._deuda_energia -= pagar
 
     def absorber_dano(self, cantidad, jugador, eficacia=1.0):
         """
@@ -2612,20 +2730,17 @@ class ReforzamientoMagico(HabilidadBase):
         absorbido = min(cantidad, self.dureza * eficacia)
         self.dureza = max(0.0, round(self.dureza - absorbido / eficacia, 2))
         if self.dureza <= 0:
-            self.estado = "COOLDOWN"
-            self.tiempo_restante_activo = 0.0
-            self.tiempo_restante_cooldown = self.duracion_cooldown
-            self.aplicar_efecto_cooldown(jugador)
-            self.mensaje_alerta = "¡Campo roto!"
-            self.tiempo_alerta = 2.0
+            self._apagar(jugador, "¡Campo roto!")
         return round(cantidad - absorbido, 2)
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
-        """Dibuja solo el contorno azul celeste del campo, un 10% más grande que el personaje."""
+        """Dibuja solo el contorno del campo (celeste; azul marino si es el Inverso), un 10%
+        más grande que el personaje."""
         cx = round(jugador.posicion.x - desplazamiento[0])
         cy = round(jugador.posicion.y - desplazamiento[1])
         radio = round(jugador.radio * self.FACTOR_RADIO)
-        pygame.draw.circle(pantalla, self.COLOR_CAMPO, (cx, cy), radio, self.GROSOR_CAMPO)
+        color = self.COLOR_CAMPO_INVERSO if self.es_inverso else self.COLOR_CAMPO
+        pygame.draw.circle(pantalla, color, (cx, cy), radio, self.GROSOR_CAMPO)
 
 
 # -----------------------------
@@ -2636,21 +2751,45 @@ class RegeneracionInversa(HabilidadBase):
     Habilidad mágica que se mantiene presionada (sin recarga): mientras la tecla está
     pulsada, cada intervalo completo cobra energía y cura vida, como la carga de la
     Carga de Fuego. Si no hay energía para el siguiente intervalo, deja de curar hasta
-    volver a pulsar. Con la vida al máximo no cobra ni cura.
+    volver a pulsar. Con la vida al máximo no cobra ni cura. Mientras se mantiene la
+    tecla, el personaje va más lento (ralentizacion_canalizando).
     Usa la interfaz de habilidades cargables (iniciar_carga / soltar_carga) para que
     el bucle del mundo la active al pulsar y la detenga al soltar.
+
+    Potenciada: Inversión Vital (nivel 10 con la potenciada desbloqueada, hasta el 15).
+    Un botón alterna entre dos modos que comparten nivel (espera de CAMBIO_MODO_ESPERA s):
+    - Regeneración Inversa: igual, con más curación y menos ralentización.
+    - Inversión Vital: cobra vida (directa, sin escudos ni campos) y da energía; nunca te
+      deja por debajo de VIDA_MINIMA_INVERSION. Cada cobro emite una onda rosa que cura a
+      las sombras aliadas (no al personaje) en RADIO_ONDA_INVERSION px.
     """
     NIVEL_MAX = 10
     COSTO_MEJORA = 2                    # Sube de nivel como las armas: 2 puntos
     COLOR_AURA = (255, 105, 180)        # Rosa: mismo contorno que Reforzamiento Mágico
+    COLOR_AURA_INVERSION = (25, 50, 150)  # Azul marino (junto al rosa en Inversión Vital)
+    POTENCIADA = {"nombre": "Inversión Vital", "nivel_max": 15, "costo_mejora": 3}
+    COLORES_MARCO = ((255, 105, 180), (40, 80, 200))      # rosa y azul marino
     # Tramos por nivel: (nivel desde el que aplica, (vida curada, energía gastada, intervalo en s))
-    TRAMOS = ((1, (1, 10, 2.0)), (3, (2, 15, 2.0)), (6, (3, 20, 2.0)), (9, (4, 25, 2.0)), (10, (6, 40, 3.0)))
+    TRAMOS = ((1, (2, 5, 4.0)), (3, (4, 10, 3.5)), (6, (8, 20, 3.0)), (9, (10, 20, 2.5)), (10, (12, 25, 2.0)))
+    RALENTIZACION_BASE = 0.20           # -20 % de velocidad mientras se mantiene la tecla (nv1-10)
+    # Potenciada (nivel 10 a 15), intervalo fijo de 2 s:
+    INTERVALO_POTENCIADA = 2.0
+    POTENCIADA_REGEN = {10: (12, 25), 11: (14, 28), 12: (16, 32), 13: (18, 36), 14: (20, 40), 15: (22, 44)}
+    POTENCIADA_INVERSION = {10: (4, 5), 11: (8, 10), 12: (12, 14), 13: (16, 19), 14: (20, 24), 15: (25, 30)}
+    POTENCIADA_ONDA = {10: 2, 11: 4, 12: 6, 13: 8, 14: 10, 15: 12}
+    POTENCIADA_RALENTIZACION = {10: 0.20, 11: 0.16, 12: 0.12, 13: 0.08, 14: 0.04, 15: 0.0}
+    VIDA_MINIMA_INVERSION = 5           # Inversión Vital nunca te deja por debajo de esta vida
+    RADIO_ONDA_INVERSION = 150          # px de la onda que cura a las sombras
+    DURACION_ONDA = 0.6                 # s que tarda la onda en llegar a su radio (visual)
+    CAMBIO_MODO_ESPERA = 4.0            # s entre un cambio de modo y el siguiente
+    MODO_REGENERACION = "regeneracion"
+    MODO_INVERSION = "inversion"
 
     def __init__(self):
         super().__init__(
             nombre="Regeneración Inversa",
             descripcion="Mantén pulsado: cura vida a cambio de energía en cada intervalo. Sin recarga.",
-            costo_energia=10,
+            costo_energia=5,
             duracion_activa=0.0,
             duracion_cooldown=0.0,
             tecla=pygame.K_2,
@@ -2661,23 +2800,82 @@ class RegeneracionInversa(HabilidadBase):
         self.cargable = True        # Se activa al pulsar y se detiene al soltar
         self.canalizando = False
         self.tiempo_tick = 0.0
+        self.modo = self.MODO_REGENERACION
+        self.espera_cambio_modo = 0.0
+        self.ondas = []             # tiempo transcurrido de cada onda visible de Inversión Vital
 
     def _aplicar_nivel(self):
         """
-        Escalado (nivel 1 a 10), por tramos:
-        - nv1-2: +1 vida / -10 En. cada 2s
-        - nv3-5: +2 vida / -15 En. cada 2s
-        - nv6-8: +3 vida / -20 En. cada 2s
-        - nv9:   +4 vida / -25 En. cada 2s
-        - nv10:  +6 vida / -40 En. cada 3s
+        Escalado (nivel 1 a 10), por tramos, con -20 % de velocidad mientras se mantiene:
+        - nv1-2: +2 vida / -5 En. cada 4 s
+        - nv3-5: +4 vida / -10 En. cada 3.5 s
+        - nv6-8: +8 vida / -20 En. cada 3 s
+        - nv9:   +10 vida / -20 En. cada 2.5 s
+        - nv10:  +12 vida / -25 En. cada 2 s
+        Potenciada (nivel 10 a 15, cada 2 s; ralentización -20 % -> 0 %):
+        - Regeneración Inversa: +12/-25 En. -> +22/-44 En.
+        - Inversión Vital: -4 vida/+5 En. -> -25 vida/+30 En.; onda a sombras +2 -> +12
         """
-        self.curacion, self.costo_energia, self.intervalo = _valor_por_tramo(self.nivel, self.TRAMOS)
+        n = self.nivel
+        self.curacion, self.costo_energia, self.intervalo = _valor_por_tramo(n, self.TRAMOS)
+        self.ralentizacion = self.RALENTIZACION_BASE
+        self.costo_vida, self.energia_ganada = self.POTENCIADA_INVERSION[10]
+        self.curacion_onda = self.POTENCIADA_ONDA[10]
+        if n >= 10:
+            self.curacion, self.costo_energia = self.POTENCIADA_REGEN[n]
+            self.intervalo = self.INTERVALO_POTENCIADA
+            self.ralentizacion = self.POTENCIADA_RALENTIZACION[n]
+            self.costo_vida, self.energia_ganada = self.POTENCIADA_INVERSION[n]
+            self.curacion_onda = self.POTENCIADA_ONDA[n]
+
+    # ---- Modos de la potenciada
+    @property
+    def modo_inversion(self):
+        return self.potenciada_activa and self.modo == self.MODO_INVERSION
+
+    @property
+    def nombre_mostrado(self):
+        return self.POTENCIADA["nombre"] if self.modo_inversion else self.nombre
+
+    @property
+    def puede_cambiar_modo(self):
+        return self.potenciada_activa and self.espera_cambio_modo <= 0
+
+    def cambiar_modo(self, jugador):
+        """Botón de la potenciada: alterna Regeneración Inversa / Inversión Vital. Corta la
+        canalización en curso y deja una espera de CAMBIO_MODO_ESPERA s."""
+        if not self.potenciada_activa:
+            return False
+        if self.espera_cambio_modo > 0:
+            self.mensaje_alerta = f"Cambio de modo en {self.espera_cambio_modo:.1f}s"
+            self.tiempo_alerta = 1.5
+            return False
+        self._detener()
+        self.modo = self.MODO_REGENERACION if self.modo == self.MODO_INVERSION else self.MODO_INVERSION
+        self.espera_cambio_modo = self.CAMBIO_MODO_ESPERA
+        self.mensaje_alerta = f"Modo: {self.nombre_mostrado}"
+        self.tiempo_alerta = 1.5
+        return True
+
+    @property
+    def ralentizacion_canalizando(self):
+        """-% de velocidad mientras se mantiene la tecla (lo lee Personaje.actualizar_velocidad)."""
+        return self.ralentizacion if self.canalizando else 0.0
+
+    def obtener_costo_base(self, jugador):
+        # En Inversión Vital no gasta energía (cobra vida)
+        return 0 if self.modo_inversion else self.costo_energia
 
     def iniciar_carga(self, jugador):
-        """Al pulsar: empieza a regenerar si hay energía para al menos un intervalo."""
+        """Al pulsar: empieza a canalizar si puede pagar al menos un intervalo."""
         if self.canalizando:
             return
-        if jugador.energia < self.costo_energia:
+        if self.modo_inversion:
+            if jugador.vida - self.costo_vida < self.VIDA_MINIMA_INVERSION:
+                self.mensaje_alerta = f"¡Poca vida! (Req. {self.costo_vida + self.VIDA_MINIMA_INVERSION})"
+                self.tiempo_alerta = 2.0
+                return
+        elif jugador.energia < self.costo_energia:
             self.mensaje_alerta = f"¡Falta energía! (Req. {self.costo_energia})"
             self.tiempo_alerta = 2.0
             return
@@ -2686,13 +2884,14 @@ class RegeneracionInversa(HabilidadBase):
         self.tiempo_tick = 0.0
 
     def soltar_carga(self, jugador):
-        """Al soltar: deja de regenerar (el intervalo en curso no se cobra)."""
+        """Al soltar: deja de canalizar (el intervalo en curso no se cobra)."""
         self._detener()
 
     def _detener(self):
         self.canalizando = False
         self.estado = "LISTA"
         self.tiempo_tick = 0.0
+        self.ondas = []
 
     def actualizar(self, dt, jugador):
         # Solo temporizador de alertas: sin duración ni recarga (no usa el ciclo ACTIVA -> COOLDOWN)
@@ -2700,7 +2899,13 @@ class RegeneracionInversa(HabilidadBase):
             self.tiempo_alerta -= dt
             if self.tiempo_alerta <= 0:
                 self.mensaje_alerta = ""
+        if self.espera_cambio_modo > 0:
+            self.espera_cambio_modo = max(0.0, self.espera_cambio_modo - dt)
+        self.ondas = [t + dt for t in self.ondas if t + dt < self.DURACION_ONDA]
         if not self.canalizando:
+            return
+        if self.modo_inversion:
+            self._actualizar_inversion(dt, jugador)
             return
         if jugador.vida >= jugador.vida_max:
             self.tiempo_tick = 0.0   # Vida llena: no cobra ni cura
@@ -2717,12 +2922,51 @@ class RegeneracionInversa(HabilidadBase):
             curacion = self.curacion * factor_regeneracion(self, jugador)
             jugador.curar(curacion)
 
+    def _actualizar_inversion(self, dt, jugador):
+        """Inversión Vital: cada intervalo cobra vida directa y da energía (sin pasar del
+        máximo); con la energía llena no cobra. Cada cobro cura a las sombras cercanas."""
+        if jugador.energia >= jugador.energia_max:
+            self.tiempo_tick = 0.0
+            return
+        self.tiempo_tick += dt
+        while self.tiempo_tick >= self.intervalo:
+            self.tiempo_tick -= self.intervalo
+            if jugador.vida - self.costo_vida < self.VIDA_MINIMA_INVERSION:
+                self.mensaje_alerta = "¡Poca vida! Inversión detenida"
+                self.tiempo_alerta = 2.0
+                self._detener()
+                return
+            jugador.vida = round(jugador.vida - self.costo_vida, 2)
+            jugador.energia = min(jugador.energia_max, jugador.energia + self.energia_ganada)
+            self._curar_sombras(jugador)
+            self.ondas.append(0.0)
+
+    def _curar_sombras(self, jugador):
+        """Onda de Inversión Vital: cura a todas las sombras (habilidades y anillos) a su alcance."""
+        for fuente in jugador.fuentes_criaturas():
+            for cr in getattr(fuente, "criaturas", ()):
+                if not cr.vivo or cr.vida >= cr.vida_max:
+                    continue
+                if (cr.posicion - jugador.posicion).length() <= self.RADIO_ONDA_INVERSION + cr.radio:
+                    cr.vida = min(cr.vida_max, round(cr.vida + self.curacion_onda, 2))
+
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
-        """Contorno rosa (mismo tamaño y grosor que Reforzamiento Mágico) mientras está activa."""
+        """Contorno rosa (mismo tamaño y grosor que Reforzamiento Mágico) mientras está activa.
+        En Inversión Vital, contorno rosa y azul marino y las ondas rosas hacia las sombras."""
         cx = round(jugador.posicion.x - desplazamiento[0])
         cy = round(jugador.posicion.y - desplazamiento[1])
         radio = round(jugador.radio * ReforzamientoMagico.FACTOR_RADIO)
-        pygame.draw.circle(pantalla, self.COLOR_AURA, (cx, cy), radio, ReforzamientoMagico.GROSOR_CAMPO)
+        grosor = ReforzamientoMagico.GROSOR_CAMPO
+        pygame.draw.circle(pantalla, self.COLOR_AURA, (cx, cy), radio, grosor)
+        if not getattr(self, "modo_inversion", False):
+            return
+        pygame.draw.circle(pantalla, self.COLOR_AURA_INVERSION, (cx, cy), radio + grosor, grosor)
+        for t in self.ondas:
+            prog = t / self.DURACION_ONDA
+            r = round(radio + (self.RADIO_ONDA_INVERSION - radio) * prog)
+            capa = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(capa, (*self.COLOR_AURA, int(200 * (1 - prog))), (r + 2, r + 2), r, 3)
+            pantalla.blit(capa, (cx - r - 2, cy - r - 2))
 
 
 # -----------------------------

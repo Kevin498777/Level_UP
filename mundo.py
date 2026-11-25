@@ -1340,6 +1340,11 @@ def iniciar_mundo(config):
                             costo = hab_mejora.costo_mejora     # coste del siguiente nivel (leer antes de subir)
                             if jugador.puntos_mejora >= costo and hab_mejora.subir_nivel():
                                 jugador.puntos_mejora -= costo
+                    elif click_btn and click_btn.startswith("__modo__"):
+                        info_abierta = None
+                        indice = int(click_btn.split("_")[-1])
+                        if 0 <= indice < len(jugador.habilidades):
+                            jugador.habilidades[indice].cambiar_modo(jugador)
                     elif click_btn == "__flechas__":
                         info_abierta = None
                         jugador.herramienta.comprar_flechas(jugador)
