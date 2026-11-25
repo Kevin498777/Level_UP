@@ -44,7 +44,7 @@ Gancho para enemigos: `Personaje.bloquear_con_escudo(daño, origen)`. Los ataque
 | **Nivel máximo** | 20 | **40** (20 → 40: +8410 XP) |
 | **Disparo Veloz (nerf)** | Vel 14 → 40, daño 8 → 30, recarga 2 → 0.5 s | Vel **14 → 35**, daño **8 → 25**, recarga **4 → 2 s** |
 | **Cuevas de oso** | Cortar a nivel 20 las destruía | Nada las destruye |
-| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos y Reforzamiento Inverso (niveles 21 – 30, 2 puntos por nivel); Inversión Vital (niveles 11 – 15, 3 puntos por nivel) |
+| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos, Reforzamiento Inverso y Desmantelar (niveles 21 – 30, 2 puntos por nivel); Inversión Vital (niveles 11 – 15, 3 puntos por nivel) |
 
 **Medición (simulación de 10 000 partidas con el bot):** con todo lo anterior el **83 %** llega al nivel 20 (mediana **134 min**), 5.9 muertes por partida y el 80 % llega al 20 con todos los objetos del Gacha. Duelos solo con arma contra la fauna real: la manada ya se gana desde el nivel 5 (antes 15) y el oso desde el 15.
 
@@ -99,8 +99,9 @@ Según el porcentaje que llega al nivel 20 empezando con esa arma o habilidad (s
 6. **Disparo Venenoso y anillo de Defensa mágica (los más flojos).**
 7. **Lobo solitario (vigilar):** con 10 XP y 10 monedas fijas es la mejor fuente de XP del bot; si se nota en partida, bajar a 6 – 8 XP.
 8. **Estrella Ígnea (vigilar):** una carga de 5 s o más borra una manada de lobos normales con la explosión (29 – 38 de daño en 100 px).
+8b. **Desmantelar + fuego (vigilar):** cada carga de combustible pegada suma +50 % del golpe de fuego que la prende (25/11). Estrella Ígnea nv30 al máximo con 3 cargas = 318.5 a un objetivo. Sola, Desmantelar es cara (60 → 120 En., 10 → 20 s) y el combustible no hace nada sin una habilidad de fuego. Cortar se nerfeó al inicio (daño 2 por nivel, antes 5 → 40).
 9. **Nivel 20 → 40:** con solo la fauna actual se tarda ≈10 h (14.5 XP/min); depende de los enemigos nuevos.
-10. **Habilidades potenciadas pendientes de diseñar:** Invocar Conejos, Invocar Lobos, Cortar, Onda Sonora, Golpe de Suerte, Sombra Araña, Paso 0 y Disparo Venenoso.
+10. **Habilidades potenciadas pendientes de diseñar:** Invocar Conejos, Invocar Lobos, Onda Sonora, Golpe de Suerte, Sombra Araña, Paso 0 y Disparo Venenoso.
 
 ## 5. Pendientes de documentación
 

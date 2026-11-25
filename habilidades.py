@@ -793,19 +793,24 @@ def _distancia_punto_segmento(p, a, b):
 
 
 class CuchillaCortante:
-    """Cuchilla delgada (negra con contorno rojo) que avanza en linea recta, perpendicular a
-    su trayectoria, del largo aproximado de la Espada Ligera. Dano magico.
-    Se detiene en lo primero que toque:
-    - Enemigo: le hace dano y, si llega a hacerlo, anula su escudo magico 10 s.
-    - Roca o arbusto: lo destruye y se rompe con el (solo un objeto). Las rocas gigantes y los
-      arbustos grandes solo se destruyen a nivel maximo; si no, la cuchilla se rompe sin danarlos.
-      Lanzada desde dentro de un arbusto sale hacia afuera sin cortarlo.
+    """Cuchilla delgada (negra con contorno rojo; toda roja en Desmantelar) que avanza en linea
+    recta, perpendicular a su trayectoria, del largo aproximado de la Espada Ligera. Dano magico.
+    - Enemigo: se detiene en el primero; le hace dano y, si llega a hacerlo, anula su escudo
+      magico 8 s.
+    - Roca, arbusto o arbol: lo destruye; la cuchilla se rompe al destruir 'max_objetos' (1 en
+      Cortar, 3 en Desmantelar). Las rocas gigantes y los arbustos grandes solo se destruyen con
+      'corta_grandes'; si no, la cuchilla se rompe sin danarlos. Las cuevas de oso la rompen y
+      no se destruyen nunca. Lanzada desde dentro de un arbusto sale hacia afuera sin cortarlo.
+    - 'alcance' (px): al recorrerlo se deshace sola (Desmantelar); None = sin limite.
+    - 'combustible' = (SistemaCombustible, duracion): al pararse deja una carga en el suelo o,
+      si fue contra un enemigo, pegada a el.
     Avanza en sub-pasos cortos para no atravesar objetos pequenos a velocidades altas."""
     LARGO = 32          # aprox. el largo de la Espada Ligera (tamano 1)
     GROSOR = 4          # grosor maximo del cuerpo (en el centro)
     PASO_MAX = 6.0      # px por sub-paso al comprobar colisiones
 
-    def __init__(self, x, y, dx, dy, velocidad, dano, corta_grandes, oculta_hasta=0.0):
+    def __init__(self, x, y, dx, dy, velocidad, dano, corta_grandes, oculta_hasta=0.0,
+                 max_objetos=1, alcance=None, roja=False, combustible=None):
         self.posicion = pygame.Vector2(x, y)
         # Sale desde el centro del lanzador (asi corta el arbusto en el que este escondido),
         # pero no se dibuja hasta salir de su cuerpo
@@ -820,6 +825,11 @@ class CuchillaCortante:
         self.dano = dano
         self.tipo_dano = "magico"
         self.corta_grandes = corta_grandes
+        self.max_objetos = max_objetos
+        self.objetos_cortados = 0
+        self.alcance = alcance
+        self.roja = roja
+        self.combustible = combustible
         self.activo = True
         self._actualizar_hitbox()
 
@@ -832,9 +842,28 @@ class CuchillaCortante:
         self.hitbox = pygame.Rect(round(min(a.x, b.x)) - 2, round(min(a.y, b.y)) - 2,
                                   round(abs(a.x - b.x)) + 4, round(abs(a.y - b.y)) + 4)
 
+    def _romper(self, enemigo=None):
+        """La cuchilla se para: deja su combustible (pegado al enemigo o en el suelo)."""
+        self.activo = False
+        if self.combustible is not None:
+            sistema, duracion = self.combustible
+            if enemigo is not None:
+                sistema.pegar(enemigo, duracion)
+            else:
+                sistema.soltar(self.posicion, duracion)
+
+    def _cortar(self, lista, objeto, destruidos):
+        """Destruye un objeto; si ya corto su maximo, la cuchilla se rompe."""
+        lista.remove(objeto)
+        destruidos.append(objeto)
+        self.objetos_cortados += 1
+        if self.objetos_cortados >= self.max_objetos:
+            self._romper()
+
     def avanzar(self, rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo):
         """Mueve la cuchilla un frame. Las rocas, arbustos y arboles destruidos se quitan de sus
-        listas. Devuelve el obstaculo destruido (o None) para liberar su zona en la vegetacion."""
+        listas. Devuelve la lista de obstaculos destruidos para liberar su zona en la vegetacion."""
+        destruidos = []
         if self._arbustos_origen is None:
             self._arbustos_origen = {id(arb) for arb in arbustos if arb.contiene(self.origen)}
         sub_pasos = max(1, math.ceil(self.velocidad / self.PASO_MAX))
@@ -848,17 +877,16 @@ class CuchillaCortante:
             for e in enemigos:
                 if getattr(e, "vivo", True) and _distancia_punto_segmento(e.posicion, a, b) <= e.radio:
                     self._golpear(e)
-                    return None
+                    return destruidos
 
-            for roca in rocas:
-                if roca.rect.clipline(a, b):
-                    self.activo = False
-                    if getattr(roca, "es_cueva", False):
-                        return None             # la cueva de un oso no se destruye nunca
-                    if not getattr(roca, "gigante", False) or self.corta_grandes:
-                        rocas.remove(roca)
-                        return roca
-                    return None
+            roca = next((r for r in rocas if r.rect.clipline(a, b)), None)
+            if roca is not None:
+                if getattr(roca, "es_cueva", False) or (getattr(roca, "gigante", False) and not self.corta_grandes):
+                    self._romper()              # la cueva de un oso no se destruye nunca
+                    return destruidos
+                self._cortar(rocas, roca, destruidos)
+                if not self.activo:
+                    return destruidos
 
             # Arbustos solapados (matorrales): se queda con el mas cercano a la cuchilla
             tocados = [arb for arb in arbustos
@@ -866,28 +894,31 @@ class CuchillaCortante:
                        and any(_distancia_punto_segmento(c, a, b) <= r for c, r in arb.circulos)]
             if tocados:
                 arbusto = min(tocados, key=lambda arb: (arb.centro - self.posicion).length())
-                self.activo = False
-                if not getattr(arbusto, "grande", False) or self.corta_grandes:
-                    arbustos.remove(arbusto)
-                    return arbusto
-                return None
+                if getattr(arbusto, "grande", False) and not self.corta_grandes:
+                    self._romper()
+                    return destruidos
+                self._cortar(arbustos, arbusto, destruidos)
+                if not self.activo:
+                    return destruidos
 
-            # Arboles: se rompen al tocar CUALQUIER parte (la copa); la cuchilla se rompe con el
+            # Arboles: se rompen al tocar CUALQUIER parte (la copa) y cuentan como un objeto
             arboles_tocados = [arb for arb in arboles
                                if _distancia_punto_segmento(arb.centro, a, b) <= arb.radio_copa]
             if arboles_tocados:
                 arbol = min(arboles_tocados, key=lambda arb: (arb.centro - self.posicion).length())
-                self.activo = False
-                arboles.remove(arbol)
-                return arbol
+                self._cortar(arboles, arbol, destruidos)
+                if not self.activo:
+                    return destruidos
 
+            if self.alcance is not None and self.recorrido >= self.alcance:
+                self._romper()
+                return destruidos
             if (self.posicion - centro_mundo).length() > radio_mundo:
                 self.activo = False
-                return None
-        return None
+                return destruidos
+        return destruidos
 
     def _golpear(self, enemigo):
-        self.activo = False
         if hasattr(enemigo, "recibir_dano"):
             aplicado = enemigo.recibir_dano(self.dano, self.tipo_dano, self.direccion)
         else:
@@ -895,9 +926,10 @@ class CuchillaCortante:
             aplicado = self.dano
         if aplicado and aplicado > 0:
             anular_escudo_magico(enemigo)
+        self._romper(enemigo)
 
     def dibujar(self, pantalla, desplazamiento=(0, 0)):
-        """Media luna delgada: cuerpo negro con contorno rojo."""
+        """Media luna delgada: cuerpo negro con contorno rojo (toda roja en Desmantelar)."""
         if self.recorrido < self.oculta_hasta:
             return
         ox, oy = desplazamiento
@@ -906,8 +938,8 @@ class CuchillaCortante:
         atras = self.direccion * (self.GROSOR * 0.25)
         puntos = [a, self.posicion + frente, b, self.posicion - atras]
         puntos = [(round(p.x - ox), round(p.y - oy)) for p in puntos]
-        pygame.draw.polygon(pantalla, (10, 10, 12), puntos)
-        pygame.draw.polygon(pantalla, (220, 30, 40), puntos, 2)
+        pygame.draw.polygon(pantalla, (200, 20, 30) if self.roja else (10, 10, 12), puntos)
+        pygame.draw.polygon(pantalla, (255, 70, 70) if self.roja else (220, 30, 40), puntos, 2)
 
 
 # -----------------------------
@@ -915,10 +947,28 @@ class CuchillaCortante:
 # -----------------------------
 class Cortar(HabilidadBase):
     """Lanza en linea recta una cuchilla cortante (dano magico). Si llega a hacer dano, anula
-    el escudo magico del enemigo 8 s. Destruye una roca o un arbusto al chocar (gigantes y
-    arbustos grandes solo a nivel 20)."""
-    DANO_NIVEL_1 = 5
-    DANO_NIVEL_MAX = 40
+    el escudo magico del enemigo 8 s. Destruye una roca, arbusto o arbol al chocar (gigantes y
+    arbustos grandes solo a nivel 20).
+
+    Potenciada: Desmantelar (nivel 20 con la potenciada desbloqueada, hasta el 30). Lanza 1 -> 8
+    cuchillas rojas alrededor del personaje (el norte es hacia donde mira), con un alcance de
+    DESMANTELAR_ALCANCE px; cada una atraviesa hasta 3 objetos y se para en el primer enemigo.
+    Al pararse deja combustible (SistemaCombustible): pegado al enemigo o en el suelo."""
+    DANO_POR_NIVEL = 2                  # dano = 2 x nivel (nv20 = 40)
+    POTENCIADA = {"nombre": "Desmantelar", "nivel_max": 30, "costo_mejora": 2}
+    COLORES_MARCO = ((220, 30, 40), (255, 140, 120))      # rojo y rojo claro
+    DESMANTELAR_ALCANCE = 600           # px
+    DESMANTELAR_OBJETOS = 3             # objetos que atraviesa cada cuchilla
+    # Desmantelar: tablas (nivel, valor), lineales entre los puntos
+    DESMANTELAR_PUNTOS_VELOCIDAD = ((20, 24), (22, 26), (24, 28), (26, 30), (28, 32), (30, 35))
+    DESMANTELAR_PUNTOS_COSTE = ((20, 60), (22, 70), (24, 80), (26, 90), (28, 100), (30, 120))
+    DESMANTELAR_PUNTOS_RECARGA = ((20, 10.0), (22, 12.0), (24, 14.0), (26, 16.0), (28, 18.0), (30, 20.0))
+    DESMANTELAR_PUNTOS_COMBUSTIBLE = ((20, 1.0), (22, 2.0), (24, 4.0), (26, 6.0), (28, 8.0), (30, 10.0))
+    # Cuchillas por tramo (nivel desde el que aplica, direcciones). Angulos respecto al frente:
+    # norte 0, sur 180, este 90, oeste -90, noreste 45, noroeste -45, suroeste -135, sureste 135
+    DESMANTELAR_TRAMOS_CUCHILLAS = ((20, (0,)), (22, (0, 180)), (24, (0, 180, 90)), (26, (0, 180, 90, -90)),
+                                    (28, (0, 180, 90, -90, 45, -45)),
+                                    (30, (0, 180, 90, -90, 45, -45, -135, 135)))
 
     def __init__(self):
         super().__init__(
@@ -935,27 +985,52 @@ class Cortar(HabilidadBase):
     def _aplicar_nivel(self):
         """
         Escalado de Cortar (nivel 1 a 20):
-        - Dano: 5 (nv1) -> 40 (nv20), lineal (redondeado a 1 decimal)
+        - Dano: 2 por nivel (nv1 = 2, nv20 = 40)
         - Velocidad de la cuchilla: 5 + 1 por nivel (nv20 = 24)
         - Coste: 15 + 2 por nivel (nv20 = 53)
         - Recarga: 2s + 2s cada 5 niveles (nv20 = 10s); sube a proposito
         - A nivel 20 corta rocas gigantes y arbustos grandes
+        Desmantelar (potenciada, nivel 20 a 30), lineal entre los niveles 20, 22, 24, 26, 28 y 30:
+        - dano 40 fijo; velocidad 24 -> 35; coste 60 -> 120; recarga 10 -> 20 s
+        - combustible 1 -> 10 s; cuchillas 1, 2, 3, 4, 6 y 8 (en el nivel indicado)
         """
         n = self.nivel
-        self.dano = round(self.DANO_NIVEL_1 + (self.DANO_NIVEL_MAX - self.DANO_NIVEL_1) * (n - 1) / (self.nivel_max - 1), 1)
+        self.dano = self.DANO_POR_NIVEL * min(n, 20)
+        self.corta_grandes = n >= 20
+        if self.potenciada_activa:
+            self.velocidad_cuchilla = round(_valor_interpolado(n, self.DESMANTELAR_PUNTOS_VELOCIDAD), 1)
+            self.costo_energia = round(_valor_interpolado(n, self.DESMANTELAR_PUNTOS_COSTE))
+            self.duracion_cooldown = round(_valor_interpolado(n, self.DESMANTELAR_PUNTOS_RECARGA), 2)
+            self.duracion_combustible = round(_valor_interpolado(n, self.DESMANTELAR_PUNTOS_COMBUSTIBLE), 2)
+            self.direcciones = _valor_por_tramo(n, self.DESMANTELAR_TRAMOS_CUCHILLAS)
+            return
         self.velocidad_cuchilla = 5 + (n - 1)
         self.costo_energia = 15 + 2 * (n - 1)
         self.duracion_cooldown = 2.0 + 2.0 * (n // 5)
-        self.corta_grandes = n >= self.nivel_max
+        self.duracion_combustible = 0.0
+        self.direcciones = (0,)
+
+    def desbloquear_potenciada(self):
+        resultado = super().desbloquear_potenciada()
+        self._aplicar_nivel()          # en el nivel 20 ya es Desmantelar
+        return resultado
 
     def ejecutar_activacion(self, jugador):
-        """Lanza la cuchilla hacia donde mira el personaje y entra en recarga."""
-        rad = math.radians(jugador.angulo)
-        frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
+        """Lanza la cuchilla (o las de Desmantelar) y entra en recarga."""
         origen = jugador.posicion
-        self.cuchillas.append(CuchillaCortante(origen.x, origen.y, frente.x, frente.y,
-                                               self.velocidad_cuchilla, self.dano, self.corta_grandes,
-                                               oculta_hasta=jugador.radio))
+        desmantelar = self.potenciada_activa
+        for giro in self.direcciones:
+            rad = math.radians(jugador.angulo + giro)
+            d = pygame.Vector2(math.sin(rad), -math.cos(rad))
+            if desmantelar:
+                cuchilla = CuchillaCortante(origen.x, origen.y, d.x, d.y, self.velocidad_cuchilla, self.dano,
+                                            True, oculta_hasta=jugador.radio,
+                                            max_objetos=self.DESMANTELAR_OBJETOS, alcance=self.DESMANTELAR_ALCANCE,
+                                            roja=True, combustible=(jugador.combustible, self.duracion_combustible))
+            else:
+                cuchilla = CuchillaCortante(origen.x, origen.y, d.x, d.y, self.velocidad_cuchilla, self.dano,
+                                            self.corta_grandes, oculta_hasta=jugador.radio)
+            self.cuchillas.append(cuchilla)
         self.estado = "COOLDOWN"
         self.tiempo_restante_activo = 0.0
         self.tiempo_restante_cooldown = self.duracion_cooldown
@@ -965,9 +1040,7 @@ class Cortar(HabilidadBase):
         en este frame."""
         destruidas = []
         for c in self.cuchillas:
-            obstaculo = c.avanzar(rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo)
-            if obstaculo is not None:
-                destruidas.append(obstaculo)
+            destruidas.extend(c.avanzar(rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo))
         self.cuchillas = [c for c in self.cuchillas if c.activo]
         return destruidas
 
@@ -1285,7 +1358,10 @@ def resumen_habilidad(hab):
         if hab.potenciada_activa:
             detalles += f" · Explosión {ESTRELLA_FRACCION_EXPLOSION * 100:.0f}%"
     elif hab.nombre == "Cortar":
-        detalles = f"Daño {hab.dano} mág. · Vel {hab.velocidad_cuchilla} | CD {hab.duracion_cooldown:.0f}s"
+        detalles = f"Daño {hab.dano:g} mág. · Vel {hab.velocidad_cuchilla:g} | CD {hab.duracion_cooldown:g}s"
+        if hab.potenciada_activa:
+            detalles = (f"{len(hab.direcciones)} cuchilla(s) · Daño {hab.dano:g} · Comb. {hab.duracion_combustible:g}s"
+                        f" | CD {hab.duracion_cooldown:g}s")
     elif hab.nombre == "Onda Sonora":
         detalles = f"{len(hab.danos_ondas)} onda(s) · R{hab.radio:.0f} | CD {hab.duracion_cooldown:.0f}s"
     elif hab.nombre == "Aura Electrica":
@@ -1823,6 +1899,7 @@ class EfectoQuemadura:
         while self._acum >= 1.0:
             self._acum -= 1.0
             objetivo.vida = max(0.0, round(objetivo.vida - self.dano, 2))
+            encender_combustible(objetivo)      # cualquier quemadura hace explotar su combustible
         if self.restante < 0:
             self.restante = 0
 
@@ -2342,11 +2419,9 @@ class CargaDeFuego(HabilidadBase):
             self._t_zonas += dt
             while self._t_zonas >= 1.0:
                 self._t_zonas -= 1.0
-                for e in enemigos:
-                    if getattr(e, "vivo", True) and any(
-                            (e.posicion - c).length() <= ESTRELLA_RADIO_EXPLOSION + getattr(e, "radio", 0)
-                            for c, _ in self.zonas_fuego):
-                        e.vida = max(0.0, round(e.vida - ESTRELLA_DANO_SUELO, 2))   # ignora escudos
+                quemar_en_zonas([c for c, _ in self.zonas_fuego], enemigos)
+                for c, _ in self.zonas_fuego:
+                    jugador.combustible.encender_en_area(c, ESTRELLA_RADIO_EXPLOSION)
         else:
             self._t_zonas = 0.0
         return destruidos, evaporado
@@ -2357,6 +2432,8 @@ class CargaDeFuego(HabilidadBase):
             if getattr(e, "vivo", True) and hasattr(e, "recibir_dano") and \
                     (e.posicion - centro).length() <= r + getattr(e, "radio", 0):
                 e.recibir_dano(round(dano, 1), "magico", e.posicion - centro)
+                encender_combustible(e, round(dano, 1))     # su combustible pegado explota
+        jugador.combustible.encender_en_area(centro, r)
         destruidos = []
         # Rocas: nunca las gigantes (ni las cuevas de oso)
         for roca in list(rocas):
@@ -2388,20 +2465,7 @@ class CargaDeFuego(HabilidadBase):
 
     def dibujar_suelo(self, pantalla, desplazamiento=(0, 0)):
         """Suelo en llamas (bajo las entidades)."""
-        t = pygame.time.get_ticks() / 1000.0
-        r = ESTRELLA_RADIO_EXPLOSION
-        for c, restante in self.zonas_fuego:
-            px, py = round(c.x - desplazamiento[0]), round(c.y - desplazamiento[1])
-            alfa = int(70 * min(1.0, restante / 2.0) * (0.8 + 0.2 * math.sin(t * 9)))
-            capa = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-            pygame.draw.circle(capa, (255, 90, 20, alfa), (r + 2, r + 2), r)
-            pygame.draw.circle(capa, (255, 160, 40, min(255, alfa * 2)), (r + 2, r + 2), r, 2)
-            pantalla.blit(capa, (px - r - 2, py - r - 2))
-            rng = random.Random(int(t * 8) + int(c.x))
-            for _ in range(6):
-                ang, dist = rng.uniform(0, math.tau), rng.uniform(0, r * 0.9)
-                fx, fy = px + math.cos(ang) * dist, py + math.sin(ang) * dist
-                pygame.draw.polygon(pantalla, (255, 140, 30), [(fx, fy - 7), (fx + 3, fy), (fx - 3, fy)])
+        dibujar_zonas_fuego(pantalla, self.zonas_fuego, desplazamiento)
 
     def dibujar_explosiones(self, pantalla, desplazamiento=(0, 0)):
         """Aviso de la explosion pendiente y destello al detonar (encima de las entidades)."""
@@ -2417,6 +2481,221 @@ class CargaDeFuego(HabilidadBase):
             pygame.draw.circle(capa, (255, 200, 80, int(200 * restante / 0.35)), (r + 2, r + 2), r)
             pantalla.blit(capa, (px - r - 2, py - r - 2))
 
+
+# -----------------------------
+# COMBUSTIBLE (Desmantelar, Cortar potenciado)
+# -----------------------------
+COMBUSTIBLE_RADIO = 6                 # px de la esfera (visual y contacto)
+COMBUSTIBLE_DANO = 20                 # dano magico de su explosion (y el fijo de una carga pegada)
+COMBUSTIBLE_RETRASO = 2.0             # s entre prenderse en el suelo y explotar
+COMBUSTIBLE_DURACION_SUELO = 5.0      # s del suelo en llamas que deja la explosion
+COMBUSTIBLE_BONO_CARGA = 0.5          # cada carga pegada suma +50 % del golpe de fuego que la prende
+COMBUSTIBLE_MAX_PEGADAS = 3           # cargas pegadas como maximo en un mismo enemigo
+COMBUSTIBLE_DESTELLO = 0.35           # s del destello visual de la explosion
+
+
+def encender_combustible(objetivo, dano_golpe=None):
+    """Una quemadura (cualquier dano de fuego) toca a un enemigo: si lleva combustible pegado,
+    explota al instante y gasta todas sus cargas. Con el golpe de una esfera o una explosion de
+    Carga de Fuego / Estrella Ignea ('dano_golpe') hace +50 % de ese golpe por carga; con
+    cualquier otra quemadura (tick, suelo en llamas, explosion de combustible) hace el dano
+    fijo. La explosion de area se resuelve en el SistemaCombustible. Devuelve el dano."""
+    cargas = getattr(objetivo, "combustible", None)
+    if not cargas:
+        return 0.0
+    n = len(cargas)
+    objetivo.combustible = []
+    if dano_golpe:
+        dano = round(dano_golpe * COMBUSTIBLE_BONO_CARGA * n, 1)
+    else:
+        dano = COMBUSTIBLE_DANO
+    if hasattr(objetivo, "recibir_dano"):
+        objetivo.recibir_dano(dano, "magico", None)
+    else:
+        objetivo.vida = max(0.0, round(objetivo.vida - dano, 2))
+    sistema = getattr(objetivo, "combustible_sistema", None)
+    if sistema is not None:
+        sistema.pendientes.append((pygame.Vector2(objetivo.posicion), objetivo))
+    return dano
+
+
+class SistemaCombustible:
+    """Combustible que dejan las cuchillas de Desmantelar (uno por jugador, Personaje.combustible).
+    - Suelto en el suelo: dura su tiempo; si lo alcanza fuego (esfera de Carga de Fuego, una
+      explosion o un suelo en llamas) se prende y explota COMBUSTIBLE_RETRASO s despues. Si un
+      enemigo lo pisa, se le pega (su tiempo empieza de cero).
+    - Pegado a un enemigo (max 3, tiempos independientes): explota con cualquier quemadura
+      (encender_combustible); el agua de un lago lo quita al instante.
+    - Explosion: COMBUSTIBLE_DANO magico en el radio de Estrella Ignea y suelo en llamas
+      COMBUSTIBLE_DURACION_SUELO s (1/s, cuenta como quemadura). Solo dana a enemigos: nunca
+      al jugador ni al terreno."""
+
+    def __init__(self):
+        self.sueltos = []        # [posicion, segundos restantes, duracion, segundos para explotar o None]
+        self.portadores = []     # enemigos con combustible pegado
+        self.pendientes = []     # (centro, enemigo origen) de explosiones de cargas pegadas
+        self.zonas = []          # suelo en llamas [posicion, segundos restantes]
+        self.destellos = []      # [posicion, segundos restantes]
+        self._t_zonas = 0.0
+
+    def limpiar(self):
+        """Quita todo el combustible (al reaparecer el jugador)."""
+        for e in self.portadores:
+            e.combustible = []
+        self.__init__()
+
+    # ---- Crear combustible
+    def soltar(self, posicion, duracion):
+        self.sueltos.append([pygame.Vector2(posicion), duracion, duracion, None])
+
+    def pegar(self, enemigo, duracion):
+        """Pega una carga (con su propio tiempo) a un enemigo. Con 3 ya pegadas, la nueva
+        sustituye a la que menos tiempo le queda. En una tumba no se pega: cae al suelo."""
+        if getattr(enemigo, "es_tumba", False):
+            self.soltar(enemigo.posicion, duracion)
+            return
+        cargas = getattr(enemigo, "combustible", None)
+        if cargas is None:
+            cargas = enemigo.combustible = []
+        if len(cargas) >= COMBUSTIBLE_MAX_PEGADAS:
+            cargas.remove(min(cargas))
+        cargas.append(duracion)
+        enemigo.combustible_sistema = self
+        if enemigo not in self.portadores:
+            self.portadores.append(enemigo)
+
+    def encender_en_area(self, centro, radio):
+        """Prende el combustible suelto que toque el circulo (centro, radio)."""
+        r2 = (radio + COMBUSTIBLE_RADIO) ** 2
+        for s in self.sueltos:
+            if s[3] is None and (s[0] - centro).length_squared() <= r2:
+                s[3] = COMBUSTIBLE_RETRASO
+
+    # ---- Bucle
+    def actualizar(self, dt, jugador, enemigos, charcos):
+        vivos = [e for e in enemigos if getattr(e, "vivo", True)]
+        # 1) Esferas de fuego que pasan por encima del combustible suelto
+        for p in jugador.proyectiles:
+            if p.activo and isinstance(p, ProyectilFuego):
+                self.encender_en_area(p.posicion, p.radio)
+        # 2) Combustible suelto: se consume, explota o se pega a quien lo pise
+        restantes = []
+        for s in self.sueltos:
+            if s[3] is not None:
+                s[3] -= dt
+                if s[3] <= 0:
+                    self._explotar(s[0], vivos)
+                    continue
+            else:
+                s[1] -= dt
+                if s[1] <= 0:
+                    continue
+                pisado = next((e for e in vivos if not getattr(e, "es_tumba", False) and (e.posicion - s[0]).length_squared()
+                               <= (getattr(e, "radio", 0) + COMBUSTIBLE_RADIO) ** 2), None)
+                if pisado is not None:
+                    self.pegar(pisado, s[2])
+                    continue
+            restantes.append(s)
+        self.sueltos = restantes
+        # 3) Cargas pegadas: tiempo propio, el agua las quita y desaparecen con su portador
+        for e in list(self.portadores):
+            cargas = [t - dt for t in getattr(e, "combustible", []) if t - dt > 0]
+            if not getattr(e, "vivo", True) or any(c.contiene(e.posicion) for c in charcos):
+                cargas = []
+            e.combustible = cargas
+            if not cargas:
+                self.portadores.remove(e)
+        # 4) Explosiones de cargas pegadas (encender_combustible las deja pendientes)
+        while self.pendientes:
+            centro, origen = self.pendientes.pop(0)
+            self._explotar(centro, vivos, excluir=origen)
+        # 5) Suelo en llamas: 1 de dano por segundo (quemadura) y prende lo que toque
+        for z in self.zonas:
+            z[1] -= dt
+        self.zonas = [z for z in self.zonas if z[1] > 0]
+        if self.zonas:
+            self._t_zonas += dt
+            while self._t_zonas >= 1.0:
+                self._t_zonas -= 1.0
+                quemar_en_zonas([z[0] for z in self.zonas], vivos)
+                for z in self.zonas:
+                    self.encender_en_area(z[0], ESTRELLA_RADIO_EXPLOSION)
+        else:
+            self._t_zonas = 0.0
+        for d in self.destellos:
+            d[1] -= dt
+        self.destellos = [d for d in self.destellos if d[1] > 0]
+
+    def _explotar(self, centro, enemigos, excluir=None):
+        """Explosion de combustible: dano a los enemigos del radio (sus cargas pegadas explotan
+        con el dano fijo), prende el combustible suelto cercano y deja suelo en llamas."""
+        r = ESTRELLA_RADIO_EXPLOSION
+        for e in enemigos:
+            if e is excluir or not getattr(e, "vivo", True):
+                continue
+            if (e.posicion - centro).length() <= r + getattr(e, "radio", 0):
+                if hasattr(e, "recibir_dano"):
+                    e.recibir_dano(COMBUSTIBLE_DANO, "magico", e.posicion - centro)
+                encender_combustible(e)
+        self.encender_en_area(centro, r)
+        self.zonas.append([pygame.Vector2(centro), COMBUSTIBLE_DURACION_SUELO])
+        self.destellos.append([pygame.Vector2(centro), COMBUSTIBLE_DESTELLO])
+
+    # ---- Dibujo
+    def dibujar_suelo(self, pantalla, desplazamiento=(0, 0)):
+        """Suelo en llamas del combustible (bajo las entidades)."""
+        dibujar_zonas_fuego(pantalla, self.zonas, desplazamiento)
+
+    def dibujar(self, pantalla, desplazamiento=(0, 0)):
+        """Esferas sueltas, cargas pegadas a los enemigos y destellos (encima de las entidades)."""
+        ox, oy = desplazamiento
+        parpadeo = (pygame.time.get_ticks() // 120) % 2 == 0
+        for pos, _, _, prendido in self.sueltos:
+            centro = (round(pos.x - ox), round(pos.y - oy))
+            borde = (255, 150, 40) if prendido is not None and parpadeo else (220, 30, 40)
+            pygame.draw.circle(pantalla, (12, 10, 10), centro, COMBUSTIBLE_RADIO)
+            pygame.draw.circle(pantalla, borde, centro, COMBUSTIBLE_RADIO, 2)
+        for e in self.portadores:
+            r = getattr(e, "radio", 10)
+            for i in range(len(e.combustible)):
+                ang = math.tau * i / COMBUSTIBLE_MAX_PEGADAS + pygame.time.get_ticks() / 600.0
+                c = (round(e.posicion.x - ox + math.cos(ang) * r), round(e.posicion.y - oy + math.sin(ang) * r))
+                pygame.draw.circle(pantalla, (12, 10, 10), c, 4)
+                pygame.draw.circle(pantalla, (220, 30, 40), c, 4, 1)
+        for c, restante in self.destellos:
+            px, py = round(c.x - ox), round(c.y - oy)
+            r = ESTRELLA_RADIO_EXPLOSION
+            capa = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(capa, (255, 120, 60, int(180 * restante / COMBUSTIBLE_DESTELLO)), (r + 2, r + 2), r)
+            pantalla.blit(capa, (px - r - 2, py - r - 2))
+
+
+def quemar_en_zonas(centros, enemigos):
+    """Tick de 1 s de suelo en llamas: 1 de dano (ignora escudos) a cada enemigo dentro de
+    alguna zona (no se suma entre zonas). Cuenta como quemadura: prende su combustible."""
+    for e in enemigos:
+        if getattr(e, "vivo", True) and any(
+                (e.posicion - c).length() <= ESTRELLA_RADIO_EXPLOSION + getattr(e, "radio", 0) for c in centros):
+            e.vida = max(0.0, round(e.vida - ESTRELLA_DANO_SUELO, 2))   # ignora escudos
+            encender_combustible(e)
+
+
+def dibujar_zonas_fuego(pantalla, zonas, desplazamiento=(0, 0)):
+    """Suelo en llamas (Estrella Ignea y combustible): circulo naranja con llamas."""
+    t = pygame.time.get_ticks() / 1000.0
+    r = ESTRELLA_RADIO_EXPLOSION
+    for c, restante in zonas:
+        px, py = round(c.x - desplazamiento[0]), round(c.y - desplazamiento[1])
+        alfa = int(70 * min(1.0, restante / 2.0) * (0.8 + 0.2 * math.sin(t * 9)))
+        capa = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+        pygame.draw.circle(capa, (255, 90, 20, alfa), (r + 2, r + 2), r)
+        pygame.draw.circle(capa, (255, 160, 40, min(255, alfa * 2)), (r + 2, r + 2), r, 2)
+        pantalla.blit(capa, (px - r - 2, py - r - 2))
+        rng = random.Random(int(t * 8) + int(c.x))
+        for _ in range(6):
+            ang, dist = rng.uniform(0, math.tau), rng.uniform(0, r * 0.9)
+            fx, fy = px + math.cos(ang) * dist, py + math.sin(ang) * dist
+            pygame.draw.polygon(pantalla, (255, 140, 30), [(fx, fy - 7), (fx + 3, fy), (fx - 3, fy)])
 
 # -----------------------------
 # CATÁLOGO DE HABILIDADES DISPONIBLES

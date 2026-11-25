@@ -184,6 +184,8 @@ El personaje empieza con **4 puntos de mejora** y gana **4 por cada nivel** (ade
 
 Si la vida llega a **0**, el mundo se congela tras un aviso **"HAS MUERTO"** con **Reaparecer [R]** y **Volver al menú principal [M]**. Al reaparecer vuelves al **centro** desde cero: nivel 1, XP 0, **sin monedas**, 4 puntos, estadísticas iniciales, arma y habilidades a nivel 1 (en las mismas teclas), vida y energía llenas; tus **sombras desaparecen**. El **mundo sigue igual** (solo se genera uno nuevo al crear otra partida).
 
+**Tumba (desde el 25/11/2026).** Si mueres **sin Tótem**, donde caíste queda una **tumba** (lápida gris sólida) que guarda **todo** tu personaje durante **10 minutos** de juego (el tiempo corre también con la pantalla de muerte o el inventario abiertos). Si vuelves y la rompes con **3 golpes directos tuyos** (arma, flechas, proyectiles, cuchillas, ondas o explosiones; **cada golpe cuenta 1**, sin importar el daño) recuperas **exactamente** lo que tenías al morir: nivel, XP, puntos y estadísticas, arma y habilidades con sus niveles y potenciadas, colección, monedas y talismanes equipados. **Se descarta lo de la vida nueva** (nivel, monedas y objetos conseguidos desde que reapareciste) para que no se pueda abusar. Te quedas donde estás, con la vida, la energía y los escudos llenos y sin efectos. **No cuentan** los daños por segundo (quemadura, veneno, aura, suelo en llamas), tus invocaciones ni la fauna; el combustible de Desmantelar no se pega a ella. Si **mueres otra vez antes de recogerla**, la tumba vieja **desaparece** y la nueva guarda la vida que llevabas (desde cero). Una **flecha en el borde** de la pantalla apunta a la tumba con la distancia y el tiempo que queda; sobre la lápida se ven los golpes que faltan y **parpadea en el último minuto**. Morir con Tótem no cambia: no hay tumba.
+
 ---
 
 ## 8. Herramientas (armas)
@@ -442,14 +444,27 @@ Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza hacia donde mi
 
 | Nivel | Daño | Velocidad | Coste En. | Recarga |
 |---|---|---|---|---|
-| 1 | 5 | 5 | 15 | 2 s |
-| 5 | 12.4 | 9 | 23 | 4 s |
-| 10 | 21.6 | 14 | 33 | 6 s |
-| 15 | 30.8 | 19 | 43 | 8 s |
-| 19 | 38.2 | 23 | 51 | 8 s |
+| 1 | 2 | 5 | 15 | 2 s |
+| 5 | 10 | 9 | 23 | 4 s |
+| 10 | 20 | 14 | 33 | 6 s |
+| 15 | 30 | 19 | 43 | 8 s |
+| 19 | 38 | 23 | 51 | 8 s |
 | 20 | 40 | 24 | 53 | 10 s |
 
-Daño **5 → 40** lineal (redondeado a 1 decimal), velocidad **5 +1 por nivel**, coste **15 +2 por nivel** y recarga **2 s +2 s cada 5 niveles** (sube a propósito). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.11).
+Daño **2 por nivel** (2 → 40), velocidad **5 +1 por nivel**, coste **15 +2 por nivel** y recarga **2 s +2 s cada 5 niveles** (sube a propósito). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.11).
+
+**Potenciada: Desmantelar (niveles 21 – 30).** Sale en el Gacha mejorado; cada nivel cuesta **2 puntos**. Lanza **1 → 8 cuchillas totalmente rojas** alrededor del personaje (el **norte es hacia donde mira**; orden n, s, e, o, ne, no, so, se) con **600 px** de alcance. Cada una **atraviesa hasta 3 objetos** (rocas, arbustos y árboles, incluidas rocas gigantes y arbustos grandes; las **cuevas de oso** la rompen sin destruirse ni contar) y **se detiene en el primer enemigo** (daño 40 mágico y anula su escudo mágico 8 s). Al pararse deja **combustible**: pegado al enemigo que golpea, o en el suelo donde se rompió o donde terminó su alcance. **Combustible:** esfera negra con contorno rojo que dura lo que marca la tabla (1 → 10 s; tiempos independientes en el suelo y pegado). **En el suelo** se prende con una esfera de Carga de Fuego / Estrella Ígnea que pase por encima, una explosión o un suelo en llamas, y **explota 2 s después** (aunque se le acabe el tiempo); si un enemigo lo pisa sin estar prendido, se le pega con su tiempo desde cero. **Pegado** (máx. **3** por enemigo, se quitan al instante al tocar el agua de un lago y desaparecen si muere) explota **al instante** con cualquier quemadura: con el golpe de una esfera o explosión de Carga de Fuego / Estrella Ígnea suma **+50 % de ese golpe por carga** (×1.5 / ×2 / ×2.5 en total); con un tick de quemadura, un suelo en llamas o otra explosión de combustible hace **20 fijos** (así las cadenas terminan solas). **Explosión de combustible:** 20 de daño mágico en **100 px** (como Estrella Ígnea) y **suelo en llamas 5 s** (1/s, cuenta como quemadura); solo daña a enemigos, nunca al jugador ni al terreno. Lineal entre los niveles 20, 22, 24, 26, 28 y 30; las cuchillas cambian en el nivel indicado.
+
+| Nivel | Velocidad | Coste En. | Recarga | Combustible | Cuchillas |
+|---|---|---|---|---|---|
+| 20 | 24 | 60 | 10 s | 1 s | 1 (n) |
+| 22 | 26 | 70 | 12 s | 2 s | 2 (n, s) |
+| 24 | 28 | 80 | 14 s | 4 s | 3 (n, s, e) |
+| 26 | 30 | 90 | 16 s | 6 s | 4 (n, s, e, o) |
+| 28 | 32 | 100 | 18 s | 8 s | 6 (+ ne, no) |
+| 30 | **35** | **120** | **20 s** | **10 s** | **8** (+ so, se) |
+
+El daño se queda en **40** por cuchilla. Ejemplo: Estrella Ígnea nv30 cargada al máximo (127.4) contra un enemigo con 3 cargas pegadas: 127.4 + 191.1 de la explosión = **318.5**.
 
 ### 9.15 Onda Sonora
 

@@ -4,7 +4,7 @@ from herramientas import EspadaLigera, HERRAMIENTAS_DISPONIBLES, crear_herramien
 from talismanes import ColeccionTalismanes, GestorSombras
 from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO,
-                         aplicar_inmovilizacion)
+                         aplicar_inmovilizacion, SistemaCombustible)
 
 # Masa del personaje frente a otros cuerpos (conejo 1, lobo 3): apenas lo desplazan sus
 # invocaciones, pero los cuerpos fijos (maniqui) si lo frenan.
@@ -174,6 +174,9 @@ class Personaje:
 
         # Proyectiles activos disparados por el personaje (Disparo Veloz)
         self.proyectiles = []
+        if getattr(self, "combustible", None) is not None:
+            self.combustible.limpiar()             # al reaparecer, el combustible anterior se pierde
+        self.combustible = SistemaCombustible()    # combustible de Desmantelar (suelo y pegado)
 
         # Temporizador para la regeneración global de energía
         self.tiempo_regen = 0.0

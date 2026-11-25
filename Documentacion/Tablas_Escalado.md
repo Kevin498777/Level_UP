@@ -484,30 +484,46 @@ Invoca **3 lobos** (daño físico) detrás del personaje. No se puede reinvocar 
 
 ### 2.11 Cortar
 
-Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno rojo, del largo de la Espada Ligera) que se detiene en el **primer enemigo**. Lanzada desde dentro de un arbusto no lo corta. Si llega a hacer daño, **anula el escudo mágico** del enemigo **8 s** (queda en 0 sin regenerar y luego vuelve al valor que tenía tras el golpe; otro corte reinicia los 8 s). Al chocar con una **roca o un arbusto** lo destruye y se rompe (solo un objeto); las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**. Daño **5 → 40** lineal (redondeado a 1 decimal). La recarga **sube** con el nivel a propósito.
+Habilidad de **daño mágico**. Lanza una cuchilla recta (negra con contorno rojo, del largo de la Espada Ligera) que se detiene en el **primer enemigo**. Lanzada desde dentro de un arbusto no lo corta. Si llega a hacer daño, **anula el escudo mágico** del enemigo **8 s** (queda en 0 sin regenerar y luego vuelve al valor que tenía tras el golpe; otro corte reinicia los 8 s). Al chocar con una **roca, un arbusto o un árbol** lo destruye y se rompe (solo un objeto); las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**. Daño **2 por nivel** (2 → 40). La recarga **sube** con el nivel a propósito.
 
 | Nivel | Daño | Velocidad | Coste En. | Recarga | Corta gigantes/grandes |
 |---|---|---|---|---|---|
-| 1 | 5 | 5 | 15 | 2 s | No |
-| 2 | 6.8 | 6 | 17 | 2 s | No |
-| 3 | 8.7 | 7 | 19 | 2 s | No |
-| 4 | 10.5 | 8 | 21 | 2 s | No |
-| 5 | 12.4 | 9 | 23 | 4 s | No |
-| 6 | 14.2 | 10 | 25 | 4 s | No |
-| 7 | 16.1 | 11 | 27 | 4 s | No |
-| 8 | 17.9 | 12 | 29 | 4 s | No |
-| 9 | 19.7 | 13 | 31 | 4 s | No |
-| 10 | 21.6 | 14 | 33 | 6 s | No |
-| 11 | 23.4 | 15 | 35 | 6 s | No |
-| 12 | 25.3 | 16 | 37 | 6 s | No |
-| 13 | 27.1 | 17 | 39 | 6 s | No |
-| 14 | 28.9 | 18 | 41 | 6 s | No |
-| 15 | 30.8 | 19 | 43 | 8 s | No |
-| 16 | 32.6 | 20 | 45 | 8 s | No |
-| 17 | 34.5 | 21 | 47 | 8 s | No |
-| 18 | 36.3 | 22 | 49 | 8 s | No |
-| 19 | 38.2 | 23 | 51 | 8 s | No |
+| 1 | 2 | 5 | 15 | 2 s | No |
+| 2 | 4 | 6 | 17 | 2 s | No |
+| 3 | 6 | 7 | 19 | 2 s | No |
+| 4 | 8 | 8 | 21 | 2 s | No |
+| 5 | 10 | 9 | 23 | 4 s | No |
+| 6 | 12 | 10 | 25 | 4 s | No |
+| 7 | 14 | 11 | 27 | 4 s | No |
+| 8 | 16 | 12 | 29 | 4 s | No |
+| 9 | 18 | 13 | 31 | 4 s | No |
+| 10 | 20 | 14 | 33 | 6 s | No |
+| 11 | 22 | 15 | 35 | 6 s | No |
+| 12 | 24 | 16 | 37 | 6 s | No |
+| 13 | 26 | 17 | 39 | 6 s | No |
+| 14 | 28 | 18 | 41 | 6 s | No |
+| 15 | 30 | 19 | 43 | 8 s | No |
+| 16 | 32 | 20 | 45 | 8 s | No |
+| 17 | 34 | 21 | 47 | 8 s | No |
+| 18 | 36 | 22 | 49 | 8 s | No |
+| 19 | 38 | 23 | 51 | 8 s | No |
 | 20 | 40 | 24 | 53 | 10 s | Sí |
+
+**Desmantelar (potenciada, nivel 20 con la potenciada desbloqueada y niveles 21 – 30).** Sale en el Gacha mejorado; cada nivel cuesta **2 puntos**. Lanza **1 → 8 cuchillas totalmente rojas** alrededor del personaje (el **norte es hacia donde mira**; orden n, s, e, o, ne, no, so, se) con **600 px** de alcance. Cada una **atraviesa hasta 3 objetos** (rocas, arbustos y árboles, incluidas rocas gigantes y arbustos grandes; las **cuevas de oso** la rompen sin destruirse ni contar) y **se detiene en el primer enemigo** (daño 40 mágico y anula su escudo mágico 8 s). Al pararse deja **combustible**: pegado al enemigo que golpea, o en el suelo donde se rompió o donde terminó su alcance. **Combustible:** esfera negra con contorno rojo que dura lo que marca la tabla (1 → 10 s; tiempos independientes en el suelo y pegado). **En el suelo** se prende con una esfera de Carga de Fuego / Estrella Ígnea que pase por encima, una explosión o un suelo en llamas, y **explota 2 s después** (aunque se le acabe el tiempo); si un enemigo lo pisa sin estar prendido, se le pega con su tiempo desde cero. **Pegado** (máx. **3** por enemigo, se quitan al instante al tocar el agua de un lago y desaparecen si muere) explota **al instante** con cualquier quemadura: con el golpe de una esfera o explosión de Carga de Fuego / Estrella Ígnea suma **+50 % de ese golpe por carga** (×1.5 / ×2 / ×2.5 en total); con un tick de quemadura, un suelo en llamas o otra explosión de combustible hace **20 fijos** (así las cadenas terminan solas). **Explosión de combustible:** 20 de daño mágico en **100 px** (como Estrella Ígnea) y **suelo en llamas 5 s** (1/s, cuenta como quemadura); solo daña a enemigos, nunca al jugador ni al terreno. Lineal entre los niveles 20, 22, 24, 26, 28 y 30; las cuchillas cambian en el nivel indicado.
+
+| Nivel | Daño | Velocidad | Coste En. | Recarga | Combustible | Cuchillas | Direcciones |
+|---|---|---|---|---|---|---|---|
+| 20 | 40 | 24 | 60 | 10 s | 1 s | 1 | n |
+| 21 | 40 | 25 | 65 | 11 s | 1.5 s | 1 | n |
+| 22 | 40 | 26 | 70 | 12 s | 2 s | 2 | n, s |
+| 23 | 40 | 27 | 75 | 13 s | 3 s | 2 | n, s |
+| 24 | 40 | 28 | 80 | 14 s | 4 s | 3 | n, s, e |
+| 25 | 40 | 29 | 85 | 15 s | 5 s | 3 | n, s, e |
+| 26 | 40 | 30 | 90 | 16 s | 6 s | 4 | n, s, e, o |
+| 27 | 40 | 31 | 95 | 17 s | 7 s | 4 | n, s, e, o |
+| 28 | 40 | 32 | 100 | 18 s | 8 s | 6 | n, s, e, o, ne, no |
+| 29 | 40 | 33.5 | 110 | 19 s | 9 s | 6 | n, s, e, o, ne, no |
+| 30 | 40 | 35 | 120 | 20 s | 10 s | 8 | n, s, e, o, ne, no, so, se |
 
 ### 2.12 Onda Sonora
 

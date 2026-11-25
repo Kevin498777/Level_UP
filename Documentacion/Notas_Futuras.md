@@ -435,3 +435,92 @@ vida   54/100    50/100                     1 58/100     2 56/100   3
 | 20    | -25  | +60     | 2 s  | -0       | +12
 Pasiva genera una onda color rosa que cada 2s que cura a los aliados (sombras) solo a aliados no a si mismo
 cd en intervalo de cambio entre regeneracion inversa e inversion vital 4s en todos los niveles 10-15
+
+
+### Cortar → Desmantelar
+Ajuste de habilidad
+Habilidad cortar al nv20
+Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
+
+- **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 8 s** (ver 6.3).
+- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Las **cuevas de oso** no se destruyen nunca (ni con Cortar ni con Estrella Ígnea). Si hay arbustos solapados (matorral), corta el más cercano.
+- **Árbol:** lo **destruye al tocar cualquier parte** (incluida la copa), **a cualquier nivel**, y la cuchilla se rompe con él.
+- Los objetos destruidos **no reaparecen** (Los frutales si) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
+
+| Nivel | Daño | Velocidad | Coste En. | Recarga |
+|---    |---   |---        |---        |---      |
+| 1     | 2    | 5         | 15        | 2 s     |
+| 5     | 10   | 9         | 23        | 4 s     |
+| 10    | 20   | 14        | 33        | 6 s     |
+| 15    | 30   | 19        | 43        | 8 s     |
+| 19    | 38   | 23        | 51        | 8 s     |
+| 20    | 40   | 24        | 53        | 10 s    |
+
+### Desmantelar
+Habilidad desmantelar maximo 30
+Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza 8 cuchillas que te rodean en 8 direciones distintas al rededor del personaje, **cuchaillas delgadas** en linea recta del largo aproxiamdo de la espada ligera, **totalemnte roja**, sale desde el centro del personaje (se hace visible al salir de su cuerpo) y no se detiene en lo primero que toque:
+Este no vuela de forma infinita tiene un rango de 600px llegado ahi se destruye sola y deja combustible
+
+**Combustible** Esta es una pequeña esfera negro con contorno rojo la cual dura 10s despues desaparece sola esta no hace daño por si sola pero si cualquier habilidad que proveque una quemadura hara que esta 2s despues exploque generado una pequeña explocion del mismo radio que deja estrella ignea la cual hace 20 punos de daño y dura 5s con quemadura 1 de daño por segundo esta quemadura y daño es daño magico
+
+***Combustible aderible* si cualquier cuchilla de desmantelar te golpea las esferas de combustible se pegan a ti por 10s la unica forma de elinarla rapido del cuerpo es entrando en un lago(contacto con agua) si cualquier tipo de quemadura te toca con un punto de combutible esta explota y te hace el daño de quien te genero la quemadura multiplicada por 3 la explocion es igual como con estrella ignea, los puntos de combustible pegados al personaje son acumulables maximo 3
+Ejemplo1
+ si te llega a golpear un extrella ignea al 30 cargada al maximo hace 127.4 de daño el puro daño de esta sin contar el daño colateral este se multiplica por 3 y hace un daño de 382
+Ejemplo2 
+si tengo 1 a 3 cargas de combustible y resivo cualquier tipo de daño el daño de la explocion si tengo pegado 3 cargas de combustible el daño final se multiplica por 9, el tiempo de vida de cada carga es independiente
+
+- **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 8 s**.
+- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**con 3 objetos** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**;(igual) antes, la cuchilla se rompe y el objeto queda intacto. Las **cuevas de oso** no se destruyen nunca (ni con Cortar ni con Estrella Ígnea,ni desmantelar,ni explociones). Si hay arbustos solapados (matorral), corta el más cercano.
+- **Árbol:** lo **destruye al tocar cualquier parte** (incluida la copa), **a cualquier nivel**, y la cuchilla se rompe con él pero mientras aun tenga los 3 objetos cortados no se destruira.
+- Los objetos destruidos **no reaparecen** (Los frutales si) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
+
+| Nivel | Daño | Velocidad | Coste En. | Recarga |duracion activa de combustible|cuchillas por nivel|
+|---    |---   |---        |---        |---      |------------------------------|--------------------
+| 20    | 40   | 24        | 60        | 10 s    |1s                            |1 n
+| 22    | 40   | 26        | 70        | 12 s    |2s                            |2 n,s
+| 24    | 40   | 28        | 80        | 14 s    |4s                            |3 n,s,e
+| 26    | 40   | 30        | 90        | 16s     |6s                            |4 n,s,e,o
+| 28    | 40   | 32        | 100       | 18 s    |8s                            |6 n,s,e,o,ne,no
+| 30    | 40   | 35        | 120       | 20 s    |10s                           |8 n,s,e,o,ne,no,so,se
+
+La duracion aplicada estando en el suelo y pegadas al cuerpo cuando cabian de estado de sueltas a pegadas lso tiempos son independietes
+
+El norte siempre apunta al frente donde esta mirando actalmente el personaje si mara para abajo el norte sera abajo
+norte=n
+sur=s
+este=e
+oeste=0
+ne=noreste
+se=sureste
+so=suroeste
+no=noroeste
+
+### 9.15 Onda Sonora
+
+Habilidad de **daño mágico** (categoría Ataque Mágico). Emite **anillos blancos finos** que se expanden en **360°** hasta el radio máximo, donde se desvanecen. Las ondas salen **una cada 0.8 s**, todas desde el **punto donde se lanzó** (no siguen al personaje aunque se mueva):
+
+- **Nivel 1–9:** 1 onda de **10** de daño.
+- **Nivel 10–19:** 2 ondas (**10** y **20**).
+- **Nivel 20:** 3 ondas (**10**, **20** y **30**).
+
+Atraviesan rocas y arbustos **sin destruir nada** y **solo afectan a enemigos** (no al lanzador ni a sus invocaciones). Cada onda golpea **una sola vez** a cada objetivo; tras golpear sigue visible y las ondas siguientes sí pueden golpearlo. El escudo mágico amortigua su daño.
+
+**Pasiva (ralentización):** según cuántas ondas del mismo lanzamiento golpeen al objetivo: **-5 % / -10 % / -20 %** de velocidad de movimiento durante **3 s**. No se suma: se queda la más fuerte y cada impacto reinicia los 3 s.
+
+**Medio (agua):** cuenta el punto de lanzamiento (agua o tierra, igual para todas sus ondas) y dónde está el objetivo al recibir cada onda.
+
+| Lanzador → objetivo | Daño | Ralentización |
+|---|---|---|
+| Tierra → tierra | normal | -5 / -10 / -20 % |
+| Agua → agua | **x2** (20 / 40 / 60) | **x2** (-10 / -20 / -40 %) |
+| Cambio de medio (tierra ↔ agua) | **x0.5** (5 / 10 / 15) | **x0.5** (-2.5 / -5 / -10 %) |
+
+La onda viaja a **300 px/s** y al **doble (600 px/s)** si se lanza desde el agua; el alcance no cambia.
+
+| Nivel | Ondas | Radio | Coste En. | Recarga |
+|---|---|---|---|---|
+| 1 | 1 | 200 | 10 | 10 s |
+| 5 | 1 | 242 | 15 | 14.2 s |
+| 10 | 2 | 295 | 20 | 19.5 s |
+| 15 | 2 | 347 | 25 | 24.7 s |
+| 20 | 3 | 400 | 30 | 30 s |

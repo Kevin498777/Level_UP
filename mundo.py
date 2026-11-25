@@ -6,10 +6,11 @@ from personaje import (Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESC
                        REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE)
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
-                         aplicar_veneno, enemigo_en, COLOR_VENENO)
+                         aplicar_veneno, enemigo_en, COLOR_VENENO, encender_combustible)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
 from fauna import SistemaFauna
+from tumba import Tumba, guardar_estado, restaurar_estado
 from inventario import dibujar_inventario, rect_inventario, nuevo_estado_inventario, manejar_clic_inventario
 import talismanes as TL
 import gacha as GACHA
@@ -1069,6 +1070,7 @@ def iniciar_mundo(config):
     reloj = pygame.time.Clock()
     ejecutando = True
     muerto = False            # Vida a 0: el mundo se congela y sale la pantalla de muerte
+    tumba = None              # Tumba de la ultima muerte sin totem (guarda el progreso 10 min)
     inventario_abierto = False  # [I]: inventario superpuesto (NO pausa el mundo)
     estado_inv = nuevo_estado_inventario()
     aviso_totem = None          # [texto, segundos transcurridos] tras salvarte un tótem
@@ -1189,6 +1191,15 @@ def iniciar_mundo(config):
     while ejecutando:
         dt = reloj.tick(60) / 1000.0  # Delta time en segundos
 
+        # Tumba: su tiempo corre siempre (tambien con la pantalla de muerte o el inventario)
+        if tumba is not None:
+            tumba.actualizar(dt)
+            if tumba.caducada:
+                tumba = None
+                if not muerto:
+                    textos_flotantes.append(["La tumba desapareció", (200, 200, 210),
+                                             jugador.posicion - pygame.Vector2(0, 48), 0.0])
+
         # Modo combate de las sombras: mantener la tecla de una invocacion activa pone a
         # sus criaturas en guardia (se dirigen con el clic derecho).
         teclas_estado = pygame.key.get_pressed()
@@ -1197,7 +1208,9 @@ def iniciar_mundo(config):
                 hab.modo_combate = (hab.estado == "INVOCADO" and teclas_estado[hab.tecla])
 
         # Enemigos actuales (por ahora solo el maniqui de pruebas)
-        enemigos = ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
+        enemigos_sin_tumba = ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
+        # La tumba recibe solo los golpes directos (arma, proyectiles, cuchillas, ondas, explosiones)
+        enemigos = enemigos_sin_tumba + ([tumba] if tumba is not None and tumba.vivo else [])
 
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -1388,7 +1401,7 @@ def iniciar_mundo(config):
                         )
                         en_combate = [h for h in jugador.habilidades if getattr(h, "modo_combate", False)]
                         for hab in en_combate:
-                            hab.ordenar(punto, jugador, enemigos)
+                            hab.ordenar(punto, jugador, enemigos_sin_tumba)
                         if not en_combate:
                             jugador.alternar_autoapuntado(enemigo_en(punto, enemigos, AUTOAPUNTADO_MARGEN_CLIC))
 
@@ -1500,6 +1513,7 @@ def iniciar_mundo(config):
                                                  enemigo.posicion - p.posicion)
                         if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
                             aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
+                            encender_combustible(enemigo, p.dano)   # combustible pegado: +50 % por carga
                         if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
                             aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
                         if hasattr(p, "impactar"):
@@ -1538,6 +1552,23 @@ def iniciar_mundo(config):
                     for centro_ev, radio_ev in evaporado:
                         fauna.quitar_fauna_acuatica(centro_ev, radio_ev)
 
+            # Combustible de Desmantelar: suelto, pegado a enemigos, explosiones y suelo en llamas
+            jugador.combustible.actualizar(dt, jugador, enemigos, charcos)
+
+            # Tumba rota: se recupera el personaje guardado (se descarta la vida nueva)
+            if tumba is not None and tumba.rota:
+                # Las sombras de la vida nueva desaparecen (se descarta esa vida)
+                objetivos_viejos = []
+                for hab in jugador.coleccion_habilidades + [jugador.sombras_anillo]:
+                    for cr in getattr(hab, "criaturas", ()):
+                        cr.vivo = False
+                        objetivos_viejos.append(cr)
+                fauna.olvidar_objetivos(objetivos_viejos)
+                restaurar_estado(jugador, tumba.estado)
+                tumba = None
+                textos_flotantes.append(["¡Recuperaste todo lo de la tumba!", COLOR_XP_MAX,
+                                         jugador.posicion - pygame.Vector2(0, 48), 0.0])
+
             # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
             maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
             for hab in jugador.habilidades:
@@ -1546,11 +1577,11 @@ def iniciar_mundo(config):
             # Aura Electrica: dano por segundo a los enemigos dentro del aura
             for hab in jugador.habilidades:
                 if hasattr(hab, "actualizar_dano_enemigos"):
-                    hab.actualizar_dano_enemigos(dt, enemigos, jugador)
+                    hab.actualizar_dano_enemigos(dt, enemigos_sin_tumba, jugador)
             # Sombra Araña: las telaranas atrapan a los enemigos que las pisan
             for hab in jugador.habilidades:
                 if hasattr(hab, "actualizar_telaranas"):
-                    hab.actualizar_telaranas(dt, enemigos)
+                    hab.actualizar_telaranas(dt, enemigos_sin_tumba)
             # Efectos temporales otorgados (ej. por Golpe de Suerte)
             jugador.actualizar_efectos(dt)
             # Desangrado activo (resta vida por intervalo; preparado para el combate)
@@ -1603,6 +1634,8 @@ def iniciar_mundo(config):
             for hab in jugador.fuentes_criaturas():
                 cuerpos.extend(getattr(hab, "criaturas", ()))
             cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
+            if tumba is not None:
+                cuerpos.append(tumba)           # solida: nada la atraviesa ni la mueve
             resolver_solapamientos(cuerpos)
             jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
             jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)
@@ -1646,6 +1679,8 @@ def iniciar_mundo(config):
                 aviso_totem = [f"El Tótem de vida te salvó (quedan {jugador.talismanes.totems})", 0.0]
             elif jugador.vida <= 0:
                 muerto = True
+                # Sin totem: el progreso queda en una tumba donde caiste (sustituye a la anterior)
+                tumba = Tumba(jugador.posicion, guardar_estado(jugador))
                 inventario_abierto = False   # la pantalla de muerte manda
         pantalla.set_clip(area_mundo_pantalla)
 
@@ -1677,6 +1712,9 @@ def iniciar_mundo(config):
                 hab.dibujar_telaranas(pantalla, desplazamiento)
             if hasattr(hab, "dibujar_suelo"):
                 hab.dibujar_suelo(pantalla, desplazamiento)
+        jugador.combustible.dibujar_suelo(pantalla, desplazamiento)
+        if tumba is not None and tumba.vivo:
+            tumba.dibujar(pantalla, desplazamiento, fuentes["mini"])
         # Maniqui de pruebas en el centro
         maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
 
@@ -1705,6 +1743,7 @@ def iniciar_mundo(config):
             if hasattr(hab, "dibujar_explosiones"):
                 hab.dibujar_explosiones(pantalla, desplazamiento)
         jugador.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
+        jugador.combustible.dibujar(pantalla, desplazamiento)
 
         # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)
         vivos_parpadeo = [jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
@@ -1758,6 +1797,10 @@ def iniciar_mundo(config):
                       round(tf[2].y - desplazamiento[1] - jugador.radio - 32 - SUBIDA_TEXTO_FLOTANTE * prog))
             pantalla.blit(sup, pos_tf)
         textos_flotantes[:] = [tf for tf in textos_flotantes if tf[3] < DURACION_TEXTO_FLOTANTE]
+
+        # Tumba: flecha en el borde hacia ella, con la distancia y el tiempo que le queda
+        if tumba is not None and not muerto:
+            tumba.dibujar_indicador(pantalla, area_mundo_pantalla, jugador, fuentes["mini"])
 
         # Brujula [C]: flechas hacia el conejo, lobo, oso y maniqui mas cercanos
         if mostrar_brujula:
