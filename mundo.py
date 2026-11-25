@@ -616,6 +616,7 @@ DURACION_AVISO_TOTEM = 3.5         # s que se ve "El Tótem de vida te salvó"
 COLOR_TOTEM_AVISO = (120, 240, 150)
 MONEDAS_PRUEBA = 100               # [K] (prueba): monedas para probar el Gacha
 PROB_DEBUG_TOTEM = 0.2             # [T] (prueba): probabilidad de dar un tótem en vez de un anillo
+PUNTOS_PRUEBA_SHADOW = 999         # shadow498: puntos de mejora extra para editar las stats con el panel ([L] o botones +)
 
 
 # Parpadeo rojo al perder vida (cualquier ser vivo: jugador, maniqui, fauna y sombras)
@@ -1028,6 +1029,28 @@ def iniciar_mundo(config):
         herramienta=config.get("herramienta", EspadaLigera())
     )
 
+    def aplicar_extras_pruebas(j):
+        """Opciones del personaje de pruebas (shadow498), elegidas en la creación:
+        - 'puntos_extra': un gran lote de puntos de mejora para subir las stats a gusto con el
+          panel existente (botones + o la tecla [L]).
+        - 'dar_todo': todas las armas, todas las habilidades y todos los objetos (anillos al
+          máximo + tótems) en el inventario."""
+        if config.get("puntos_extra"):
+            j.puntos_mejora += PUNTOS_PRUEBA_SHADOW
+        if config.get("dar_todo"):
+            for n in j.herramientas_faltantes():
+                j.agregar_herramienta(n)
+            for n in j.habilidades_faltantes():
+                j.agregar_habilidad(n)
+            for id_anillo, datos in TL.ANILLOS.items():
+                for _ in range(datos["nivel_max"]):
+                    j.talismanes.agregar_anillo(id_anillo)
+            for _ in range(TL.TOTEM_MAX):
+                j.talismanes.agregar_totem()
+            j.recalcular_talismanes()
+
+    aplicar_extras_pruebas(jugador)
+
     fuentes = {
         "titulo": pygame.font.SysFont("Segoe UI", 14, bold=True),
         "sub": pygame.font.SysFont("Segoe UI", 11, bold=True),
@@ -1159,6 +1182,7 @@ def iniciar_mundo(config):
         herramienta = equipo_inicial[1]() if equipo_inicial[1] else None
         # Se reinicia el mismo objeto: quien lo referencia (maniqui, fauna) sigue valiendo
         jugador.__init__(**datos_jugador(nuevas, herramienta))
+        aplicar_extras_pruebas(jugador)
         camara.update(jugador.posicion)
         textos_flotantes.clear()
 

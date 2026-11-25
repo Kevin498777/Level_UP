@@ -170,6 +170,7 @@ def tirar_anillo(jugador, rng=random):
         _dar_anillo(jugador, rng, res)
     else:
         _agotada(res, "Todos los anillos al máximo", TL.COLOR_RAREZA[TL.COMUN])
+        res["categoria"] = NADA       # sin anillo concreto que dibujar (evita ANILLOS[None])
     if res["devolucion"]:
         jugador.monedas += res["devolucion"]
         res["texto"] += f" · +{res['devolucion']} monedas"

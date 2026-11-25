@@ -111,22 +111,14 @@ def generar_estadisticas():
 # -----------------------------
 NOMBRE_CLAVE_PRUEBAS = "shadow498"
 
-STATS_PRUEBAS = {
-    "velocidad": 99,
-    "fuerza": 999,      # Daño base = fuerza -> 999 (con Espada Ligera x2)
-    "energia": 999,
-    "vida": 999,
-    "escudo": 999,
-    "escudo_magico": 999
-}
+# shadow498 empieza con las estadisticas NORMALES de cualquier jugador (generar_estadisticas);
+# sus ventajas de prueba son opcionales y se eligen con las casillas de "Opciones de pruebas":
+# puntos de mejora extra para subir stats a gusto, y/o todo el inventario (ver mundo.py).
 
 
-def aplicar_stats_pruebas(nombre, stats):
-    """Si el nombre es el nombre clave, sobrescribe las estadísticas con las de pruebas."""
-    if nombre.strip().lower() == NOMBRE_CLAVE_PRUEBAS:
-        stats = dict(stats)
-        stats.update(STATS_PRUEBAS)
-    return stats
+def es_personaje_pruebas(nombre):
+    """True si el nombre es el nombre clave del personaje de pruebas."""
+    return nombre.strip().lower() == NOMBRE_CLAVE_PRUEBAS
 
 
 # -----------------------------
@@ -251,6 +243,9 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
     tarjetas_herr = {}
     tarjetas_hab = {}
     info_var = tk.StringVar(value="Pulsa el ? de una tarjeta para ver qué hace.")
+    # Opciones del personaje de pruebas (solo se usan si el nombre es el nombre clave)
+    opt_puntos_var = tk.BooleanVar(value=False)      # puntos de mejora extra (editar stats con el panel)
+    opt_inventario_var = tk.BooleanVar(value=False)  # todas las armas y objetos en el inventario
 
     def _estilo_tarjeta(card, lbl, chk, color, seleccionado, numero=None):
         bg = "#30363F" if seleccionado else COLOR_PANEL
@@ -333,7 +328,7 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
     def renderizar_stats():
         for widget in panel_stats.winfo_children():
             widget.destroy()
-        stats_vista = aplicar_stats_pruebas(nombre_var.get(), stats_actuales)
+        stats_vista = stats_actuales
         filas = [
             ("Vida:", stats_vista["vida"], "#E06C75"),
             ("Fuerza:", stats_vista["fuerza"], "#D19A66"),
@@ -352,6 +347,32 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
             tk.Label(panel_stats, text=str(valor), font=fuente(14, True),
                      fg=color_destaque, bg=COLOR_FONDO, width=6, relief="solid",
                      bd=1).grid(row=fila, column=col + 1, sticky="w", pady=px(2), padx=(0, px(20)))
+
+    # -----------------------------
+    # OPCIONES DEL PERSONAJE DE PRUEBAS (solo visibles al escribir el nombre clave)
+    # -----------------------------
+    panel_pruebas = panel(columna_izq, f"Opciones de pruebas  ·  {NOMBRE_CLAVE_PRUEBAS}", "#E06C75")
+
+    chk_puntos = tk.Checkbutton(
+        panel_pruebas, text="Puntos de mejora extra (editar stats con el panel: botones + o [L])",
+        variable=opt_puntos_var, font=fuente(13, True), fg="#CDD2DE", bg=COLOR_PANEL,
+        activebackground=COLOR_PANEL, activeforeground="#FFFFFF", selectcolor=COLOR_FONDO,
+        anchor="w", justify="left", wraplength=px(TARJETA_ANCHO) * 2)
+    chk_puntos.pack(fill="x", anchor="w", pady=px(2))
+
+    chk_inv = tk.Checkbutton(
+        panel_pruebas, text="Todas las armas y objetos en el inventario (6 armas, 15 habilidades, anillos y tótems)",
+        variable=opt_inventario_var, font=fuente(13, True), fg="#CDD2DE", bg=COLOR_PANEL,
+        activebackground=COLOR_PANEL, activeforeground="#FFFFFF", selectcolor=COLOR_FONDO,
+        anchor="w", justify="left", wraplength=px(TARJETA_ANCHO) * 2)
+    chk_inv.pack(fill="x", anchor="w", pady=px(2))
+
+    def actualizar_opciones_pruebas(*_):
+        """Muestra el panel de opciones solo cuando el nombre es el personaje de pruebas."""
+        if nombre_var.get().strip().lower() == NOMBRE_CLAVE_PRUEBAS:
+            panel_pruebas.pack(fill="x", pady=(px(10), 0))
+        else:
+            panel_pruebas.pack_forget()
 
     # -----------------------------
     # HABILIDADES POR CATEGORÍAS
@@ -478,7 +499,7 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
             tecla, tecla_str = slots_teclas[idx]
             hab.asignar_tecla(tecla, tecla_str)
 
-        stats_finales = aplicar_stats_pruebas(nombre, stats_actuales)
+        stats_finales = stats_actuales
         return {
             "nombre": nombre,
             "color": color_rgb,
@@ -490,7 +511,10 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
             "escudo": stats_finales["escudo"],
             "escudo_magico": stats_finales["escudo_magico"],
             "habilidades": habilidades,
-            "herramienta": crear_herramienta(herramienta_var.get())
+            "herramienta": crear_herramienta(herramienta_var.get()),
+            # Opciones del personaje de pruebas: solo valen si el nombre es el nombre clave
+            "puntos_extra": bool(opt_puntos_var.get()) and (nombre.lower() == NOMBRE_CLAVE_PRUEBAS),
+            "dar_todo": bool(opt_inventario_var.get()) and (nombre.lower() == NOMBRE_CLAVE_PRUEBAS)
         }
 
     def al_comenzar_mundo():
@@ -510,9 +534,11 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
     boton.pack(fill="x", padx=px(MARGEN), pady=(px(6), px(12)), ipady=px(5))
 
     nombre_var.trace_add("write", lambda *args: renderizar_stats())
+    nombre_var.trace_add("write", actualizar_opciones_pruebas)
 
     actualizar_vista_previa()
     renderizar_stats()
+    actualizar_opciones_pruebas()
     refrescar()
     reorganizar(ancho - barra.winfo_reqwidth())
 

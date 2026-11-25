@@ -750,15 +750,25 @@ class SistemaFauna:
         return centro
 
     def _nueva_madriguera(self, evitar=None):
-        """Crea una madriguera en un pastizal al azar con sus conejos (2 a 10)."""
+        """Crea una madriguera en un pastizal al azar con sus conejos (2 a 10).
+        Nunca cae sobre un lago/charco; si se indica, tambien evita la zona `evitar`."""
         pos = None
-        for _ in range(10):
+        respaldo = None
+        for _ in range(30):
             centro_p, radio_p = random.choice(self._zonas_madriguera)
             ang = random.uniform(0, math.tau)
             r = random.uniform(0, max(0.0, radio_p * 0.7))
-            pos = pygame.Vector2(centro_p) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
-            if evitar is None or not evitar.collidepoint(pos.x, pos.y):
+            p = pygame.Vector2(centro_p) + pygame.Vector2(math.cos(ang), math.sin(ang)) * r
+            if any(c.contiene(p) for c in self.charcos):
+                continue                      # nunca sobre el agua
+            if respaldo is None:
+                respaldo = p                  # primer punto fuera del agua (por si no hay mejor)
+            if evitar is None or not evitar.collidepoint(p.x, p.y):
+                pos = p
                 break
+        pos = pos or respaldo
+        if pos is None:
+            return None                       # todos los intentos cayeron en agua (muy raro)
         m = Madriguera(pos)
         self.madrigueras.append(m)
         for _ in range(random.randint(*CONEJOS_POR_MADRIGUERA)):
