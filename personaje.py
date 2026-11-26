@@ -146,6 +146,8 @@ class Personaje:
         self.bono_dano = 0.0             # +% al daño del arma (anillo de fuerza)
         self.bono_escudo = 0.0           # escudo físico máximo extra (anillo de defensa física)
         self.bono_escudo_magico = 0.0    # escudo mágico máximo extra (anillo de defensa mágica)
+        self.bono_escudo_suerte = 0.0    # Escudos +100 % de Afortunado (temporal)
+        self.bono_escudo_magico_suerte = 0.0
         self.bono_regen_escudo = 0.0     # +% a la regeneración del escudo físico
         self.bono_regen_escudo_magico = 0.0
         self.regen_vida = None           # (vida, intervalo) del anillo de regeneración inversa
@@ -235,13 +237,15 @@ class Personaje:
     def escudo_max(self):
         """Máximo efectivo del escudo físico: la base de los puntos más el bonus del Escudo, más
         lo que da el anillo de defensa física (se suma aunque la base sea 0)."""
-        return round(self.escudo_max_base * (1.0 + self.bonus_escudos) + getattr(self, "bono_escudo", 0.0), 2)
+        return round(self.escudo_max_base * (1.0 + self.bonus_escudos) + getattr(self, "bono_escudo", 0.0)
+                     + getattr(self, "bono_escudo_suerte", 0.0), 2)
 
     @property
     def escudo_magico_max(self):
         """Máximo efectivo del escudo mágico: la base de los puntos más el bonus del Escudo, más
         lo que da el anillo de defensa mágica."""
-        return round(self.escudo_magico_max_base * (1.0 + self.bonus_escudos) + getattr(self, "bono_escudo_magico", 0.0), 2)
+        return round(self.escudo_magico_max_base * (1.0 + self.bonus_escudos) + getattr(self, "bono_escudo_magico", 0.0)
+                     + getattr(self, "bono_escudo_magico_suerte", 0.0), 2)
 
     def recalcular_talismanes(self):
         """Aplica los efectos de los talismanes equipados. Los aditivos (vida, energía y
@@ -361,12 +365,13 @@ class Personaje:
     @property
     def extra_dano_escudo(self):
         """Desgaste extra que hacen tus golpes de arma al escudo fisico enemigo (Fuerza Colosal)."""
-        return max((getattr(h, "extra_dano_escudo", 0.0) for h in self.habilidades), default=0.0)
+        return max((getattr(h, "extra_dano_escudo", 0.0) for h in self.habilidades_en_efecto()), default=0.0)
 
     @property
     def bono_dano_habilidades(self):
         """+% al dano del arma que dan las habilidades activas (Golpes electricos)."""
-        return sum(getattr(h, "bono_dano_arma", 0.0) for h in self.habilidades)
+        activas = [h for h in self.habilidades_en_efecto() if getattr(h, "bono_dano_arma", 0.0) > 0]
+        return sum(h.bono_dano_arma * factor_duplicado(h, activas) for h in activas)
 
     def golpear_con_arma(self, enemigo, dano, tipo_dano, direccion=None):
         """Golpe del arma (hoja o flecha) a un enemigo. Con Fuerza Colosal activa, lo que absorbe
@@ -408,7 +413,7 @@ class Personaje:
     def _aturdir_electrico(self, enemigo):
         """Vestigios Miticos activo: el golpe deja al enemigo sin moverse ni atacar unos instantes.
         El mismo enemigo no se vuelve a aturdir hasta pasado su tiempo de espera."""
-        hab = next((h for h in self.habilidades if getattr(h, "aturdimiento_golpe", 0) > 0), None)
+        hab = next((h for h in self.habilidades_en_efecto() if getattr(h, "aturdimiento_golpe", 0) > 0), None)
         if hab is None or not hasattr(enemigo, "inmovilizado") or not getattr(enemigo, "vivo", True):
             return
         if getattr(enemigo, "_fin_espera_aturdir", -1.0) > self.reloj:

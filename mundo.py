@@ -1683,8 +1683,8 @@ def iniciar_mundo(config):
             for hab in jugador.habilidades:
                 if hasattr(hab, "actualizar_ondas"):
                     hab.actualizar_ondas(dt, enemigos)
-            # Aura Electrica: dano por segundo a los enemigos dentro del aura
-            for hab in jugador.habilidades:
+            # Auras (Aura Electrica, Relampago, humo de Corrosion), tambien las otorgadas
+            for hab in jugador.habilidades_en_efecto():
                 if hasattr(hab, "actualizar_dano_enemigos"):
                     hab.actualizar_dano_enemigos(dt, enemigos_sin_tumba, jugador)
             # Sombra Araña: las telaranas atrapan a los enemigos que las pisan

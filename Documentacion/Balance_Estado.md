@@ -44,7 +44,7 @@ Gancho para enemigos: `Personaje.bloquear_con_escudo(daño, origen)`. Los ataque
 | **Nivel máximo** | 20 | **40** (20 → 40: +8410 XP) |
 | **Disparo Veloz (nerf)** | Vel 14 → 40, daño 8 → 30, recarga 2 → 0.5 s | Vel **14 → 35**, daño **8 → 25**, recarga **4 → 2 s** |
 | **Cuevas de oso** | Cortar a nivel 20 las destruía | Nada las destruye |
-| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos, Reforzamiento Inverso y Desmantelar (niveles 21 – 30, 2 puntos por nivel); Corrosión y Palabras Malditas (niveles 21 – 30, 2 puntos por nivel); Inversión Vital y Espectro (niveles 11 – 15, 3 puntos por nivel) |
+| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos, Reforzamiento Inverso y Desmantelar (niveles 21 – 30, 2 puntos por nivel); Corrosión y Palabras Malditas (niveles 21 – 30, 2 puntos por nivel); Afortunado (niveles 21 – 30, 2 puntos por nivel); Inversión Vital y Espectro (niveles 11 – 15, 3 puntos por nivel) |
 
 **Medición (simulación de 10 000 partidas con el bot):** con todo lo anterior el **83 %** llega al nivel 20 (mediana **134 min**), 5.9 muertes por partida y el 80 % llega al 20 con todos los objetos del Gacha. Duelos solo con arma contra la fauna real: la manada ya se gana desde el nivel 5 (antes 15) y el oso desde el 15.
 
@@ -101,7 +101,7 @@ Según el porcentaje que llega al nivel 20 empezando con esa arma o habilidad (s
 8. **Estrella Ígnea (vigilar):** una carga de 5 s o más borra una manada de lobos normales con la explosión (29 – 38 de daño en 100 px).
 8b. **Desmantelar + fuego (vigilar):** cada carga de combustible pegada suma +50 % del golpe de fuego que la prende (25/11). Estrella Ígnea nv30 al máximo con 3 cargas = 318.5 a un objetivo. Sola, Desmantelar es cara (60 → 120 En., 10 → 20 s) y el combustible no hace nada sin una habilidad de fuego. Cortar se nerfeó al inicio (daño 2 por nivel, antes 5 → 40).
 9. **Nivel 20 → 40:** con solo la fauna actual se tarda ≈10 h (14.5 XP/min); depende de los enemigos nuevos.
-10. **Habilidades potenciadas pendientes de diseñar:** Golpe de Suerte. Las artes de las sombras (invocaciones) no tendrán potenciada, solo cambios de balance (decisión del 26/11). **Palabras Malditas (vigilar):** Explota se aplica a cada objetivo alcanzado y sus áreas se suman entre enemigos juntos (6 lobos pegados a nv30: 30 + 40 + hasta 100 de áreas cada uno), y Muere deja a 1 de vida a casi cualquier enemigo cada 60 s.
+10. **Habilidades potenciadas:** todas hechas (Afortunado el 26/11). **Afortunado (vigilar):** Energía y Escudos +100 % no bloquean, así que pueden sumarse a una potenciada otorgada en la siguiente tirada; el coste al azar del nivel 28 (60 – 100) puede dejarte sin energía. Las artes de las sombras (invocaciones) no tendrán potenciada, solo cambios de balance (decisión del 26/11). **Palabras Malditas (vigilar):** Explota se aplica a cada objetivo alcanzado y sus áreas se suman entre enemigos juntos (6 lobos pegados a nv30: 30 + 40 + hasta 100 de áreas cada uno), y Muere deja a 1 de vida a casi cualquier enemigo cada 60 s.
 
 ### 4.1 Simulación del 26/11/2026 (bots hasta el nivel 30)
 

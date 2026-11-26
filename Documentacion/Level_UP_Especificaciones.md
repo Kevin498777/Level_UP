@@ -395,6 +395,25 @@ Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforz
 - **Resultado instantáneo** (energía, escudos o nada): bloquea durante la espera básica y luego empieza la recarga.
 - **Misma habilidad activa dos veces** (equipada y otorgada): sus efectos buenos **se suman**. La otorgada por Golpe de Suerte aporta siempre el **100 %** y la equipada solo el **50 %**, sin importar su nivel ni el orden en que se activen (ej. Burst otorgado +21 % y equipado +35 % = +21 % + 17.5 % = **+38.5 %**). Reforzamiento: absorbe primero el campo otorgado y luego el equipado al 50 % de eficacia. Regeneración: la equipada cura al 50 %. Cuando una termina, la otra vuelve al 100 %. Costes, recargas, combo y efectos negativos (fatiga del Destello, autodaño del Aura) no cambian.
 
+**Potenciada: Afortunado (niveles 21 – 30).** Sale en el Gacha mejorado; cada nivel cuesta **2 puntos**. Los niveles impares usan los valores del par anterior. Al lanzarla otorga un resultado al azar entre **10** (y "nada"): **Fuerza Colosal, Relámpago, Reforzamiento Inverso, Vestigios Míticos, Espectro** (la potenciada al nivel de Afortunado, sin pasar de su máximo: Espectro sale al 15), **Nube de Corrosión** (solo el humo de Corrosión, con el tope del nivel: 10 % → 30 %, sin veneno), **Inversión Vital (vida)** y **(energía)** (curan o dan energía solas, sin gastar nada, con sus propios tiempos), **Energía +100 %** y **Escudos +100 %** (el máximo se duplica y se rellena durante **40 s**; al terminar vuelve a su máximo y se recorta lo que sobre). El resultado negativo de Disparo Venenoso desaparece. No hace falta tener desbloqueada la potenciada que sale.
+
+- **"Nada":** 5 % (**1 % en el nivel 30**); el resto se reparte igual (9.5 % cada uno; 9.9 % en el 30).
+- **Coste al azar:** para lanzarla hace falta el **mínimo** del rango; se cobra el mínimo y después el resto del coste sorteado **sin bajar de 0** (con 30 de energía y un coste de 40 te quedas en 0). En el 30 cuesta **77** fijo.
+- **Bloqueo:** las cinco potenciadas y la Nube bloquean Afortunado mientras duran (después empieza la recarga). **Energía +100 %, Escudos +100 % e Inversión Vital** no bloquean (espera básica y recarga), pero **no pueden volver a salir hasta que terminen**: salen del sorteo y su parte se reparte entre los demás.
+- **Otorgadas:** Reforzamiento Inverso otorgado no gasta energía por segundo y dura lo que marca la tabla (o hasta romperse); Relámpago otorgado **mantiene su autodaño**; Espectro otorgado no se rompe al atacar. Las pasivas (Fuerza Colosal, golpes eléctricos de Vestigios) y las auras también funcionan otorgadas.
+- **Misma habilidad dos veces** (equipada y otorgada): la otorgada aporta el 100 % y la equipada el 50 %, igual que en Golpe de Suerte (también el daño del aura).
+- Contorno de la tarjeta dorado y verde.
+- **Corrección (26/11/2026):** las auras otorgadas (Aura Eléctrica, Relámpago) ahora sí hacen daño a los enemigos; antes solo se aplicaba el de las habilidades equipadas.
+
+| Nivel | Coste En. | Nivel otorgado | Duración otorgada | Espera (no bloquean) | Recarga | Inversión Vital (vida) | Inversión Vital (energía) | Tope nube | Nada |
+|---|---|---|---|---|---|---|---|---|---|
+| 20 | 20 – 40 (al azar) | 20 | 30 s | 8 s | 20 s | 2/s × 10 s = 20 | 6/s × 10 s = 60 | 10 % | 5 % |
+| 22 | 30 – 60 (al azar) | 22 | 32 s | 8 s | 22 s | 2/s × 12 s = 24 | 6/s × 12 s = 72 | 14 % | 5 % |
+| 24 | 40 – 80 (al azar) | 24 | 34 s | 8 s | 24 s | 2/s × 14 s = 28 | 6/s × 14 s = 84 | 18 % | 5 % |
+| 26 | 50 – 100 (al azar) | 26 | 36 s | 8 s | 26 s | 3/s × 16 s = 48 | 6/s × 16 s = 96 | 22 % | 5 % |
+| 28 | 60 – 100 (al azar) | 28 | 38 s | 5 s | 28 s | 3/s × 18 s = 54 | 7/s × 18 s = 126 | 26 % | 5 % |
+| 30 | 77 | 30 | 30 – 50 s (al azar) | 1 – 5 s (al azar) | 10 – 40 s (al azar) | 4/s × 20 s = 80 | 8/s × 20 s = 160 | 30 % | 1 % |
+
 ### 9.10 Regla de combo
 
 Lanzar una habilidad mientras otra sigue activa cuesta un **+5 % de la energía actual**.

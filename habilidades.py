@@ -861,23 +861,34 @@ class DisparoVenenoso(HabilidadBase):
 
     def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
         """Humo cafe, verde y morado alrededor del portador y anillo en cada enemigo corroido."""
-        ox, oy = desplazamiento
         if self._centro_humo is not None:
-            r = self.RADIO_HUMO
-            capa = pygame.Surface((r * 2 + 20, r * 2 + 20), pygame.SRCALPHA)
-            c = r + 10
-            for i in range(self.PUFFS_HUMO):
-                ang = self._t_humo * 0.8 + i * math.tau / self.PUFFS_HUMO
-                dist = r * (0.45 + 0.4 * (0.5 + 0.5 * math.sin(self._t_humo * 1.7 + i)))
-                color = self.COLORES_HUMO[i % len(self.COLORES_HUMO)]
-                pygame.draw.circle(capa, (*color, 55), (round(c + math.cos(ang) * dist), round(c + math.sin(ang) * dist)),
-                                   round(9 + 4 * math.sin(self._t_humo * 2.3 + i * 1.3)))
-            pygame.draw.circle(capa, (*self.COLORES_HUMO[0], 70), (c, c), r, 1)
-            pantalla.blit(capa, (round(self._centro_humo.x - ox - c), round(self._centro_humo.y - oy - c)))
-        for e in self.corroidos:
-            px, py = round(e.posicion.x - ox), round(e.posicion.y - oy)
-            pygame.draw.circle(pantalla, self.COLORES_HUMO[0], (px, py), round(e.radio) + 10, 2)
-            pygame.draw.circle(pantalla, self.COLORES_HUMO[2], (px, py), round(e.radio) + 13, 1)
+            dibujar_humo_corrosion(pantalla, self._centro_humo, self._t_humo, desplazamiento)
+        dibujar_corroidos(pantalla, self.corroidos, desplazamiento)
+
+
+def dibujar_humo_corrosion(pantalla, centro, t, desplazamiento=(0, 0)):
+    """Bocanadas de humo de Corrosion alrededor de un punto del mundo (solo visual)."""
+    r = DisparoVenenoso.RADIO_HUMO
+    colores = DisparoVenenoso.COLORES_HUMO
+    capa = pygame.Surface((r * 2 + 20, r * 2 + 20), pygame.SRCALPHA)
+    c = r + 10
+    for i in range(DisparoVenenoso.PUFFS_HUMO):
+        ang = t * 0.8 + i * math.tau / DisparoVenenoso.PUFFS_HUMO
+        dist = r * (0.45 + 0.4 * (0.5 + 0.5 * math.sin(t * 1.7 + i)))
+        pygame.draw.circle(capa, (*colores[i % len(colores)], 55),
+                           (round(c + math.cos(ang) * dist), round(c + math.sin(ang) * dist)),
+                           round(9 + 4 * math.sin(t * 2.3 + i * 1.3)))
+    pygame.draw.circle(capa, (*colores[0], 70), (c, c), r, 1)
+    pantalla.blit(capa, (round(centro.x - desplazamiento[0] - c), round(centro.y - desplazamiento[1] - c)))
+
+
+def dibujar_corroidos(pantalla, enemigos, desplazamiento=(0, 0)):
+    """Anillo cafe y morado en cada enemigo corroido."""
+    colores = DisparoVenenoso.COLORES_HUMO
+    for e in enemigos:
+        px, py = round(e.posicion.x - desplazamiento[0]), round(e.posicion.y - desplazamiento[1])
+        pygame.draw.circle(pantalla, colores[0], (px, py), round(e.radio) + 10, 2)
+        pygame.draw.circle(pantalla, colores[2], (px, py), round(e.radio) + 13, 1)
 
 
 # -----------------------------
@@ -1757,6 +1768,8 @@ def resumen_habilidad(hab):
             detalles += f" · Arma +{hab.bono_arma * 100:.0f}% · Aturde {hab.aturdimiento:g}s"
     elif hab.nombre == "Golpe de Suerte":
         detalles = f"Azar nv{hab.nivel_efecto} · {hab.ultimo_resultado}"
+        if hab.potenciada_activa:
+            detalles = f"Afortunado nv{hab.nivel_efecto} · {hab.ultimo_resultado}"
     elif hab.nombre == "Regeneración Inversa":
         if hab.modo_inversion:
             detalles = f"-{hab.costo_vida} vida / +{hab.energia_ganada} En. cada {hab.intervalo:g}s · Sombras +{hab.curacion_onda}"
@@ -1791,6 +1804,8 @@ def texto_costo(hab, jugador):
     """Coste mostrado en las tarjetas: en energia, o en vida en el modo Inversion Vital."""
     if getattr(hab, "modo_inversion", False):
         return f"{hab.costo_vida} vida"
+    if getattr(hab, "rango_coste", None) and hab.potenciada_activa and hab.rango_coste[0] != hab.rango_coste[1]:
+        return f"{hab.rango_coste[0]}-{hab.rango_coste[1]} En."
     return f"{hab.obtener_costo_base(jugador)} En."
 
 
@@ -3325,6 +3340,9 @@ class AuraElectrica(HabilidadBase):
         if self.estado != "ACTIVA" or not enemigos:
             return
         self._t_dano_enemigos += dt
+        # Equipada y otorgada a la vez: la equipada hace el 50 % (ver factor_duplicado)
+        activas = [h for h in jugador.habilidades_en_efecto() if h.nombre == self.nombre and h.estado == "ACTIVA"]
+        dano = round(self.dano_por_segundo * factor_duplicado(self, activas), 2)
         while self._t_dano_enemigos >= 1.0:
             self._t_dano_enemigos -= 1.0
             centro, radio = self.zona_dano(jugador)
@@ -3334,8 +3352,7 @@ class AuraElectrica(HabilidadBase):
                 r_e = getattr(enemigo, "radio", 0)
                 if (enemigo.posicion - centro).length() <= radio + r_e:
                     if hasattr(enemigo, "recibir_dano"):
-                        enemigo.recibir_dano(self.dano_por_segundo, "magico",
-                                             enemigo.posicion - jugador.posicion)
+                        enemigo.recibir_dano(dano, "magico", enemigo.posicion - jugador.posicion)
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
         """Dibuja el aura electrica translucida con chispas en el borde."""
@@ -3535,7 +3552,7 @@ class ReforzamientoMagico(HabilidadBase):
         cx = round(jugador.posicion.x - desplazamiento[0])
         cy = round(jugador.posicion.y - desplazamiento[1])
         radio = round(jugador.radio * self.FACTOR_RADIO)
-        color = self.COLOR_CAMPO_INVERSO if self.es_inverso else self.COLOR_CAMPO
+        color = self.COLOR_CAMPO_INVERSO if (self.es_inverso or self.nivel > 20) else self.COLOR_CAMPO
         pygame.draw.circle(pantalla, color, (cx, cy), radio, self.GROSOR_CAMPO)
 
 
@@ -3813,6 +3830,109 @@ class RegeneracionSuerte(HabilidadBase):
         RegeneracionInversa.dibujar_aura(self, pantalla, jugador, desplazamiento)
 
 
+class EnergiaSuerte(HabilidadBase):
+    """Inversion Vital (energia) que otorga Afortunado: da energia sola cada segundo, sin
+    pulsar ni gastar vida, sin pasar del maximo."""
+    COLOR_AURA = RegeneracionInversa.COLOR_AURA
+
+    def __init__(self, duracion, por_segundo):
+        super().__init__(
+            nombre="Inversión Vital (energía)",
+            descripcion="Energía automática otorgada por Afortunado.",
+            costo_energia=0,
+            duracion_activa=duracion,
+            duracion_cooldown=0.0,
+            tecla=None,
+            tecla_str=""
+        )
+        self.por_segundo = por_segundo
+        self.entregas_hechas = 0
+        self.otorgada = True
+
+    def aplicar_efecto_activo(self, jugador):
+        self.entregas_hechas = 0
+
+    def actualizar(self, dt, jugador):
+        if self.estado == "ACTIVA":
+            transcurrido = min(self.duracion_activa, self.duracion_activa - self.tiempo_restante_activo + dt)
+            while self.entregas_hechas < int(round(transcurrido, 6)):
+                self.entregas_hechas += 1
+                jugador.energia = min(jugador.energia_max, jugador.energia + self.por_segundo)
+        super().actualizar(dt, jugador)
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        RegeneracionInversa.dibujar_aura(self, pantalla, jugador, desplazamiento)
+
+
+class AumentoSuerte(HabilidadBase):
+    """Energia +100 % o Escudos +100 % de Afortunado: el maximo sube (factor x maximo) y se
+    rellena; al terminar vuelve a su maximo normal y se recorta lo que sobre."""
+
+    def __init__(self, nombre, duracion, factor, escudos=False):
+        super().__init__(nombre=nombre, descripcion="Aumento temporal otorgado por Afortunado.",
+                         costo_energia=0, duracion_activa=duracion, duracion_cooldown=0.0,
+                         tecla=None, tecla_str="")
+        self.factor = factor
+        self.escudos = escudos
+        self.bono = 0.0
+        self.bono_magico = 0.0
+        self.otorgada = True
+
+    def aplicar_efecto_activo(self, jugador):
+        if self.escudos:
+            self.bono = round(jugador.escudo_max * self.factor, 2)
+            self.bono_magico = round(jugador.escudo_magico_max * self.factor, 2)
+            jugador.bono_escudo_suerte += self.bono
+            jugador.bono_escudo_magico_suerte += self.bono_magico
+            jugador.escudo = jugador.escudo_max
+            jugador.escudo_magico = jugador.escudo_magico_max
+        else:
+            self.bono = round(jugador.energia_max * self.factor)
+            jugador.energia_max += self.bono
+            jugador.energia = jugador.energia_max
+
+    def aplicar_efecto_cooldown(self, jugador):
+        if self.escudos:
+            jugador.bono_escudo_suerte = max(0.0, round(jugador.bono_escudo_suerte - self.bono, 2))
+            jugador.bono_escudo_magico_suerte = max(0.0, round(jugador.bono_escudo_magico_suerte - self.bono_magico, 2))
+            jugador.escudo = min(jugador.escudo, jugador.escudo_max)
+            jugador.escudo_magico = min(jugador.escudo_magico, jugador.escudo_magico_max)
+        else:
+            jugador.energia_max -= self.bono
+            jugador.energia = min(jugador.energia, jugador.energia_max)
+        self.bono = self.bono_magico = 0.0
+
+
+class NubeCorrosion(HabilidadBase):
+    """Nube de Corrosion de Afortunado: solo el humo de Corrosion (sin disparo ni veneno), con
+    el tope de su nivel, alrededor del portador mientras dura."""
+
+    def __init__(self, duracion, tope):
+        super().__init__(nombre="Nube de Corrosión", descripcion="Humo de Corrosión otorgado por Afortunado.",
+                         costo_energia=0, duracion_activa=duracion, duracion_cooldown=0.0,
+                         tecla=None, tecla_str="")
+        self.tope = tope
+        self.corroidos = []
+        self._t = 0.0
+        self.otorgada = True
+
+    def actualizar_dano_enemigos(self, dt, enemigos, jugador):
+        if self.estado != "ACTIVA":
+            self.corroidos = []
+            return
+        self._t += dt
+        radio = DisparoVenenoso.RADIO_HUMO
+        for e in enemigos:
+            if getattr(e, "vivo", True) and (e.posicion - jugador.posicion).length() <= radio + e.radio:
+                aplicar_corrosion(e, self.tope, DisparoVenenoso.DURACION_HUMO)
+        self.corroidos = [e for e in enemigos if getattr(e, "vivo", True)
+                          and getattr(e, "corrosion", None) is not None and e.corrosion.activo]
+
+    def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
+        dibujar_humo_corrosion(pantalla, jugador.posicion, self._t, desplazamiento)
+        dibujar_corroidos(pantalla, self.corroidos, desplazamiento)
+
+
 def factor_regeneracion(regen, jugador):
     """Con la otorgada activa, la Regeneración equipada cura al 50% (ver factor_duplicado)."""
     activas = [h for h in jugador.habilidades_en_efecto() if h.nombre == regen.nombre and h.estado == "ACTIVA"]
@@ -3988,6 +4108,41 @@ class GolpeDeSuerte(HabilidadBase):
     # Regeneración otorgada: (duración s, vida curada, intervalo s)
     TRAMOS_REGENERACION = ((1, (4.0, 1, 2.0)), (5, (6.0, 1, 2.0)), (10, (8.0, 1, 2.0)),
                            (15, (10.0, 2, 2.0)), (20, (10.0, 2, 1.0)))
+    NIVEL_MAX_NORMAL = 20
+    # ---- Afortunado (potenciada, nivel 20 desbloqueada -> 30)
+    POTENCIADA = {"nombre": "Afortunado", "nivel_max": 30, "costo_mejora": 2}
+    COLORES_MARCO = ((255, 215, 0), (60, 200, 90))        # dorado y verde trebol
+    AF_COLOSAL = "Fuerza Colosal"
+    AF_RELAMPAGO = "Relámpago"
+    AF_INVERSO = "Reforzamiento Inverso"
+    AF_VIDA = "Inversión Vital (vida)"
+    AF_ENERGIA_REGEN = "Inversión Vital (energía)"
+    AF_VESTIGIOS = "Vestigios Míticos"
+    AF_ESPECTRO = "Espectro"
+    AF_NUBE = "Nube de Corrosión"
+    AF_ENERGIA = "Energía +100 %"
+    AF_ESCUDOS = "Escudos +100 %"
+    # Potenciadas que otorga (a su nivel, sin pasar del maximo de cada una)
+    AF_POTENCIADAS = {AF_COLOSAL: BurstDeFuerza, AF_RELAMPAGO: Destello, AF_INVERSO: ReforzamientoMagico,
+                      AF_VESTIGIOS: AuraElectrica, AF_ESPECTRO: Paso0}
+    AF_RESULTADOS = (AF_COLOSAL, AF_RELAMPAGO, AF_INVERSO, AF_VIDA, AF_ENERGIA_REGEN, AF_VESTIGIOS,
+                     AF_ESPECTRO, AF_NUBE, AF_ENERGIA, AF_ESCUDOS)
+    # Estos no bloquean la habilidad (espera basica y recarga), pero no vuelven a salir mientras duran
+    AF_NO_BLOQUEAN = (AF_VIDA, AF_ENERGIA_REGEN, AF_ENERGIA, AF_ESCUDOS)
+    AF_PROB_NADA = 0.05
+    AF_PROB_NADA_NIVEL_MAX = 0.01
+    # Tramos (nivel desde, (minimo, maximo)): con minimo != maximo se sortea en cada tirada
+    AF_TRAMOS_COSTE = ((20, (20, 40)), (22, (30, 60)), (24, (40, 80)), (26, (50, 100)), (28, (60, 100)), (30, (77, 77)))
+    AF_TRAMOS_DURACION = ((20, (30, 30)), (22, (32, 32)), (24, (34, 34)), (26, (36, 36)), (28, (38, 38)), (30, (30, 50)))
+    AF_TRAMOS_ESPERA = ((20, (8.0, 8.0)), (28, (5.0, 5.0)), (30, (1.0, 5.0)))
+    AF_TRAMOS_RECARGA = ((20, (20, 20)), (22, (22, 22)), (24, (24, 24)), (26, (26, 26)), (28, (28, 28)), (30, (10, 40)))
+    AF_TRAMOS_NIVEL_EFECTO = ((20, 20), (22, 22), (24, 24), (26, 26), (28, 28), (30, 30))
+    # Inversion Vital otorgada: (duracion s, vida o energia por segundo)
+    AF_TRAMOS_VIDA = ((20, (10.0, 2)), (22, (12.0, 2)), (24, (14.0, 2)), (26, (16.0, 3)), (28, (18.0, 3)), (30, (20.0, 4)))
+    AF_TRAMOS_ENERGIA = ((20, (10.0, 6)), (22, (12.0, 6)), (24, (14.0, 6)), (26, (16.0, 6)), (28, (18.0, 7)), (30, (20.0, 8)))
+    AF_DURACION_AUMENTO = 40.0          # s que duran Energia +100 % y Escudos +100 %
+    AF_FACTOR_AUMENTO = 1.0             # +100 % del maximo
+    AF_PUNTOS_TOPE_NUBE = ((20, 0.10), (30, 0.30))
 
     def __init__(self):
         super().__init__(
@@ -4001,6 +4156,8 @@ class GolpeDeSuerte(HabilidadBase):
         )
         self.ultimo_resultado = "—"
         self.efecto_actual = None   # Efecto otorgado que mantiene bloqueada la habilidad
+        self.no_bloqueantes = {}    # Afortunado: resultado -> efecto en curso que no bloquea
+        self.ultimo_coste = 0
 
     def _aplicar_nivel(self):
         """
@@ -4011,20 +4168,59 @@ class GolpeDeSuerte(HabilidadBase):
         - duración de la habilidad otorgada: 5s, 10s, 15s, 20s, 30s (mismos tramos)
         - espera tras un resultado instantáneo: 5s (2s en nivel 20)
         - probabilidad de "nada": 30% (5% en nivel 20)
+        Afortunado (potenciada, nivel 20 desbloqueada -> 30), tramos cada 2 niveles:
+        - coste aleatorio 20-40, 30-60, 40-80, 50-100, 60-100 y 77 fijo en el 30 (se cobra el
+          minimo para lanzarla y el resto sin bajar de 0)
+        - nivel de lo otorgado 20 -> 30; duracion 30 -> 38 s (30-50 s al azar en el 30)
+        - espera 8 s (5 s en el 28, 1-5 s al azar en el 30); recarga 20 -> 28 s (10-40 s al azar en el 30)
+        - "nada" 5 % (1 % en el 30)
         """
         n = self.nivel
         self.costo_energia = _valor_por_tramo(n, self.TRAMOS_COSTE)
         self.duracion_cooldown = _valor_por_tramo(n, self.TRAMOS_RECARGA)
         self.nivel_efecto = _valor_por_tramo(n, self.TRAMOS_NIVEL_EFECTO)
         self.duracion_efecto = _valor_por_tramo(n, self.TRAMOS_DURACION_EFECTO)
-        self.espera_instantaneo = self.ESPERA_INSTANTANEO_NIVEL_MAX if n >= self.nivel_max else self.ESPERA_INSTANTANEO
+        self.espera_instantaneo = (self.ESPERA_INSTANTANEO_NIVEL_MAX if n >= self.NIVEL_MAX_NORMAL
+                                   else self.ESPERA_INSTANTANEO)
         self.regeneracion = _valor_por_tramo(n, self.TRAMOS_REGENERACION)
-        self.prob_nada = self.PROB_NADA_NIVEL_MAX if n >= self.nivel_max else self.PROB_NADA
+        self.prob_nada = self.PROB_NADA_NIVEL_MAX if n >= self.NIVEL_MAX_NORMAL else self.PROB_NADA
+        self.rango_coste = None
+        if not self.potenciada_activa:
+            return
+        nivel_max = self.POTENCIADA["nivel_max"]
+        self.rango_coste = _valor_por_tramo(n, self.AF_TRAMOS_COSTE)
+        self.costo_energia = self.rango_coste[0]
+        self.rango_duracion = _valor_por_tramo(n, self.AF_TRAMOS_DURACION)
+        self.rango_espera = _valor_por_tramo(n, self.AF_TRAMOS_ESPERA)
+        self.rango_recarga = _valor_por_tramo(n, self.AF_TRAMOS_RECARGA)
+        self.duracion_efecto = self.rango_duracion[0]
+        self.espera_instantaneo = self.rango_espera[1]
+        self.duracion_cooldown = self.rango_recarga[0]
+        self.nivel_efecto = _valor_por_tramo(n, self.AF_TRAMOS_NIVEL_EFECTO)
+        self.vida_otorgada = _valor_por_tramo(n, self.AF_TRAMOS_VIDA)
+        self.energia_otorgada = _valor_por_tramo(n, self.AF_TRAMOS_ENERGIA)
+        self.tope_nube = round(_valor_interpolado(n, self.AF_PUNTOS_TOPE_NUBE), 4)
+        self.prob_nada = self.AF_PROB_NADA_NIVEL_MAX if n >= nivel_max else self.AF_PROB_NADA
+
+    def desbloquear_potenciada(self):
+        resultado = super().desbloquear_potenciada()
+        self._aplicar_nivel()          # en el nivel 20 ya es Afortunado
+        return resultado
+
+    def en_curso(self):
+        """Resultados de Afortunado que no bloquean y siguen activos (no pueden volver a salir)."""
+        self.no_bloqueantes = {r: e for r, e in self.no_bloqueantes.items() if e.estado == "ACTIVA"}
+        return set(self.no_bloqueantes)
 
     def probabilidades(self):
-        """Diccionario resultado -> probabilidad (suma 1.0)."""
-        prob_resto = (1.0 - self.prob_nada) / len(self.RESULTADOS)
-        probs = {r: prob_resto for r in self.RESULTADOS}
+        """Diccionario resultado -> probabilidad (suma 1.0). Afortunado: los resultados en curso
+        que no bloquean salen del sorteo y su parte se reparte entre los demas (no en 'nada')."""
+        resultados = self.RESULTADOS
+        if self.potenciada_activa:
+            en_curso = self.en_curso()
+            resultados = [r for r in self.AF_RESULTADOS if r not in en_curso]
+        prob_resto = (1.0 - self.prob_nada) / len(resultados)
+        probs = {r: prob_resto for r in resultados}
         probs[self.NADA] = self.prob_nada
         return probs
 
@@ -4064,10 +4260,66 @@ class GolpeDeSuerte(HabilidadBase):
         self.efecto_actual = efecto
         return f"{resultado} nv{efecto.nivel}" if resultado in self.EFECTOS else resultado
 
+    @staticmethod
+    def _al_azar(rango, entero=True):
+        a, b = rango
+        if a == b:
+            return a
+        return random.randint(a, b) if entero else round(random.uniform(a, b), 1)
+
+    def _crear_potenciada(self, clase):
+        """La potenciada de 'clase' al nivel de lo otorgado (sin pasar de su maximo)."""
+        efecto = clase()
+        while efecto.nivel < efecto.nivel_max and efecto.nivel < self.nivel_efecto and efecto.subir_nivel():
+            pass
+        efecto.desbloquear_potenciada()
+        while efecto.nivel < self.nivel_efecto and efecto.subir_nivel():
+            pass
+        if hasattr(efecto, "_aplicar_nivel"):
+            efecto._aplicar_nivel()
+        return efecto
+
+    def aplicar_afortunado(self, resultado, jugador):
+        """Aplica un resultado de Afortunado. Las habilidades y la nube bloquean la habilidad
+        mientras duran; los demas no (pero no vuelven a salir hasta que terminen)."""
+        if resultado in self.AF_POTENCIADAS:
+            efecto = self._crear_potenciada(self.AF_POTENCIADAS[resultado])
+            efecto.duracion_activa = self.duracion_efecto
+        elif resultado == self.AF_NUBE:
+            efecto = NubeCorrosion(self.duracion_efecto, self.tope_nube)
+        elif resultado == self.AF_VIDA:
+            duracion, por_segundo = self.vida_otorgada
+            efecto = RegeneracionSuerte(duracion, por_segundo, 1.0)
+        elif resultado == self.AF_ENERGIA_REGEN:
+            efecto = EnergiaSuerte(*self.energia_otorgada)
+        elif resultado in (self.AF_ENERGIA, self.AF_ESCUDOS):
+            efecto = AumentoSuerte(resultado, self.AF_DURACION_AUMENTO, self.AF_FACTOR_AUMENTO,
+                                   escudos=resultado == self.AF_ESCUDOS)
+        else:
+            return self.NADA
+        efecto.otorgada = True
+        jugador.agregar_efecto(efecto)
+        efecto.ejecutar_activacion(jugador)
+        if resultado in self.AF_NO_BLOQUEAN:
+            self.no_bloqueantes[resultado] = efecto
+        else:
+            self.efecto_actual = efecto
+        nivel = f" nv{efecto.nivel}" if resultado in self.AF_POTENCIADAS else ""
+        return f"{resultado}{nivel}"
+
     def ejecutar_activacion(self, jugador):
-        """Sortea y aplica el resultado; queda bloqueada (ACTIVA) hasta que termine lo otorgado."""
+        """Sortea y aplica el resultado; queda bloqueada (ACTIVA) hasta que termine lo otorgado.
+        Afortunado: ademas cobra el resto del coste sorteado y sortea duracion, espera y recarga."""
         self.efecto_actual = None
-        self.ultimo_resultado = self.aplicar_resultado(self.sortear(), jugador)
+        if self.potenciada_activa:
+            self.ultimo_coste = self._al_azar(self.rango_coste)
+            jugador.energia = max(0, jugador.energia - (self.ultimo_coste - self.rango_coste[0]))
+            self.duracion_efecto = self._al_azar(self.rango_duracion)
+            self.espera_instantaneo = self._al_azar(self.rango_espera, entero=False)
+            self.duracion_cooldown = self._al_azar(self.rango_recarga)
+            self.ultimo_resultado = self.aplicar_afortunado(self.sortear(), jugador)
+        else:
+            self.ultimo_resultado = self.aplicar_resultado(self.sortear(), jugador)
         self.mensaje_alerta = f"¡{self.ultimo_resultado}!"
         self.tiempo_alerta = 2.5
         self.estado = "ACTIVA"

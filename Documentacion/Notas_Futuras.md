@@ -1,3 +1,12 @@
+### DOMINIO (Vacio infinito)
+Acticar el dominio sin cd para ninguna habilidad
+las estadisicas basicas(vida,defensa,energia) * 9 
+Daño instantaneo al quien atrape en el dominio 9999 por segundo mientras este activo el dominio
+coste 1 de energia por 1s lo que dure activo el dominio si dura 10s gasta 10 de eneriga
+Barrea creada
+Cuando el dominio se desactiva tus habilidaes [2][3][4][5] quedan inabiilitadas por 199 segundos
+Se activa y descativa con la misma tecla la expancion de dominio
+
 Energia del infinito
 Habilidades
 -Azul
@@ -42,17 +51,6 @@ Habilidades
     No le afectan habilidades de cuerpo a cuerpo, rango, daño en area, daño ambiental
 
 
-
-Dominio  "Vacio infinito"
-Acticar el dominio sin cd para ninguna habilidad
-las estadisicas basicas(vida,defensa,energia) * 9 
-Daño instantaneo al quien atrape en el dominio 9999 por segundo mientras este activo el dominio
-coste 1 de energia por 1s lo que dure activo el dominio si dura 10s gasta 10 de eneriga
-Barrea creada
-Cuando el dominio se desactiva tus habilidaes [2][3][4][5] quedan inabiilitadas por 199 segundos
-Se activa y descativa con la misma tecla la expancion de dominio
-
-
 Pasivas
 -Vacio Purpura
     Solo puede activarse si azul y rojo estan al maximo de nivel y maxima carga 
@@ -74,6 +72,54 @@ Pasivas
 -Velocidad infinita
     Aumenta su velocidad base x 2.99 despues de lanzar vacio purpura
 -Salir de la expancion de dominio inabilita todas las pasivas 
+
+
+### DOMINIO (Afortunado → JackPot)
+Dominio sin barrera
+Habilidad que solo afecta al portador
+Nivel Maximo de la habilidad 35
+Esta no se puede mejorar con puntos de mejora solo se mejora si te sale otra vez en la ruleta
+
+Cada vez que se tira aumenta +9% la probabilidad para el JackPot
+Probabilidad base de JackPot 0%
+
+Que hace JackPot
+Duracion 77 segundos
+Pasivas
+Cura el 77% de vida por segundo y Aumenta el 177% de vida maxima
+
+Aumenta el 77% de velocidad de movimiento
+
+Regenera 77% de escudo(Magico y fisico) por segundo y Aumenta  77% de escudo(Mafico y fisico) por s
+
+Aumenta el daño base un 77%
+
+Aumenta la energia base un 77% y regenera un 177% de energia por segundo
+
+Aumenta la cadencia un 77% 
+
+Puede disparar disparo veloz al nivel 20 con un 77% de probabilidad de que salga rafaga veloz nv30
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -397,6 +443,56 @@ El autoveneno de Golpe de Suerte queda en 10 de daño en 10 s al nivel 1 y 50 en
 ### Afortunado
 
 nivel maximo 30
-Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico), **Disparo Venenoso** o **nada**. **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**≈10.56 %** cada uno).
+Al lanzarla otorga un **resultado aleatorio**: 
+Fuerza Colosal,
+Relámpago,
+Reforzamiento Inverso,  
+Inversión Vital(vida), 
+Inversión Vital(energia),
+Vestigios Míticos o **Espectro** (como efecto temporal, sin coste extra),
+Corrocion (Solo la nube que rodea de Corrosión) Ya no daña al usuario
+**energía al máximo**, + un 100% de la energia total por 40s,(100+(100*1.0=100)=100+100=200)
+**escudos al máximo** (físico y mágico), + 100% de escudos(Magicos y fisicos) de los escudos total por 40s
+**nada**. **nivel 30** "nada" baja al **1 %** y el resto se reparte igual (**≈x %** cada uno).
 
+| Nivel |Coste En.|Nivel de la habilidad otorgada|Duración otorgada|Espera (instantáneos)| Recarga|
+|---    |---   ---|---                           |---              |---                  |
+| 20    | 20-40   | 20                           | 30 s            | 8 s                 | 20     |
+| 22    | 30-60   | 22                           | 32 s            | 8 s                 | 22 s   |
+| 24    | 40-80   | 24                           | 34 s            | 8 s                 | 24 s   |
+| 26    | 50-100  | 26                           | 36 s            | 8 s                 | 26 s   |
+| 28    | 60-100  | 28                           | 38 s            | **5 s**             | 28 s   |
+| 30    |   77    | 30                           | 30-50s          | **1-5 s**           | 10-40 s|
+Los valores del costo 20-40 es aleatoria le puede costar o 20 o 40 si de casualidad tiene solo 21 de energia este se cobra el minimo que es 20 para activarse aunque asi se quedaria en 0 de energia pues es el minimo + lo que salio ejemplo 
+tengo 80 de eneriga tiro y me sale un coste de 40
+me cobra 20 + 20 = 40
+80 - 20+20 = 60 - 20 = 40
+ahora si tengo 30 de energia hago un tiro y me sale de 40
+me cobra 20 + 20 = 40 
+30 - 20+20 = 10 - 20 = 0
+
+- **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; **después** empieza la recarga. Así nunca hay dos resultados a la vez.
+- **Habilidad otorgada:** tiene las estadísticas de su nivel pero dura lo que marca la tabla. Si termina antes (por ejemplo, el Reforzamiento se rompe), la recarga empieza en ese momento. El Relámpago otorgado no deja fatiga.
+
+- **Regeneración otorgada de vida de Inversión Vital:** cura sola, sin pulsar ni gastar energía, con sus propios tiempos: 
+10 s en nv 20, 2 de vida por segundo/20 de vida total
+12 s en nv 22, 2 de vida por segundo/24 de vida total
+14 s en nv 24, 2 de vida por segundo/26 de vida total
+16 s en nv 26, 3 de vida por segundo/48 de vida total
+18 s en nv 28, 3 de vida por segundo/54 de vida total
+20 s en nv 30, 4 de vida por segundo/80 de vida total
+
+- **Regeneración de energia de Inversión Vital:** regenera sola, sin pulsar ni gastar vida, con sus propios tiempos: 
+10 s en nv 20, 6 de energia por segundo/60 de energia total
+12 s en nv 22, 6 de energia por segundo/72 de energia total
+14 s en nv 24, 6 de energia por segundo/84 de energia total
+16 s en nv 26, 6 de energia por segundo/96 de energia total
+18 s en nv 28, 7 de energia por segundo/126 de energia total
+20 s en nv 30, 8 de energia por segundo/160 de energia total
+
+- **Resultado instantáneo** (energía, escudos o nada): bloquea durante la espera básica y luego empieza la recarga.
+- **Misma habilidad activa dos veces** (equipada y otorgada): sus efectos buenos **se suman**. La otorgada por Afortunado aporta siempre el **100 %** y la equipada solo el **50 %**, sin importar su nivel ni el orden en que se activen sigue la misma logica. 
+
+
+### DOMINIO (Afortunado → JackPot)
 
