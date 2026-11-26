@@ -517,3 +517,112 @@ Tiene siempre 20 de vida
 Si muere uno tarda 5 minutos en reaparecer otro con nuevos anillos
 Este da 20 de xp y 20 de oro si lo mata el jugador 
 Alguna duda o algo que se me pase
+
+
+
+
+Perfecto ahora puedes agregar bots que actuen como personajes los cuales habran de diferentes razan
+Humanos
+6 en todo el mapa
+Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
+Puede aparecer con cualqier arma
+Puede aparecer con cualqueir habildiad
+No tiene odio por ninguna raza pero si le golpean se difiente
+Estos escalan de forma normal buscan subir de nivel 
+vida 30 · fuerza 2 · velocidad 1 · cadencia +0 · energía 100 · escudos 0.
+
+SemiHumanos
+4 en todo el mapa 1 de cada tipo
+### Tipo lobo
+Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
+Puede aparecer con cualqier arma menos arco y escudo
+Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
+Odio hacia la raza humana un 40%
+Odio hacia la raza elfica un 0%
+Odio hacia la raza enana un 5%
+Estos escalan de forma normal buscan subir de nivel 
+vida 50 · fuerza 4 · velocidad 2 · cadencia +0 · energía 50 · escudos 10.
+Solo puede subir hasta nivel 20
+Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
+
+### Tipo conejo
+Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
+Puede aparecer solo con la espada corta o dagas simples
+Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
+Odio hacia la raza humana un 5%
+Odio hacia la raza elfica un 0%
+Odio hacia la raza enana un 5%
+Estos escalan de forma normal buscan subir de nivel 
+vida 10 · fuerza 2 · velocidad 4 · cadencia +0 · energía 50 · escudos 0.
+Solo puede subir hasta nivel 20
+Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
+
+### Tipo Oso
+Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
+Puede aparecer solo con las espada corta, espada larga o escudo
+Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
+Odio hacia la raza humana un 20%
+Odio hacia la raza elfica un 0%
+Odio hacia la raza enana un 5%
+Estos escalan de forma normal buscan subir de nivel 
+vida 80 · fuerza 4 · velocidad -1 · cadencia +4 · energía 30 · escudos 20.
+Solo puede subir hasta nivel 20
+Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
+### Tipo cocodrilo
+Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
+Puede aparecer solo con la espada larga o dagas simles
+Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
+Odio hacia la raza humana un 20%
+Odio hacia la raza elfica un 0%
+Odio hacia la raza enana un 5%
+Estos escalan de forma normal buscan subir de nivel 
+vida 50 · fuerza 2 · velocidad 1 · cadencia +0 · energía 50 · escudos 40.
+En agua su velocidad se triplica
+Solo puede subir hasta nivel 20
+Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
+
+Elfos 
+4 en todo el mapa
+Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
+No ataca animales pasivos ni neutrales solo agresivos
+Puede aparecer solo con arco
+Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
+Odio hacia la raza humana un 30%
+Odio hacia la raza enana un 20%
+Odio hacia la raza semihumana un 0%
+Estos escalan de forma normal buscan subir de nivel 
+vida 80 · fuerza 5 · velocidad 1 · cadencia +0 · energía 200 · escudos 0.
+Puede subir al nivel 30
+Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
+no puede desbloquear mas
+El 80% estan en bosques y se esconden entre los arbustos
+
+
+Enanos
+4 en todo el mapa
+Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
+No ataca osos ni los osos los atacan a ellos
+Puede aparecer solo con Espada larga o mandoble
+Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
+Odio hacia la raza humana un 10%
+Odio hacia la raza elfica un 30%
+Odio hacia la raza semihumana un 10%
+Estos escalan de forma normal buscan subir de nivel 
+vida 120 · fuerza 4 · velocidad 1 · cadencia +0 · energía 50 · escudos 30.
+Solo puede subir hasta nivel 30
+Su espawn es en cuevas de osos no nesesariamente se quedan en ellas 
+
+Guardianes(Semidioses)
+No tiene odio por ninguno pero si le golpean se defiente
+1 en todo el mapa
+Puede aparecer solo con mandoble al maximo
+No tiene habilidades solo daño cuerpo a cuerpo
+vida 999 · fuerza 9 · velocidad 1 · cadencia +4 · energía 0 · escudos 999.
+No sube de nivel 
+Los animales no lo atacan 
+Por lo general estan en la parte norte del mapa
+
+
+El odio funciona como un sistema de combate entre mas odio tenga por una raza mas facil es que comienzen a pelear sin razon alguna 
+
+Si muere uno reaparece en un lugar aleatorio con sus estadisticas desde el incio 
