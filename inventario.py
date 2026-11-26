@@ -862,6 +862,21 @@ def _pestana_gacha(pantalla, jugador, fuentes, botones, raton, tiempo, x0, y, an
     pygame.draw.polygon(pantalla, (255, 215, 0), [(cxm - 9, r_rul.bottom), (cxm + 9, r_rul.bottom), (cxm, r_rul.bottom - 12)])
     pygame.draw.rect(pantalla, (90, 100, 130), r_rul, width=2, border_radius=10)
 
+    # Gacha mejorado (nivel 20): marco dorado con brillo + insignia, para que el cambio se note
+    if G.gacha_mejorado(jugador):
+        oro = (255, 215, 0)
+        pulso = 0.5 + 0.5 * math.sin(tiempo * 4)
+        glow = pygame.Surface((r_rul.width + 12, r_rul.height + 12), pygame.SRCALPHA)
+        pygame.draw.rect(glow, (*oro, int(50 + 60 * pulso)), glow.get_rect(), width=4, border_radius=13)
+        pantalla.blit(glow, (r_rul.x - 6, r_rul.y - 6))
+        pygame.draw.rect(pantalla, oro, r_rul, width=2, border_radius=10)
+        ins = f_mini.render("GACHA MEJORADO", True, (30, 24, 8))
+        pastilla = pygame.Rect(0, 0, ins.get_width() + 24, ins.get_height() + 8)
+        pastilla.center = (r_rul.centerx, r_rul.y)
+        pygame.draw.rect(pantalla, oro, pastilla, border_radius=10)
+        pygame.draw.rect(pantalla, (120, 90, 10), pastilla, width=1, border_radius=10)
+        pantalla.blit(ins, ins.get_rect(center=pastilla.center))
+
     # ---- Fila 3: premio
     y3 = y2 + alto2 + 10
     alto3 = 58

@@ -251,6 +251,41 @@ class RejillaEspacial:
                     lst.remove(caja)
 
 
+CELDA_DIBUJO = 512             # Celda para el indice de dibujo de pasto/flores (culling por vista)
+
+
+class IndiceDibujo:
+    """Indexa objetos con atributo .rect por celda para dibujar solo los visibles sin recorrer
+    toda la lista cada frame. Pensado para listas grandes y ESTATICAS (pasto, flores)."""
+    def __init__(self, celda, objetos):
+        self.celda = celda
+        self.celdas = {}
+        for o in objetos:
+            r = o.rect
+            x0, y0 = int(r.left // celda), int(r.top // celda)
+            x1, y1 = int(r.right // celda), int(r.bottom // celda)
+            for cx in range(x0, x1 + 1):
+                for cy in range(y0, y1 + 1):
+                    self.celdas.setdefault((cx, cy), []).append(o)
+
+    def visibles(self, vista):
+        """Objetos cuyas cajas tocan `vista`, sin duplicados (un objeto puede ocupar varias celdas)."""
+        c = self.celda
+        x0, y0 = int(vista.left // c), int(vista.top // c)
+        x1, y1 = int(vista.right // c), int(vista.bottom // c)
+        vistos = set()
+        res = []
+        for cx in range(x0, x1 + 1):
+            for cy in range(y0, y1 + 1):
+                for o in self.celdas.get((cx, cy), ()):
+                    oid = id(o)
+                    if oid not in vistos:
+                        vistos.add(oid)
+                        if o.rect.colliderect(vista):
+                            res.append(o)
+        return res
+
+
 class Arbol:
     """Arbol del mundo: tronco solido (circulo) + copa visual mas grande dibujada encima.
     Tipos: 'frondoso' (copa redonda verde), 'pino' (mas oscuro y punteado), 'seco' (sin copa,
@@ -429,6 +464,8 @@ class SistemaVegetacion:
         self.rejilla = RejillaEspacial(CELDA_REJILLA)
         for z in zonas_ocupadas:
             self.rejilla.agregar(z.rect)
+        self._idx_pasto = None      # indices de dibujo (se construyen perezosamente)
+        self._idx_flores = None
 
         # Biomas: bosques (arboles) y praderas (pasto/flores), luego arbustos
         self._generar_bosques()
@@ -459,6 +496,8 @@ class SistemaVegetacion:
             tapados.agregar(o.rect)
         self.pasto = [g for g in self.pasto if not tapados.hay_colision(g.rect)]
         self.flores = [f for f in self.flores if not tapados.hay_colision(f.rect)]
+        self._idx_pasto = None      # las listas cambiaron: forzar reconstruccion del indice
+        self._idx_flores = None
 
     def liberar_obstaculos(self, objetos):
         """Libera en la rejilla el espacio de obstaculos destruidos (rocas, arbustos o arboles
@@ -656,13 +695,15 @@ class SistemaVegetacion:
                     self.flores.append(Flor(x, y, random.choice(COLORES_FLOR)))
 
     def dibujar_cobertura(self, pantalla, vista, desplazamiento):
-        """Pasto y flores: cobertura de suelo bajo las entidades (nunca tapa al personaje)."""
-        for g in self.pasto:
-            if g.rect.colliderect(vista):
-                g.dibujar(pantalla, desplazamiento)
-        for f in self.flores:
-            if f.rect.colliderect(vista):
-                f.dibujar(pantalla, desplazamiento)
+        """Pasto y flores: cobertura de suelo bajo las entidades (nunca tapa al personaje).
+        Usa un indice espacial para dibujar solo lo visible sin recorrer toda la lista."""
+        if self._idx_pasto is None:
+            self._idx_pasto = IndiceDibujo(CELDA_DIBUJO, self.pasto)
+            self._idx_flores = IndiceDibujo(CELDA_DIBUJO, self.flores)
+        for g in self._idx_pasto.visibles(vista):
+            g.dibujar(pantalla, desplazamiento)
+        for f in self._idx_flores.visibles(vista):
+            f.dibujar(pantalla, desplazamiento)
 
     def obstaculos_para(self, personaje):
         """Solidos para el personaje: arbustos en los que no cabe + troncos de arboles."""

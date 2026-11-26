@@ -514,7 +514,8 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
             "herramienta": crear_herramienta(herramienta_var.get()),
             # Opciones del personaje de pruebas: solo valen si el nombre es el nombre clave
             "puntos_extra": bool(opt_puntos_var.get()) and (nombre.lower() == NOMBRE_CLAVE_PRUEBAS),
-            "dar_todo": bool(opt_inventario_var.get()) and (nombre.lower() == NOMBRE_CLAVE_PRUEBAS)
+            "dar_todo": bool(opt_inventario_var.get()) and (nombre.lower() == NOMBRE_CLAVE_PRUEBAS),
+            "es_pruebas": (nombre.lower() == NOMBRE_CLAVE_PRUEBAS)
         }
 
     def al_comenzar_mundo():

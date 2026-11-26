@@ -488,6 +488,8 @@ class Destello(HabilidadBase):
         pygame.draw.circle(capa, (255, 230, 90, 40), (r + 3, r + 3), r)
         pygame.draw.circle(capa, (140, 230, 255, 120), (r + 3, r + 3), r, 2)
         pantalla.blit(capa, (cx - r - 3, cy - r - 3))
+        if not _ANIMACIONES_ACTIVAS:
+            return
         rng = random.Random(pygame.time.get_ticks() // 60)
         for _ in range(4):
             ang = rng.uniform(0, math.tau)
@@ -572,7 +574,7 @@ class BurstDeFuerza(HabilidadBase):
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
         """Fuerza Colosal: halo rojo que late alrededor del personaje (el Burst normal no lo tiene)."""
-        if not self.potenciada_activa:
+        if not self.potenciada_activa or not _ANIMACIONES_ACTIVAS:
             return
         cx = round(jugador.posicion.x - desplazamiento[0])
         cy = round(jugador.posicion.y - desplazamiento[1])
@@ -1303,9 +1305,27 @@ def dibujar_icono_estado(pantalla, tipo, x, y, alto, color):
     return int(w) + 5
 
 
+# -----------------------------
+# ANIMACIONES PESADAS (rayos/chispas): se pueden pausar desde el panel para evitar lag.
+# Lo leen el marco de las cartas potenciadas y las auras electricas (Relampago, Aura
+# Electrica / Vestigios). No afecta la logica ni el dano, solo el dibujo animado.
+# -----------------------------
+_ANIMACIONES_ACTIVAS = True
+
+def animaciones_activas():
+    return _ANIMACIONES_ACTIVAS
+
+def set_animaciones_activas(valor):
+    global _ANIMACIONES_ACTIVAS
+    _ANIMACIONES_ACTIVAS = bool(valor)
+
+
 def dibujar_marco_potenciado(pantalla, rect, tiempo, colores=COLORES_RAYO):
     """Borde electrico animado: brillo que late y rayos en zigzag que recorren el contorno.
     'colores': los dos colores de los rayos (el primero tambien tine el brillo)."""
+    if not _ANIMACIONES_ACTIVAS:
+        pygame.draw.rect(pantalla, colores[0], rect, width=2, border_radius=11)
+        return
     pulso = 0.5 + 0.5 * math.sin(tiempo * 6)
     brillo = pygame.Surface((rect.width + 8, rect.height + 8), pygame.SRCALPHA)
     pygame.draw.rect(brillo, (*colores[0], int(40 + 50 * pulso)), brillo.get_rect(), width=4, border_radius=11)
@@ -1460,7 +1480,16 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         tarjeta_x = x + 14
         pad = 12  # margen interno izquierdo
 
-        if hab.estado == "ACTIVA":
+        if getattr(hab, "canalizando", False):
+            # Regeneracion Inversa / Inversion Vital mientras canaliza:
+            # rosa cuando CURA (vida), azul marino cuando REGENERA energia.
+            if getattr(hab, "modo_inversion", False):
+                color_borde = (60, 90, 210)      # azul marino (regenera energia)
+                color_fondo = (20, 26, 56)
+            else:
+                color_borde = (255, 105, 180)    # rosa (cura vida)
+                color_fondo = (48, 22, 40)
+        elif hab.estado == "ACTIVA":
             color_borde = (0, 220, 255) if hab.nombre in HABILIDADES_TONO_FRIO else (255, 100, 70)
             color_fondo = (22, 38, 50) if hab.nombre in HABILIDADES_TONO_FRIO else (48, 26, 26)
         elif hab.estado == "COOLDOWN":
@@ -1628,6 +1657,19 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
         ]
         dibujar_tooltip(pantalla, x - 258, y + 30, "Reglas de habilidades",
                         lineas_manual, fuente_sub, fuente_mini)
+
+    # Boton al pie del panel: pausar/activar las animaciones pesadas (rayos) para evitar lag
+    activas = _ANIMACIONES_ACTIVAS
+    btn_h = 30
+    btn_rect = pygame.Rect(x + 14, y + alto - btn_h - 12, ancho - 28, btn_h)
+    col_fondo = (30, 40, 34) if activas else (48, 34, 24)
+    col_borde = (90, 200, 120) if activas else (230, 150, 60)
+    pygame.draw.rect(pantalla, col_fondo, btn_rect, border_radius=6)
+    pygame.draw.rect(pantalla, col_borde, btn_rect, width=1, border_radius=6)
+    etiqueta = "Animaciones: ACTIVAS" if activas else "Animaciones: PAUSADAS"
+    txt_btn = fuente_sub.render(etiqueta, True, col_borde)
+    pantalla.blit(txt_btn, txt_btn.get_rect(center=btn_rect.center))
+    botones["__toggle_anim__"] = btn_rect
 
     return botones
 
@@ -2838,6 +2880,8 @@ class AuraElectrica(HabilidadBase):
             pygame.draw.circle(capa, (80, 180, 255, 45), (r + 3, r + 3), r)
             pygame.draw.circle(capa, (130, 220, 255, 110), (r + 3, r + 3), r, 3)
         pantalla.blit(capa, (cx - r - 3, cy - r - 3))
+        if not _ANIMACIONES_ACTIVAS:
+            return
         if mitico:
             for _ in range(12):
                 ang = random.uniform(0, math.tau)
@@ -3146,8 +3190,13 @@ class RegeneracionInversa(HabilidadBase):
         return 0 if self.modo_inversion else self.costo_energia
 
     def iniciar_carga(self, jugador):
-        """Al pulsar: empieza a canalizar si puede pagar al menos un intervalo."""
+        """Al pulsar: empieza a canalizar si puede pagar al menos un intervalo. Durante la
+        espera de cambio de modo (CAMBIO_MODO_ESPERA) no se puede canalizar."""
         if self.canalizando:
+            return
+        if self.espera_cambio_modo > 0:
+            self.mensaje_alerta = f"Cambiando de modo ({self.espera_cambio_modo:.1f}s)"
+            self.tiempo_alerta = 1.0
             return
         if self.modo_inversion:
             if jugador.vida - self.costo_vida < self.VIDA_MINIMA_INVERSION:

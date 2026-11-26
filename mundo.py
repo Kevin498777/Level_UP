@@ -6,7 +6,8 @@ from personaje import (Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESC
                        REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE)
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
-                         aplicar_veneno, enemigo_en, COLOR_VENENO, encender_combustible)
+                         aplicar_veneno, enemigo_en, COLOR_VENENO, encender_combustible,
+                         animaciones_activas, set_animaciones_activas)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
 from fauna import SistemaFauna
@@ -1051,6 +1052,7 @@ def iniciar_mundo(config):
             j.recalcular_talismanes()
 
     aplicar_extras_pruebas(jugador)
+    es_pruebas = config.get("es_pruebas", False)   # shadow498: habilita teclas de prueba extra ([0])
 
     fuentes = {
         "titulo": pygame.font.SysFont("Segoe UI", 14, bold=True),
@@ -1166,6 +1168,36 @@ def iniciar_mundo(config):
                 texto, color = f"Habilidad nueva: {nombre}", (170, 205, 255)
         textos_flotantes.append([texto, color, jugador.posicion - pygame.Vector2(0, 48), 0.0])
 
+    def limpiar_cooldowns():
+        """[0] (shadow498): pone a 0 el cooldown de todas las habilidades que esten en recarga,
+        dejandolas listas al instante. Es de un solo uso por pulsacion: al reutilizar la
+        habilidad vuelve su cooldown normal."""
+        n = 0
+        for hab in jugador.coleccion_habilidades:
+            if getattr(hab, "estado", None) == "COOLDOWN":
+                hab.tiempo_restante_cooldown = 0.0
+                hab.estado = "LISTA"
+                n += 1
+        if n:
+            texto, color = f"Cooldown eliminado ({n})", (120, 230, 255)
+        else:
+            texto, color = "Ninguna habilidad en recarga", (200, 200, 210)
+        textos_flotantes.append([texto, color, jugador.posicion - pygame.Vector2(0, 48), 0.0])
+
+    def regenerar_stats():
+        """[F] (shadow498): rellena vida, energia, escudo y escudo magico a su maximo
+        (incluye los bonos de talisman). Si hay una anulacion de escudo magico activa, el
+        relleno se aplica al valor que recupera al terminar."""
+        jugador.vida = jugador.vida_max
+        jugador.energia = jugador.energia_max
+        jugador.escudo = jugador.escudo_max
+        if getattr(jugador, "anulacion_escudo_magico", 0.0) > 0:
+            jugador.escudo_magico_guardado = jugador.escudo_magico_max
+        else:
+            jugador.escudo_magico = jugador.escudo_magico_max
+        textos_flotantes.append(["Estadisticas al 100%", (150, 255, 180),
+                                 jugador.posicion - pygame.Vector2(0, 48), 0.0])
+
     def reaparecer():
         """El jugador vuelve al centro desde cero (nivel 1, XP 0, la herramienta y las
         habilidades de la creación a nivel 1, vida y energía llenas). Pierde todo lo conseguido
@@ -1279,6 +1311,14 @@ def iniciar_mundo(config):
                 elif evento.key == pygame.K_l:
                     jugador.subir_nivel()
 
+                # [0] (shadow498) Eliminar el cooldown actual de todas las habilidades (un solo uso)
+                elif es_pruebas and evento.key == pygame.K_0:
+                    limpiar_cooldowns()
+
+                # [F] (shadow498) Rellenar todas las estadisticas al 100%
+                elif es_pruebas and evento.key == pygame.K_f:
+                    regenerar_stats()
+
                 # [Espacio] Golpe cuerpo a cuerpo con el arma (manual); con el Arco empieza a cargar
                 elif evento.key == pygame.K_SPACE:
                     if jugador.herramienta and hasattr(jugador.herramienta, "iniciar_carga"):
@@ -1358,6 +1398,9 @@ def iniciar_mundo(config):
                         indice = int(click_btn.split("_")[-1])
                         if 0 <= indice < len(jugador.habilidades):
                             jugador.habilidades[indice].cambiar_modo(jugador)
+                    elif click_btn == "__toggle_anim__":
+                        info_abierta = None
+                        set_animaciones_activas(not animaciones_activas())
                     elif click_btn == "__flechas__":
                         info_abierta = None
                         jugador.herramienta.comprar_flechas(jugador)
@@ -1690,9 +1733,10 @@ def iniciar_mundo(config):
             if charco.rect.colliderect(vista):
                 charco.dibujar(pantalla, desplazamiento)
 
-        # Peces (sombras bajo el agua), por debajo de todo lo demas
-        fauna.dibujar_peces(pantalla, vista, desplazamiento)
-        fauna.dibujar_ranas(pantalla, vista, desplazamiento)
+        # Peces y ranas (ambiental): se omiten con las animaciones pausadas (rendimiento)
+        if animaciones_activas():
+            fauna.dibujar_peces(pantalla, vista, desplazamiento)
+            fauna.dibujar_ranas(pantalla, vista, desplazamiento)
 
         for roca in rocas:
             if roca.rect.colliderect(vista):
@@ -1750,11 +1794,13 @@ def iniciar_mundo(config):
         for hab in jugador.fuentes_criaturas():
             vivos_parpadeo.extend(getattr(hab, "criaturas", ()))
         actualizar_parpadeos(vivos_parpadeo, 0.0 if muerto else dt)
-        dibujar_parpadeos(pantalla, vivos_parpadeo, desplazamiento)
+        if animaciones_activas():
+            dibujar_parpadeos(pantalla, vivos_parpadeo, desplazamiento)
 
         # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
         vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
-        fauna.dibujar_mariposas(pantalla, vista, desplazamiento)
+        if animaciones_activas():
+            fauna.dibujar_mariposas(pantalla, vista, desplazamiento)
         # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
         # semitransparentes si hay una entidad debajo: jugador, maniqui, invocaciones o fauna.
         entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
@@ -1762,8 +1808,9 @@ def iniciar_mundo(config):
             entidades.extend(getattr(hab, "criaturas", ()))
         entidades.extend(fauna.cuerpos_solidos(vista))
         vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
-        # Pajaros: vuelan por encima de las copas
-        fauna.dibujar_pajaros(pantalla, vista, desplazamiento)
+        # Pajaros (ambiental): se omiten con las animaciones pausadas (rendimiento)
+        if animaciones_activas():
+            fauna.dibujar_pajaros(pantalla, vista, desplazamiento)
 
         # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
         # se den ambos) y en el arbusto solo tú ves sus orbes
