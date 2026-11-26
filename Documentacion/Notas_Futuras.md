@@ -362,5 +362,41 @@ La onda viaja a **300 px/s** y al **doble (600 px/s)** si se lanza desde el agua
 nivel maximo 30
 Es un disparo color cafe verde y morado con las mismas propiedades que disparo venenoso pero
 Hace daño por segundo a la vida como disparo venenoso
-hace daño al 
+Reduce el daño por segundo -1% por segundo de quien golpee
+Reduce la velocidad por segundo del -1% de quien golpee
+Para la regeneracion de energia y reduce 1% por segundo
+Hace daño al escudo Fisico y lo reduce un 1% por segundo
+Hace daño al escudo Magico y lo reduce un 1% por segundo
+Hace 1 punto de daño a la arma en cuestion que tenga el personaje a quien golpeo
+El dueño de la habilidad suelta humo que aplica dichos efectos en un radio de 60 px 
+El color del aura es igualmente cafe,verde y morado
+Promon las estadisticas que estos valores y te dire si me convence ademas dice si esta muy fuerte balancealo
+
+
+
+### Golpe de Suerte → Afortunado
+Nivel 20
+Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico), **Disparo Venenoso** o **nada**. **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**≈10.56 %** cada uno).
+
+El autoveneno de Golpe de Suerte queda en 10 de daño en 10 s al nivel 1 y 50 en 20 s al nivel 20.
+
+| Nivel |Coste En.|Nivel de la habilidad otorgada|Duración otorgada|Espera (instantáneos)| Recarga|
+|---    |---   ---|---                           |---              |---                  |
+| 1 – 4 | 15      | 1                            | 5 s             | 5 s                 | 5 s    |
+| 5 – 9 | 20      | 5                            | 10 s            | 5 s                 | 8 s    |
+| 10–14 | 25      | 10                           | 15 s            | 5 s                 | 12 s   |
+| 15–19 | 30      | 15                           | 20 s            | 5 s                 | 15 s   |
+| 20    | 50      | 20                           | 30 s            | **2 s**             | 20 s   |
+
+- **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; **después** empieza la recarga. Así nunca hay dos resultados a la vez.
+- **Habilidad otorgada:** tiene las estadísticas de su nivel pero dura lo que marca la tabla. Si termina antes (por ejemplo, el Reforzamiento se rompe), la recarga empieza en ese momento. El Destello otorgado no deja fatiga.
+- **Regeneración otorgada:** cura sola, sin pulsar ni gastar energía, con sus propios tiempos: 4 s (+1 cada 2 s) en nv 1–4, 6 s en nv 5–9, 8 s en nv 10–14, 10 s (+2 cada 2 s) en nv 15–19 y 10 s (+2 cada 1 s) en nv 20.
+- **Resultado instantáneo** (energía, escudos o nada): bloquea durante la espera básica y luego empieza la recarga.
+- **Misma habilidad activa dos veces** (equipada y otorgada): sus efectos buenos **se suman**. La otorgada por Golpe de Suerte aporta siempre el **100 %** y la equipada solo el **50 %**, sin importar su nivel ni el orden en que se activen (ej. Burst otorgado +21 % y equipado +35 % = +21 % + 17.5 % = **+38.5 %**). Reforzamiento: absorbe primero el campo otorgado y luego el equipado al 50 % de eficacia. Regeneración: la equipada cura al 50 %. Cuando una termina, la otra vuelve al 100 %. Costes, recargas, combo y efectos negativos (fatiga del Destello, autodaño del Aura) no cambian.
+
+### Afortunado
+
+nivel maximo 30
+Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico), **Disparo Venenoso** o **nada**. **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**≈10.56 %** cada uno).
+
 

@@ -44,7 +44,7 @@ Gancho para enemigos: `Personaje.bloquear_con_escudo(daño, origen)`. Los ataque
 | **Nivel máximo** | 20 | **40** (20 → 40: +8410 XP) |
 | **Disparo Veloz (nerf)** | Vel 14 → 40, daño 8 → 30, recarga 2 → 0.5 s | Vel **14 → 35**, daño **8 → 25**, recarga **4 → 2 s** |
 | **Cuevas de oso** | Cortar a nivel 20 las destruía | Nada las destruye |
-| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos, Reforzamiento Inverso y Desmantelar (niveles 21 – 30, 2 puntos por nivel); Inversión Vital y Espectro (niveles 11 – 15, 3 puntos por nivel) |
+| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos, Reforzamiento Inverso y Desmantelar (niveles 21 – 30, 2 puntos por nivel); Corrosión y Palabras Malditas (niveles 21 – 30, 2 puntos por nivel); Inversión Vital y Espectro (niveles 11 – 15, 3 puntos por nivel) |
 
 **Medición (simulación de 10 000 partidas con el bot):** con todo lo anterior el **83 %** llega al nivel 20 (mediana **134 min**), 5.9 muertes por partida y el 80 % llega al 20 con todos los objetos del Gacha. Duelos solo con arma contra la fauna real: la manada ya se gana desde el nivel 5 (antes 15) y el oso desde el 15.
 
@@ -96,12 +96,23 @@ Según el porcentaje que llega al nivel 20 empezando con esa arma o habilidad (s
 3. ~~**Regeneración Inversa (débil)**~~ **Hecho 25/11:** rebalance a ~2 – 2.5 En. por vida (nv10: +12 vida / −25 En. cada 2 s) con −20 % de velocidad al mantenerla, y potenciada Inversión Vital (vida → energía a 1.2 En. por vida; la vuelta completa siempre pierde ~40 %). Volver a medir.
 4. ~~**Paso 0 (débil)**~~ **Hecho 26/11:** rebalance lineal (6 → 15 s, 20 → 60 En., recarga 8 → 16 s) pero **el primer ataque la cancela**; potenciada **Espectro** (nv11 – 15: 16 → 20 s, atacar no cancela, Emboscada +50 → +100 % al primer golpe a cada enemigo, Cuerpo de niebla y Ejecución en el 15). Volver a medir (vigilar Emboscada + Fuerza Colosal + Vestigios Míticos en el mismo golpe).
 5. **Espada Ligera (sin papel):** darle un rasgo propio (más cadencia o no desgastarse en los choques).
-6. **Disparo Venenoso y anillo de Defensa mágica (los más flojos).** Disparo Venenoso **rebalanceado 26/11**: veneno lento y largo (0.5 → 1.5 de daño/s durante 30 → 60 s, total 15 → 90; recarga 20 → 10 s, siempre menor que la duración: varios enemigos envenenados a la vez); autoveneno de Golpe de Suerte a la mitad del total y de la duración. Volver a medir. Falta el anillo de Defensa mágica.
+6. **Disparo Venenoso y anillo de Defensa mágica (los más flojos).** Disparo Venenoso **rebalanceado 26/11**: veneno largo (1 → 2.5 de daño/s durante 20 → 40 s, total 20 → 100; recarga 15 → 10 s, siempre menor que la duración), ajustado tras simular (la primera versión, 0.5 → 1.5/s en 30 → 60 s, bajaba al 86 % de llegada al 20); autoveneno de Golpe de Suerte a la mitad del total y de la duración. Volver a medir. Potenciada **Corrosión** hecha 26/11 (veneno 2.5 → 3.0/s 60 s, corrosión 1 %/s con tope 10 → 30 % de daño, velocidad y escudos; humo de 60 px). Vigilar el combo con Onda Sonora y Sombra Araña. Falta el anillo de Defensa mágica.
 7. **Lobo solitario (vigilar):** con 10 XP y 10 monedas fijas es la mejor fuente de XP del bot; si se nota en partida, bajar a 6 – 8 XP.
 8. **Estrella Ígnea (vigilar):** una carga de 5 s o más borra una manada de lobos normales con la explosión (29 – 38 de daño en 100 px).
 8b. **Desmantelar + fuego (vigilar):** cada carga de combustible pegada suma +50 % del golpe de fuego que la prende (25/11). Estrella Ígnea nv30 al máximo con 3 cargas = 318.5 a un objetivo. Sola, Desmantelar es cara (60 → 120 En., 10 → 20 s) y el combustible no hace nada sin una habilidad de fuego. Cortar se nerfeó al inicio (daño 2 por nivel, antes 5 → 40).
 9. **Nivel 20 → 40:** con solo la fauna actual se tarda ≈10 h (14.5 XP/min); depende de los enemigos nuevos.
-10. **Habilidades potenciadas pendientes de diseñar:** Invocar Conejos, Invocar Lobos, Onda Sonora, Golpe de Suerte, Sombra Araña y Disparo Venenoso.
+10. **Habilidades potenciadas pendientes de diseñar:** Golpe de Suerte. Las artes de las sombras (invocaciones) no tendrán potenciada, solo cambios de balance (decisión del 26/11). **Palabras Malditas (vigilar):** Explota se aplica a cada objetivo alcanzado y sus áreas se suman entre enemigos juntos (6 lobos pegados a nv30: 30 + 40 + hasta 100 de áreas cada uno), y Muere deja a 1 de vida a casi cualquier enemigo cada 60 s.
+
+### 4.1 Simulación del 26/11/2026 (bots hasta el nivel 30)
+
+Simulador de progresión (modelo de combate, no el motor) con 4000 partidas por versión y las mismas semillas; cada bot conserva sus 3 habilidades iniciales. Compara el código del 25/11 (commit `110469f`) con el de hoy (Espectro, Disparo Venenoso ajustado, Corrosión, Palabras Malditas y fauna que respeta la ralentización).
+
+| Versión | Llega al 20 | Tiempo al 20 | Llega al 30 | Tiempo al 30 | Muertes antes del 20 | Muertes 20 – 29 |
+|---|---|---|---|---|---|---|
+| 25/11 | 97.8 % | 2.6 h | 76.1 % | 6.3 h | 5.6 | 0.9 |
+| 26/11 | 97.8 % | 2.6 h | 74.2 % | 6.2 h | 5.7 | 1.1 |
+
+Con una habilidad fija en el trío (800 partidas, antes → ahora): **Disparo Venenoso** 94 → 93 % al 20 y 58 → 58 % al 30 (la primera versión del rebalance, 0.5 → 1.5/s en 30 → 60 s, la bajaba a 86 % y 46 %); **Onda Sonora** 100 → 99.9 % y 93 → 87 % al 30 (Palabras Malditas con 3 objetivos al 20; con 1 objetivo bajaba al 84 %); **Paso 0** 96 → 94 % y 70 → 63 % al 30, con más muertes del 20 al 29 (0.8 → 2.1): el bot ataca con Espectro y se queda en medio del grupo al terminar. **Vigilar Espectro** cuando se pruebe en partida. Las partidas sin estas tres habilidades dan lo mismo en ambas versiones (98 % al 20, 76 % al 30).
 
 ## 5. Pendientes de documentación
 

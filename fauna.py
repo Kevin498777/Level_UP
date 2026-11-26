@@ -13,7 +13,7 @@ no afectar el rendimiento aunque el mundo sea enorme.
 import math
 import random
 import pygame
-from habilidades import aplicar_desangrado
+from habilidades import aplicar_desangrado, factor_dano_corrosion, actualizar_ralentizacion, ralentizacion_total
 from personaje import repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO
 from talismanes import marcar_agresor
 
@@ -59,6 +59,7 @@ ZORRO_REPRO_INTERVALO = 120.0  # cada 2 min nace +1 si hay al menos 2 zorros
 # Golpe de arma del jugador a un animal: retrasa su siguiente ataque (y no se encadena)
 ATURDIR_GOLPE = 0.3          # s de retraso del siguiente ataque del animal
 ATURDIR_INMUNE = 1.0         # s sin poder volver a aturdirlo
+SALTO_MAX_FRENADO = 200.0    # px: un desplazamiento mayor entre frames (reaparicion) no se frena
 
 
 def bloqueado_por_escudo(atacante, objetivo, dano):
@@ -85,6 +86,7 @@ def golpear_objetivo(atacante, objetivo, dano, empuje=0):
     if not hasattr(objetivo, "recibir_dano"):
         return False
     hacia = objetivo.posicion - atacante.posicion
+    dano = round(dano * factor_dano_corrosion(atacante), 2)     # Corrosion: pega menos
     objetivo.recibir_dano(dano, "fisico", None if empuje > 0 else hacia)
     if empuje > 0 and hasattr(objetivo, "aplicar_empuje"):
         objetivo.aplicar_empuje(hacia, empuje)
@@ -1057,8 +1059,13 @@ class AnimalCombatible:
         self.desangrado = None
         self.veneno = None
         self.quemadura = None
+        self.corrosion = None
         self.inmovilizado = None
+        self.dormido = None                # Palabras Malditas: Duerme
+        self.huida = None                  # Palabras Malditas: Huye
         self.ralentizacion = 0.0
+        self.tiempo_ralentizacion = 0.0
+        self._pos_frenado = None           # posicion del frame anterior (ver _frenar)
         self._t_inmune_aturdir = 0.0      # tras un aturdimiento no se le puede volver a aturdir
 
     def aturdir_ataque(self):
@@ -1079,12 +1086,34 @@ class AnimalCombatible:
         return (self.vivo and not getattr(self, "invisible", False) and not getattr(self, "en_cueva", False)
                 and not getattr(self, "sumergido", False) and getattr(self, "estado", "") != "escondido")
 
+    @property
+    def controlado(self):
+        """Paralizado (telarana, aturdimiento, No te muevas), dormido o huyendo: su IA no actua
+        (la huida lo mueve sola en _tick_efectos)."""
+        return self.inmovilizado is not None or self.dormido is not None or self.huida is not None
+
     def aplicar_empuje(self, direccion, puntos):
         if puntos <= 0 or direccion is None or direccion.length() == 0:
             return
-        self.posicion += direccion.normalize() * min(float(puntos) * PIXELES_POR_PUNTO_EMPUJE, 96.0)
+        paso = direccion.normalize() * min(float(puntos) * PIXELES_POR_PUNTO_EMPUJE, 96.0)
+        self.posicion += paso
+        if self._pos_frenado is not None:
+            self._pos_frenado += paso          # el empuje recibido no se frena
+
+    def _frenar(self):
+        """Ralentizacion (Onda Sonora, Palabras Malditas) y corrosion: recorta el desplazamiento
+        desde el frame anterior en el porcentaje mas fuerte. Vale para todas las especies sin tocar
+        su IA. Un salto mayor que SALTO_MAX_FRENADO (reaparicion) no se frena."""
+        factor = ralentizacion_total(self)
+        if self._pos_frenado is not None and factor > 0:
+            delta = self.posicion - self._pos_frenado
+            if delta.length() <= SALTO_MAX_FRENADO:
+                self.posicion.update(self._pos_frenado + delta * (1.0 - factor))
+        self._pos_frenado = pygame.Vector2(self.posicion)
 
     def _tick_efectos(self, dt):
+        actualizar_ralentizacion(self, dt)
+        self._frenar()
         if self._t_inmune_aturdir > 0:
             self._t_inmune_aturdir = max(0.0, self._t_inmune_aturdir - dt)
         if self.desangrado is not None:
@@ -1099,10 +1128,22 @@ class AnimalCombatible:
             self.veneno.actualizar(dt, self)
             if not self.veneno.activo:
                 self.veneno = None
+        if self.corrosion is not None:
+            self.corrosion.actualizar(dt, self)
+            if not self.corrosion.activo:
+                self.corrosion = None
         if self.inmovilizado is not None:
             self.inmovilizado.actualizar(dt, self)
             if not self.inmovilizado.activo:
                 self.inmovilizado = None
+        if self.huida is not None:
+            self.huida.actualizar(dt, self)
+            if not self.huida.activo:
+                self.huida = None
+        if self.dormido is not None:
+            self.dormido.actualizar(dt, self)
+            if not self.dormido.activo:
+                self.dormido = None
         if self.vida <= 0:
             self.vida = 0
             self.vivo = False
@@ -1177,7 +1218,7 @@ class ConejoSalvaje(AnimalCombatible):
         self._tick_efectos(dt)
         if not self.vivo:
             return
-        if self.inmovilizado is not None:
+        if self.controlado:
             return
         if amenazas is None:
             amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
@@ -1305,7 +1346,7 @@ class Venado(AnimalCombatible):
         self._tick_efectos(dt)
         if not self.vivo:
             return
-        if self.inmovilizado is not None:
+        if self.controlado:
             return
         # Regeneracion: 1 pv cada 2 s mientras este dañado.
         if self._danado and self.vida < self.vida_max:
@@ -1457,7 +1498,7 @@ class Jabali(AnimalCombatible):
         self._tick_efectos(dt)
         if not self.vivo:
             return
-        if self.inmovilizado is not None:
+        if self.controlado:
             return
         if amenazas is None:
             amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
@@ -1630,7 +1671,7 @@ class Zorro(AnimalCombatible):
         if not self.vivo:
             self._liberar_robo()
             return
-        if self.inmovilizado is not None:
+        if self.controlado:
             return
         if amenazas is None:
             amenazas = (jugador,) if getattr(jugador, "detectable", True) else ()
@@ -2005,7 +2046,7 @@ class Manada:
 
         for l in vivos:
             l._tick_efectos(dt)
-            if not l.vivo or l.inmovilizado is not None:
+            if not l.vivo or l.controlado:
                 continue
             l._cd_mordida -= dt
             if retirada:
@@ -2094,7 +2135,7 @@ class LoboSolitario(AnimalCombatible):
             return
         self._cd_mordida -= dt
         self._cd_onda -= dt
-        if self.inmovilizado is not None:
+        if self.controlado:
             return
         # Objetivo: la amenaza (jugador detectable o sombra) mas cercana.
         objetivo = None
@@ -2339,7 +2380,7 @@ class Oso(AnimalCombatible):
         self._tick_efectos(dt)
         if not self.vivo:
             return
-        if self.inmovilizado is not None:
+        if self.controlado:
             return
         self._cd_zarpazo -= dt
         self._cd_rugido -= dt
@@ -2541,7 +2582,7 @@ class Cocodrilo(AnimalCombatible):
         self._tick_efectos(dt)
         if not self.vivo:
             return
-        if self.inmovilizado is not None:
+        if self.controlado:
             return
         self._cd_mordida -= dt
         self._regen_escudo(dt)

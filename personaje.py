@@ -483,7 +483,7 @@ class Personaje:
                 for c in getattr(h, lista):
                     c.vivo = False
                 setattr(h, lista, [])
-        for lista in ("telaranas", "cuchillas", "emisiones", "rafaga", "explosiones", "zonas_fuego"):
+        for lista in ("telaranas", "cuchillas", "emisiones", "rafaga", "explosiones", "zonas_fuego", "vuelos"):
             if hasattr(h, lista):
                 setattr(h, lista, [])
         if getattr(h, "cargando", False):

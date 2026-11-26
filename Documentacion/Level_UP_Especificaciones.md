@@ -379,7 +379,7 @@ Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientr
 
 Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico), **Disparo Venenoso** o **nada**. "Nada" tiene un **30 %** y los otros **9** resultados se reparten el resto a partes iguales (**≈7.78 %** cada uno); en **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**≈10.56 %** cada uno).
 
-**Disparo Venenoso es un resultado negativo:** no dispara nada; **envenena al portador** con el veneno del nivel que marca el tramo, pero a la **mitad del daño** y en la **mitad de la duración** (ej. tramo nv1: 7.5 de daño en 15 s; nv20: 45 de daño en 30 s). Es daño mágico, así que lo amortigua su escudo mágico. Cuenta como resultado instantáneo (espera básica). Paso 0 otorgado no pasa de su nivel máximo (10).
+**Disparo Venenoso es un resultado negativo:** no dispara nada; **envenena al portador** con el veneno del nivel que marca el tramo, pero a la **mitad del daño** y en la **mitad de la duración** (ej. tramo nv1: 10 de daño en 10 s; nv20: 50 de daño en 20 s). Es daño mágico, así que lo amortigua su escudo mágico. Cuenta como resultado instantáneo (espera básica). Paso 0 otorgado no pasa de su nivel máximo (10).
 
 | Nivel | Coste En. | Nivel de la habilidad otorgada | Duración otorgada | Espera (instantáneos) | Recarga |
 |---|---|---|---|---|---|
@@ -476,7 +476,7 @@ Habilidad de **daño mágico** (categoría Ataque Mágico). Emite **anillos blan
 
 Atraviesan rocas y arbustos **sin destruir nada** y **solo afectan a enemigos** (no al lanzador ni a sus invocaciones). Cada onda golpea **una sola vez** a cada objetivo; tras golpear sigue visible y las ondas siguientes sí pueden golpearlo. El escudo mágico amortigua su daño.
 
-**Pasiva (ralentización):** según cuántas ondas del mismo lanzamiento golpeen al objetivo: **-5 % / -10 % / -20 %** de velocidad de movimiento durante **3 s**. No se suma: se queda la más fuerte y cada impacto reinicia los 3 s.
+**Pasiva (ralentización):** según cuántas ondas del mismo lanzamiento golpeen al objetivo: **-5 % / -10 % / -20 %** de velocidad de movimiento durante **3 s** (también a la fauna desde el 26/11/2026: antes solo frenaba al maniquí). No se suma: se queda la más fuerte y cada impacto reinicia los 3 s.
 
 **Medio (agua):** cuenta el punto de lanzamiento (agua o tierra, igual para todas sus ondas) y dónde está el objetivo al recibir cada onda.
 
@@ -497,6 +497,24 @@ La onda viaja a **300 px/s** y al **doble (600 px/s)** si se lanza desde el agua
 | 20 | 3 | 400 | 30 | 30 s |
 
 Radio **200 → 400** y recarga **10 → 30 s** lineales (la recarga sube a propósito); coste **10 +5 cada 5 niveles** (máx. 30). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.12).
+
+**Potenciada: Palabras Malditas (niveles 21 – 30).** Sale en el Gacha mejorado; cada nivel cuesta **2 puntos**. La onda pasa a ser **un solo anillo rojo** de **30** de daño mágico que ralentiza **20 %**, con radio **480** (antes 400), y solo afecta a los **primeros enemigos que alcanza** (los más cercanos): **3 en el nivel 20 → 6 en el 30** (4 desde el 23, 5 desde el 27). La tumba no cuenta.
+
+- **Pulsar la tecla:** el anillo **sin palabra** (30 En., recarga 8 s, sin coste de vida).
+- **Mantener la tecla** (0.25 s): se abre la **ruleta** de las 6 palabras alrededor del personaje; al **soltar** se pronuncia la que está bajo el ratón (en el centro o sobre una bloqueada no se lanza nada). El anillo lleva el efecto de la palabra a cada enemigo alcanzado.
+- **Coste:** cada palabra cuesta su energía y **vida directa** (sin escudos); pronunciar nunca te deja por debajo de **1** de vida. La recarga es la de la palabra.
+- **Eco:** si el anillo no alcanza a nadie, la palabra te cobra la vida **otra vez**.
+- **Agua:** el doble o la mitad solo cambia el daño y la ralentización del anillo, no las palabras.
+- Los efectos suben **lineales** desde el nivel en que se desbloquea cada palabra hasta el 30. Los enemigos dormidos llevan un anillo azul y los que huyen uno amarillo. El maniquí no se mueve: con Huye, Duerme o No te muevas deja de atacar.
+
+| Palabra | Desde | Efecto | Energía | Vida propia | Recarga |
+|---|---|---|---|---|---|
+| Huye | 21 | Huye de ti (no ataca) (2 → 5 s de huida) | 20 | 1 | 6 s |
+| Sal volado | 21 | Sale despedido (×6 px por punto) (30 → 60 de empuje) | 25 | 2 | 6 s |
+| No te muevas | 23 | Paralizado: ni se mueve ni ataca (no acorta una telaraña) (1.5 → 3 s paralizado) | 35 | 4 | 10 s |
+| Duerme | 25 | No ve ni detecta nada; **despierta al recibir daño** (4 → 10 s dormido) | 40 | 5 | 12 s |
+| Explota | 27 | Explosión instantánea en el objetivo; la **mitad** a todo lo que esté a **60 px**, **tú incluido** (20 → 40 de daño extra) | 50 | 8 | 15 s |
+| Muere | 30 | Al **enemigo con más vida** dentro del radio (solo a él): si tiene menos del **30 %** de su vida máxima, **muere**; si no, pierde el **90 % de su vida actual** | 100 | 50 % de tu vida actual (90 % si tienes menos del 30 %) | 60 s |
 
 ### 9.16 Sombra Araña
 
@@ -555,13 +573,31 @@ Habilidad de **daño mágico** (categoría Ataque Mágico). Dispara hacia donde 
 
 | Nivel | Coste En. | Veneno total | Duración | Daño por segundo | Recarga |
 |---|---|---|---|---|---|
-| 1 | 20 | 15 | 30 s | 0.5 | 20 s |
-| 5 | 25 | 25.8 | 36.3 s | 0.71 | 17.9 s |
-| 10 | 32 | 42.9 | 44.2 s | 0.97 | 15.3 s |
-| 15 | 38 | 64.6 | 52.1 s | 1.24 | 12.6 s |
-| 20 | 45 | 90 | 60 s | 1.5 | 10 s |
+| 1 | 20 | 20 | 20 s | 1 | 15 s |
+| 5 | 25 | 31.9 | 24.2 s | 1.32 | 13.9 s |
+| 10 | 32 | 50.4 | 29.5 s | 1.71 | 12.6 s |
+| 15 | 38 | 73.2 | 34.7 s | 2.11 | 11.3 s |
+| 20 | 45 | 100 | 40 s | 2.5 | 10 s |
 
-Todo **lineal** (rebalance del 26/11/2026): coste **20 → 45 En.**, daño **0.5 → 1.5 por segundo** durante **30 → 60 s** (total **15 → 90**) y recarga **20 → 10 s** (a 1 decimal). Es un veneno **lento y largo**: la recarga siempre es menor que la duración, así que puedes mantener **varios enemigos envenenados a la vez** (3 al nivel 1, 6 al nivel 20). Antes: 20 → 40 de daño en 20 → 10 s y recarga 30 → 15 s. Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.15).
+Todo **lineal** (rebalance del 26/11/2026, ajustado tras simular con bots): coste **20 → 45 En.**, daño **1 → 2.5 por segundo** durante **20 → 40 s** (total **20 → 100**) y recarga **15 → 10 s** (a 1 decimal). Es un veneno largo: la recarga siempre es menor que la duración, así que puedes mantener **varios enemigos envenenados a la vez**. Antes: 20 → 40 de daño en 20 → 10 s y recarga 30 → 15 s. Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.15).
+
+**Potenciada: Corrosión (niveles 21 – 30).** Sale en el Gacha mejorado; se usa con la habilidad en el nivel 20 y cada nivel extra cuesta **2 puntos**. El veneno pasa a **2.5 → 3.0 por segundo durante 60 s** (150 → 180), coste **45 → 60 En.** y recarga **10 s**. Además:
+
+- **Corrosión:** el enemigo alcanzado queda corroído mientras dure el veneno (60 s). Cada segundo la corrosión sube **1 %** hasta el **tope** del nivel (**10 % → 30 %**). Volver a dispararle reinicia el veneno pero **conserva la corrosión acumulada**.
+- **Daño:** el corroído hace un **−X %** de daño (X = corrosión acumulada) en sus golpes: mordidas, embestidas y zarpazos de la fauna y la espada del maniquí. Las ondas del lobo solitario y del oso no se reducen.
+- **Velocidad:** se mueve un **−X %** (se recorta su desplazamiento). No se suma con la ralentización de Onda Sonora: se queda la más fuerte.
+- **Escudos físico y mágico:** cada subida de la corrosión les quita **1 % de su máximo** (hasta el tope) y **no se regeneran** mientras dure.
+- **Energía** (si la tiene): no se regenera y pierde **1 % de su máximo por segundo**, sin tope. Hoy ningún enemigo usa energía.
+- **Arma** (si la lleva): **1 de durabilidad al impactar** el disparo y **1 cada 5 s** mientras dure (hoy solo el maniquí lleva arma).
+- **Humo (aura pasiva de 60 px):** mientras Corrosión esté equipada, el portador suelta humo café, verde y morado que corroe a los enemigos dentro (mismo tope) **sin el daño del veneno**. Al salir del humo la corrosión les dura **3 s**. No afecta a tus invocaciones ni a ti; con Paso 0 el humo no se ve pero sigue actuando.
+- **Aspecto:** disparo café, verde y morado; los enemigos corroídos llevan un anillo café y morado; contorno de la tarjeta café y morado.
+
+| Nivel | Coste En. | Veneno total | Daño por segundo | Recarga | Tope corrosión |
+|---|---|---|---|---|---|
+| 20 | 45 | 150 | 2.5 | 10 s | 10 % |
+| 21 | 47 | 153 | 2.55 | 10 s | 12 % |
+| 25 | 53 | 165 | 2.75 | 10 s | 20 % |
+| 30 | 60 | 180 | 3 | 10 s | 30 % |
 
 ## 10. Puntos de empuje (retroceso)
 

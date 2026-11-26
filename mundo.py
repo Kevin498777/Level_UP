@@ -6,7 +6,8 @@ from personaje import (Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESC
                        REGEN_ENERGIA_POR_PUNTO, REGEN_ENERGIA_TOPE)
 from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar_tooltip, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, aplicar_quemadura,
-                         aplicar_veneno, enemigo_en, COLOR_VENENO, encender_combustible,
+                         aplicar_veneno, aplicar_corrosion, factor_dano_corrosion, enemigo_en,
+                         COLOR_VENENO, encender_combustible,
                          animaciones_activas, set_animaciones_activas)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
@@ -801,6 +802,7 @@ class Maniqui:
         self.vivo = True
         self.desangrado = None
         self.veneno = None
+        self.corrosion = None
         self.ralentizacion = 0.0          # no se mueve, pero la muestra (Onda Sonora)
         self.tiempo_ralentizacion = 0.0
         self.en_agua = False
@@ -811,6 +813,13 @@ class Maniqui:
         self.herramienta.activa = True
         self.quemadura = None
         self.inmovilizado = None
+        self.dormido = None               # Palabras Malditas: Duerme
+        self.huida = None                 # Palabras Malditas: Huye (no se mueve: solo deja de atacar)
+
+    @property
+    def controlado(self):
+        """Paralizado, dormido o asustado: no ataca (igual que la fauna)."""
+        return self.inmovilizado is not None or self.dormido is not None or self.huida is not None
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         """Reparte el dano entre su escudo y la vida (mismas reglas que el personaje).
@@ -872,7 +881,7 @@ class Maniqui:
         actualizar_ralentizacion(self, dt)
         # IA simple: mirar al jugador y lanzar golpes en intervalos. No detecta al jugador
         # oculto en un arbusto ni invisible (Paso 0); un golpe ya en marcha sigue su curso.
-        if jugador is not None and getattr(jugador, "detectable", True):
+        if jugador is not None and getattr(jugador, "detectable", True) and not self.controlado:
             hacia = jugador.posicion - self.posicion
             if hacia.length_squared() > 0:
                 self.angulo = math.degrees(math.atan2(hacia.x, -hacia.y)) % 360.0
@@ -900,6 +909,18 @@ class Maniqui:
             self.veneno.actualizar(dt, self)     # recibir_dano ya gestiona la muerte
             if not self.veneno.activo:
                 self.veneno = None
+        if self.corrosion is not None:
+            self.corrosion.actualizar(dt, self)
+            if not self.corrosion.activo:
+                self.corrosion = None
+        if self.huida is not None:
+            self.huida.actualizar(dt, self, mover=False)
+            if not self.huida.activo:
+                self.huida = None
+        if self.dormido is not None:
+            self.dormido.actualizar(dt, self)
+            if not self.dormido.activo:
+                self.dormido = None
         if self.inmovilizado is not None:
             self.inmovilizado.actualizar(dt, self)
             if not self.inmovilizado.activo:
@@ -1558,7 +1579,7 @@ def iniciar_mundo(config):
                     if obj is jugador and jugador.invulnerable:
                         continue                        # invulnerable tras otro golpe
                     TL.marcar_agresor(obj, enemigo)     # las sombras de los anillos te defienden
-                    dano = arma_enemiga.calcular_dano(enemigo)
+                    dano = round(arma_enemiga.calcular_dano(enemigo) * factor_dano_corrosion(enemigo), 2)
                     # Escudo desenfundado cubriendo el golpe: como un choque, no hace daño, el
                     # atacante sale repelido con el empuje del escudo y su arma se desgasta 1
                     if obj is jugador and dano > 0 and jugador.bloquear_con_escudo(dano, enemigo.posicion):
@@ -1602,6 +1623,8 @@ def iniciar_mundo(config):
                             encender_combustible(enemigo, p.dano)   # combustible pegado: +50 % por carga
                         if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
                             aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
+                            if p.corrosion_tope is not None:
+                                aplicar_corrosion(enemigo, p.corrosion_tope, p.veneno_duracion, impacto=True)
                         if hasattr(p, "impactar"):
                             p.impactar()            # Estrella Ignea: explota 0.5 s despues
                         p.activo = False

@@ -163,12 +163,16 @@ class ProyectilFuego:
 # -----------------------------
 COLOR_VENENO = (90, 220, 90)          # Verde del disparo y del anillo de envenenado
 COLOR_VENENO_NUCLEO = (150, 70, 200)  # Pequeña esfera morada en el centro del disparo
+COLORES_DISPARO_VENENO = ((40, 120, 40), COLOR_VENENO, COLOR_VENENO_NUCLEO)   # borde, cuerpo, nucleo
+COLORES_DISPARO_CORROSION = ((110, 72, 38), (95, 165, 70), (150, 70, 200))   # cafe, verde y morado
 
 
 class ProyectilVeneno:
     """Esfera verde con núcleo morado. El impacto no hace daño ni empuja: solo envenena al
-    primer enemigo que toca (veneno_total de daño mágico repartido en veneno_duracion s)."""
-    def __init__(self, x, y, dx, dy, velocidad, veneno_total, veneno_duracion, radio=6):
+    primer enemigo que toca (veneno_total de daño mágico repartido en veneno_duracion s).
+    Con 'corrosion_tope' (Corrosion) tambien deja al enemigo corroido."""
+    def __init__(self, x, y, dx, dy, velocidad, veneno_total, veneno_duracion, radio=6,
+                 colores=COLORES_DISPARO_VENENO, corrosion_tope=None):
         self.posicion = pygame.Vector2(x, y)
         self.direccion = pygame.Vector2(dx, dy).normalize() if (dx != 0 or dy != 0) else pygame.Vector2(0, -1)
         self.velocidad = velocidad
@@ -177,6 +181,8 @@ class ProyectilVeneno:
         self.radio = radio
         self.veneno_total = veneno_total
         self.veneno_duracion = veneno_duracion
+        self.colores = colores
+        self.corrosion_tope = corrosion_tope
         self.activo = True
         self.hitbox = pygame.Rect(round(x - radio), round(y - radio), radio * 2, radio * 2)
 
@@ -192,9 +198,10 @@ class ProyectilVeneno:
     def dibujar(self, pantalla, desplazamiento=(0, 0)):
         px = round(self.posicion.x - desplazamiento[0])
         py = round(self.posicion.y - desplazamiento[1])
-        pygame.draw.circle(pantalla, (40, 120, 40), (px, py), self.radio + 2)       # borde
-        pygame.draw.circle(pantalla, COLOR_VENENO, (px, py), self.radio)            # cuerpo verde
-        pygame.draw.circle(pantalla, COLOR_VENENO_NUCLEO, (px, py), max(2, self.radio // 2))  # núcleo morado
+        borde, cuerpo, nucleo = self.colores
+        pygame.draw.circle(pantalla, borde, (px, py), self.radio + 2)
+        pygame.draw.circle(pantalla, cuerpo, (px, py), self.radio)
+        pygame.draw.circle(pantalla, nucleo, (px, py), max(2, self.radio // 2))
 
 
 # -----------------------------
@@ -756,11 +763,24 @@ class DisparoVenenoso(HabilidadBase):
     tener varios enemigos envenenados a la vez.
     """
     rompe_invisibilidad = True          # hace dano: cancela Paso 0
+    POTENCIADA = {"nombre": "Corrosión", "nivel_max": 30, "costo_mejora": 2}
+    COLORES_MARCO = ((120, 82, 45), (150, 70, 200))       # cafe y morado
     VELOCIDAD_PROYECTIL = 12.0
     COSTO_NV1, COSTO_NV_MAX = 20, 45
-    DPS_NV1, DPS_NV_MAX = 0.5, 1.5                  # daño del veneno por segundo
-    DURACION_NV1, DURACION_NV_MAX = 30.0, 60.0      # segundos que dura el veneno
-    RECARGA_NV1, RECARGA_NV_MAX = 20.0, 10.0
+    DPS_NV1, DPS_NV_MAX = 1.0, 2.5                  # daño del veneno por segundo
+    DURACION_NV1, DURACION_NV_MAX = 20.0, 40.0      # segundos que dura el veneno
+    RECARGA_NV1, RECARGA_NV_MAX = 15.0, 10.0
+    NIVEL_MAX_NORMAL = 20               # el escalado normal va de 1 a 20 (Corrosion sube el maximo)
+    # Corrosion (potenciada, nivel 20 desbloqueada hasta el 30): tablas (nivel, valor) lineales
+    CORROSION_PUNTOS_DPS = ((20, 2.5), (30, 3.0))
+    CORROSION_PUNTOS_COSTE = ((20, 45), (30, 60))
+    CORROSION_PUNTOS_TOPE = ((20, 0.10), (30, 0.30))       # tope de la corrosion acumulada
+    CORROSION_DURACION = 60.0
+    CORROSION_RECARGA = 10.0
+    RADIO_HUMO = 60                     # px del humo que rodea al portador
+    DURACION_HUMO = 3.0                 # s que dura la corrosion del humo al salir de el
+    COLORES_HUMO = ((120, 82, 45), (95, 165, 70), (150, 70, 200))
+    PUFFS_HUMO = 9                      # bocanadas de humo del aura (solo visual)
 
     def __init__(self):
         super().__init__(
@@ -772,32 +792,92 @@ class DisparoVenenoso(HabilidadBase):
             tecla=pygame.K_4,
             tecla_str="4"
         )
+        self.corroidos = []             # enemigos corroidos (para el anillo)
+        self._centro_humo = None        # posicion del portador (None = sin humo visible)
+        self._t_humo = 0.0
 
     def _aplicar_nivel(self):
         """
         Escalado lineal (nivel 1 a 20), rebalance 26/11/2026:
         - coste: 20 -> 45 En. (entero)
-        - veneno: 0.5/s durante 30 s (15) -> 1.5/s durante 60 s (90); total = daño/s x duracion
-        - recarga: 20 s -> 10 s, a 1 decimal (siempre menor que la duracion)
+        - veneno: 1/s durante 20 s (20) -> 2.5/s durante 40 s (100); total = daño/s x duracion
+        - recarga: 15 s -> 10 s, a 1 decimal (siempre menor que la duracion)
+        (ajustado el 26/11 tras simular: 0.5 -> 1.5/s en 30 -> 60 s dejaba a los bots peor)
+        Corrosion (potenciada, nivel 20 desbloqueada -> 30), lineal:
+        - veneno 2.5 -> 3.0 /s durante 60 s (150 -> 180); coste 45 -> 60 En.; recarga 10 s
+        - tope de la corrosion 10 % -> 30 %
         """
-        t = (self.nivel - 1) / (self.nivel_max - 1)
+        n = self.nivel
+        if self.potenciada_activa:
+            self.costo_energia = int(_valor_interpolado(n, self.CORROSION_PUNTOS_COSTE) + 0.5)
+            self.veneno_por_segundo = round(_valor_interpolado(n, self.CORROSION_PUNTOS_DPS), 2)
+            self.veneno_duracion = self.CORROSION_DURACION
+            self.veneno_total = round(self.veneno_por_segundo * self.veneno_duracion, 1)
+            self.duracion_cooldown = self.CORROSION_RECARGA
+            self.tope_corrosion = round(_valor_interpolado(n, self.CORROSION_PUNTOS_TOPE), 4)
+            return
+        self.tope_corrosion = 0.0
+        t = (self.nivel - 1) / (self.NIVEL_MAX_NORMAL - 1)
         self.costo_energia = round(self.COSTO_NV1 + (self.COSTO_NV_MAX - self.COSTO_NV1) * t)
         self.veneno_por_segundo = round(self.DPS_NV1 + (self.DPS_NV_MAX - self.DPS_NV1) * t, 2)
         self.veneno_duracion = round(self.DURACION_NV1 + (self.DURACION_NV_MAX - self.DURACION_NV1) * t, 1)
         self.veneno_total = round(self.veneno_por_segundo * self.veneno_duracion, 1)
         self.duracion_cooldown = round(self.RECARGA_NV1 + (self.RECARGA_NV_MAX - self.RECARGA_NV1) * t, 1)
 
+    def desbloquear_potenciada(self):
+        resultado = super().desbloquear_potenciada()
+        self._aplicar_nivel()          # en el nivel 20 ya es Corrosion
+        return resultado
+
     def ejecutar_activacion(self, jugador):
-        """Dispara la esfera venenosa y entra en recarga."""
+        """Dispara la esfera venenosa (o la de Corrosion) y entra en recarga."""
         rad = math.radians(jugador.angulo)
         frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
         origen = jugador.posicion + frente * (jugador.radio + 8)
-        jugador.proyectiles.append(ProyectilVeneno(origen.x, origen.y, frente.x, frente.y,
-                                                   self.VELOCIDAD_PROYECTIL, self.veneno_total,
-                                                   self.veneno_duracion))
+        corrosion = self.potenciada_activa
+        jugador.proyectiles.append(ProyectilVeneno(
+            origen.x, origen.y, frente.x, frente.y, self.VELOCIDAD_PROYECTIL, self.veneno_total,
+            self.veneno_duracion,
+            colores=COLORES_DISPARO_CORROSION if corrosion else COLORES_DISPARO_VENENO,
+            corrosion_tope=self.tope_corrosion if corrosion else None))
         self.estado = "COOLDOWN"
         self.tiempo_restante_activo = 0.0
         self.tiempo_restante_cooldown = self.duracion_cooldown
+
+    def actualizar_dano_enemigos(self, dt, enemigos, jugador):
+        """Corrosion: el humo (RADIO_HUMO px) corroe a los enemigos dentro (sin dano de veneno);
+        la corrosion les dura DURACION_HUMO s al salir. Guarda los corroidos para el anillo."""
+        if not self.potenciada_activa:
+            self.corroidos = []
+            self._centro_humo = None
+            return
+        self._t_humo += dt
+        self._centro_humo = None if jugador.invisible else pygame.Vector2(jugador.posicion)
+        for e in enemigos:
+            if getattr(e, "vivo", True) and (e.posicion - jugador.posicion).length() <= self.RADIO_HUMO + e.radio:
+                aplicar_corrosion(e, self.tope_corrosion, self.DURACION_HUMO)
+        self.corroidos = [e for e in enemigos if getattr(e, "vivo", True)
+                          and getattr(e, "corrosion", None) is not None and e.corrosion.activo]
+
+    def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
+        """Humo cafe, verde y morado alrededor del portador y anillo en cada enemigo corroido."""
+        ox, oy = desplazamiento
+        if self._centro_humo is not None:
+            r = self.RADIO_HUMO
+            capa = pygame.Surface((r * 2 + 20, r * 2 + 20), pygame.SRCALPHA)
+            c = r + 10
+            for i in range(self.PUFFS_HUMO):
+                ang = self._t_humo * 0.8 + i * math.tau / self.PUFFS_HUMO
+                dist = r * (0.45 + 0.4 * (0.5 + 0.5 * math.sin(self._t_humo * 1.7 + i)))
+                color = self.COLORES_HUMO[i % len(self.COLORES_HUMO)]
+                pygame.draw.circle(capa, (*color, 55), (round(c + math.cos(ang) * dist), round(c + math.sin(ang) * dist)),
+                                   round(9 + 4 * math.sin(self._t_humo * 2.3 + i * 1.3)))
+            pygame.draw.circle(capa, (*self.COLORES_HUMO[0], 70), (c, c), r, 1)
+            pantalla.blit(capa, (round(self._centro_humo.x - ox - c), round(self._centro_humo.y - oy - c)))
+        for e in self.corroidos:
+            px, py = round(e.posicion.x - ox), round(e.posicion.y - oy)
+            pygame.draw.circle(pantalla, self.COLORES_HUMO[0], (px, py), round(e.radio) + 10, 2)
+            pygame.draw.circle(pantalla, self.COLORES_HUMO[2], (px, py), round(e.radio) + 13, 1)
 
 
 # -----------------------------
@@ -1077,8 +1157,9 @@ class AnilloSonoro:
     """Un anillo de una Onda Sonora. Crece desde su centro hasta el radio maximo; golpea a
     cada objetivo una sola vez cuando su frente lo alcanza. Atraviesa rocas y arbustos sin
     destruirlos. Se desvanece al acercarse al borde."""
-    def __init__(self, centro, radio_max, velocidad, dano, en_agua, emision):
+    def __init__(self, centro, radio_max, velocidad, dano, en_agua, emision, color=(255, 255, 255)):
         self.centro = pygame.Vector2(centro)
+        self.color = color
         self.radio = 0.0
         self.radio_max = radio_max
         self.velocidad = velocidad
@@ -1110,7 +1191,7 @@ class AnilloSonoro:
         if alpha <= 0:
             return
         sup = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-        pygame.draw.circle(sup, (255, 255, 255, alpha), (r + 2, r + 2), r, 2)
+        pygame.draw.circle(sup, (*self.color, alpha), (r + 2, r + 2), r, 2)
         pantalla.blit(sup, (round(self.centro.x - desplazamiento[0]) - r - 2,
                             round(self.centro.y - desplazamiento[1]) - r - 2))
 
@@ -1118,10 +1199,12 @@ class AnilloSonoro:
 class EmisionSonora:
     """Un lanzamiento de Onda Sonora: emite sus anillos uno tras otro desde el punto donde se
     lanzo (no sigue al personaje) y lleva la cuenta de cuantos golpean a cada objetivo
-    (1, 2 o 3 => ralentizacion creciente). El medio (agua o tierra) es el del punto de lanzamiento."""
+    (1, 2 o 3 => ralentizacion creciente). El medio (agua o tierra) es el del punto de lanzamiento.
+    Palabras Malditas: un anillo rojo que solo afecta a los 'max_objetivos' primeros que toca
+    (los mas cercanos) y les aplica la palabra; Muere solo afecta al enemigo con mas vida."""
     INTERVALO = 0.8               # segundos entre anillos
 
-    def __init__(self, habilidad, centro, en_agua):
+    def __init__(self, habilidad, centro, en_agua, palabra=None, lanzador=None):
         self.hab = habilidad
         self.centro = pygame.Vector2(centro)
         self.en_agua = en_agua
@@ -1129,17 +1212,31 @@ class EmisionSonora:
         self.timer = 0.0
         self.anillos = []
         self.impactos = {}        # id(objetivo) -> anillos que lo golpearon
+        self.palabra = palabra    # dict de OndaSonora.PALABRAS o None
+        self.lanzador = lanzador
+        self.max_objetivos = habilidad.max_objetivos     # None = sin limite (Onda Sonora normal)
+        self.color = OndaSonora.COLOR_PALABRAS if habilidad.potenciada_activa else (255, 255, 255)
+        self.afectados = []       # enemigos alcanzados (no la tumba)
+        self.objetivo_unico = None
+        self._elegido = False
+        self._enemigos = []
 
     @property
     def activa(self):
         return bool(self.pendientes) or any(a.activo for a in self.anillos)
 
     def actualizar(self, dt, enemigos):
+        self._enemigos = enemigos
+        if self.palabra is not None and self.palabra["clave"] == "muere" and not self._elegido:
+            self._elegido = True          # Muere: el enemigo con mas vida dentro del radio
+            cand = [e for e in enemigos if getattr(e, "vivo", True) and not getattr(e, "es_tumba", False)
+                    and (e.posicion - self.centro).length() - e.radio <= self.hab.radio]
+            self.objetivo_unico = max(cand, key=lambda e: e.vida, default=None)
         self.timer -= dt
         while self.pendientes and self.timer <= 0:
             vel = OndaSonora.VELOCIDAD_AGUA if self.en_agua else OndaSonora.VELOCIDAD
             self.anillos.append(AnilloSonoro(self.centro, self.hab.radio, vel,
-                                             self.pendientes.pop(0), self.en_agua, self))
+                                             self.pendientes.pop(0), self.en_agua, self, self.color))
             self.timer += self.INTERVALO
         for a in self.anillos:
             if a.activo:
@@ -1147,7 +1244,16 @@ class EmisionSonora:
         self.anillos = [a for a in self.anillos if a.activo]
 
     def impactar(self, anillo, objetivo):
-        """Dano magico y ralentizacion segun el medio y los anillos que ya lo golpearon."""
+        """Dano magico y ralentizacion segun el medio y los anillos que ya lo golpearon. Con
+        Palabras Malditas, respeta el maximo de objetivos y aplica la palabra (sin factor de medio)."""
+        es_tumba = getattr(objetivo, "es_tumba", False)
+        if self.palabra is not None and self.palabra["clave"] == "muere":
+            if objetivo is not self.objetivo_unico:
+                return
+        elif self.max_objetivos is not None and not es_tumba and len(self.afectados) >= self.max_objetivos:
+            return
+        if not es_tumba:
+            self.afectados.append(objetivo)
         factor = OndaSonora.factor_medio(anillo.en_agua, getattr(objetivo, "en_agua", False))
         n = self.impactos.get(id(objetivo), 0) + 1
         self.impactos[id(objetivo)] = n
@@ -1156,7 +1262,10 @@ class EmisionSonora:
             objetivo.recibir_dano(anillo.dano * factor, "magico", direccion)
         else:
             objetivo.vida = max(0.0, round(objetivo.vida - anillo.dano * factor, 2))
-        aplicar_ralentizacion(objetivo, OndaSonora.RALENTIZACION[n - 1] * factor)
+        ralent = OndaSonora.PALABRAS_RALENTIZACION if self.hab.potenciada_activa else OndaSonora.RALENTIZACION[n - 1]
+        aplicar_ralentizacion(objetivo, ralent * factor)
+        if self.palabra is not None and not es_tumba and getattr(objetivo, "vivo", True):
+            self.hab.aplicar_palabra(self.palabra, objetivo, self)
 
 
 class OndaSonora(HabilidadBase):
@@ -1172,6 +1281,39 @@ class OndaSonora(HabilidadBase):
     NIVEL_SEGUNDA = 10
     NIVEL_TERCERA = 20
     RALENTIZACION = (0.05, 0.10, 0.20)      # segun anillos que golpean al objetivo (1, 2, 3)
+    POTENCIADA = {"nombre": "Palabras Malditas", "nivel_max": 30, "costo_mejora": 2}
+    COLORES_MARCO = ((210, 30, 30), (90, 10, 10))         # rojo y rojo oscuro
+    # Palabras Malditas (nivel 20 desbloqueada -> 30): un solo anillo rojo
+    COLOR_PALABRAS = (230, 40, 40)
+    PALABRAS_DANO = 30
+    PALABRAS_RALENTIZACION = 0.20
+    PALABRAS_RADIO = 480                    # px (Onda Sonora nv20: 400)
+    PALABRAS_COSTE_PULSO = 30               # pulsar sin mantener: el anillo sin palabra
+    PALABRAS_RECARGA_PULSO = 8.0
+    PALABRAS_TRAMOS_OBJETIVOS = ((20, 3), (23, 4), (27, 5), (30, 6))
+    UMBRAL_RULETA = 0.25                    # s manteniendo la tecla para abrir la ruleta
+    TIEMPO_MAX_CARGA = UMBRAL_RULETA        # barra de carga del panel: llena = ruleta abierta
+    RADIO_RULETA = 95                       # px de la ruleta alrededor del personaje
+    ZONA_MUERTA_RULETA = 25                 # px: con el raton en el centro no se elige nada
+    VIDA_MINIMA_PALABRA = 1                 # pronunciar nunca te deja por debajo
+    MUERE_UMBRAL = 0.30                     # bajo el 30 % de vida: Muere mata (y a ti te cuesta mas)
+    MUERE_QUITA = 0.90                      # si no, quita el 90 % de su vida actual
+    MUERE_COSTO = 0.50                      # te cuesta el 50 % de tu vida actual...
+    MUERE_COSTO_CRITICO = 0.90              # ...o el 90 % si estas bajo el 30 %
+    EXPLOTA_RADIO = 60                      # px alrededor del objetivo
+    EXPLOTA_FACTOR_AREA = 0.5               # el area (y tu, si estas cerca) recibe la mitad
+    DURACION_DESTELLO_EXPLOSION = 0.3
+    VELOCIDAD_VUELO = 900.0                 # px/s de Sal volado
+    # Palabras (en el orden de la ruleta, empezando arriba). 'efecto' = (valor al desbloquearse,
+    # valor a nivel 30), lineal: s de huida / puntos de empuje / s de paralisis / s de sueno / dano extra
+    PALABRAS = (
+        {"clave": "huye", "nombre": "Huye", "desde": 21, "efecto": (2.0, 5.0), "energia": 20, "vida": 1, "recarga": 6.0},
+        {"clave": "sal_volado", "nombre": "Sal volado", "desde": 21, "efecto": (30, 60), "energia": 25, "vida": 2, "recarga": 6.0},
+        {"clave": "no_te_muevas", "nombre": "No te muevas", "desde": 23, "efecto": (1.5, 3.0), "energia": 35, "vida": 4, "recarga": 10.0},
+        {"clave": "duerme", "nombre": "Duerme", "desde": 25, "efecto": (4.0, 10.0), "energia": 40, "vida": 5, "recarga": 12.0},
+        {"clave": "explota", "nombre": "Explota", "desde": 27, "efecto": (20, 40), "energia": 50, "vida": 8, "recarga": 15.0},
+        {"clave": "muere", "nombre": "Muere", "desde": 30, "efecto": None, "energia": 100, "vida": None, "recarga": 60.0},
+    )
     VELOCIDAD = 300.0                       # px/s
     VELOCIDAD_AGUA = 600.0
     FACTOR_MISMO_AGUA = 2.0
@@ -1188,6 +1330,14 @@ class OndaSonora(HabilidadBase):
             tecla_str="2"
         )
         self.emisiones = []
+        self.cargando = False           # Palabras Malditas: tecla mantenida (ruleta)
+        self.tiempo_carga = 0.0
+        self.palabra_pendiente = None
+        self.vuelos = []                # [enemigo, direccion, px que faltan] de Sal volado
+        self.explosiones = []           # [posicion, tiempo restante] (solo visual)
+        self.controlados = []           # enemigos dormidos o huyendo (para su anillo)
+        self._pos_jugador = None
+        self._desplazamiento = (0, 0)
 
     @classmethod
     def factor_medio(cls, lanzador_en_agua, objetivo_en_agua):
@@ -1204,27 +1354,221 @@ class OndaSonora(HabilidadBase):
         - Coste: 10 + 5 cada 5 niveles (max 30)
         """
         n = self.nivel
+        if self.potenciada_activa:
+            # Palabras Malditas: un anillo de 30, radio 480, pulso de 30 En. con 8 s de recarga
+            self.danos_ondas = (self.PALABRAS_DANO,)
+            self.radio = self.PALABRAS_RADIO
+            self.duracion_cooldown = self.PALABRAS_RECARGA_PULSO
+            self.costo_energia = self.PALABRAS_COSTE_PULSO
+            self.max_objetivos = _valor_por_tramo(n, self.PALABRAS_TRAMOS_OBJETIVOS)
+            return
+        self.max_objetivos = None
         cantidad = 1 + (n >= self.NIVEL_SEGUNDA) + (n >= self.NIVEL_TERCERA)
         self.danos_ondas = self.DANOS[:cantidad]
         self.radio = round(200 + 200 * (n - 1) / 19, 1)
         self.duracion_cooldown = round(10.0 + 20.0 * (n - 1) / 19, 2)
         self.costo_energia = min(30, 10 + 5 * (n // 5))
 
+    def desbloquear_potenciada(self):
+        resultado = super().desbloquear_potenciada()
+        self._aplicar_nivel()          # en el nivel 20 ya es Palabras Malditas
+        return resultado
+
+    # ---- Palabras Malditas: pulsar = anillo sin palabra; mantener = ruleta y soltar = palabra
+    @property
+    def cargable(self):
+        return self.potenciada_activa
+
+    def palabras_disponibles(self):
+        return [p for p in self.PALABRAS if self.nivel >= p["desde"]]
+
+    def valor_palabra(self, palabra):
+        """Efecto de la palabra a este nivel: lineal desde su nivel de desbloqueo hasta el 30."""
+        inicio, fin = palabra["efecto"]
+        return round(_valor_interpolado(self.nivel, ((palabra["desde"], inicio), (self.POTENCIADA["nivel_max"], fin))), 2)
+
+    def obtener_costo_base(self, jugador):
+        return self.palabra_pendiente["energia"] if self.palabra_pendiente else self.costo_energia
+
+    def iniciar_carga(self, jugador):
+        if self.estado == "LISTA":
+            self.cargando = True
+            self.tiempo_carga = 0.0
+
+    def soltar_carga(self, jugador):
+        """Soltar rapido: anillo sin palabra. Tras abrir la ruleta: la palabra bajo el raton
+        (en el centro o sobre una bloqueada no se lanza nada)."""
+        if not self.cargando:
+            return
+        self.cargando = False
+        palabra = None
+        if self.tiempo_carga >= self.UMBRAL_RULETA:
+            palabra = self.palabra_bajo_raton()
+            if palabra is None:
+                return
+        self.palabra_pendiente = palabra
+        self.intentar_activar(jugador)
+        self.palabra_pendiente = None
+
+    def _indice_ruleta(self, punto_pantalla):
+        """Indice de la casilla de la ruleta bajo un punto de la pantalla (None en el centro)."""
+        if self._pos_jugador is None:
+            return None
+        centro = self._pos_jugador - pygame.Vector2(self._desplazamiento)
+        delta = pygame.Vector2(punto_pantalla) - centro
+        if delta.length() < self.ZONA_MUERTA_RULETA:
+            return None
+        sector = math.tau / len(self.PALABRAS)
+        ang = (math.atan2(delta.y, delta.x) + math.pi / 2 + sector / 2) % math.tau   # 0 = arriba
+        return int(ang // sector)
+
+    def palabra_bajo_raton(self):
+        i = self._indice_ruleta(pygame.mouse.get_pos())
+        if i is None:
+            return None
+        palabra = self.PALABRAS[i]
+        return palabra if palabra in self.palabras_disponibles() else None
+
     def ejecutar_activacion(self, jugador):
-        self.emisiones.append(EmisionSonora(self, jugador.posicion, getattr(jugador, "en_agua", False)))
+        palabra = self.palabra_pendiente
+        self.emisiones.append(EmisionSonora(self, jugador.posicion, getattr(jugador, "en_agua", False),
+                                            palabra=palabra, lanzador=jugador))
+        if palabra is not None:
+            self.cobrar_vida(jugador, palabra)
+            self.mensaje_alerta = f"¡{palabra['nombre']}!"
+            self.tiempo_alerta = 1.5
         self.estado = "COOLDOWN"
         self.tiempo_restante_activo = 0.0
-        self.tiempo_restante_cooldown = self.duracion_cooldown
+        self.tiempo_restante_cooldown = palabra["recarga"] if palabra is not None else self.duracion_cooldown
+
+    def cobrar_vida(self, jugador, palabra):
+        """Pronunciar cuesta vida directa (sin escudos); nunca baja de VIDA_MINIMA_PALABRA.
+        Muere: 50 % de tu vida actual, o 90 % si estas bajo el 30 % de tu vida maxima."""
+        if palabra["clave"] == "muere":
+            critico = jugador.vida < self.MUERE_UMBRAL * jugador.vida_max
+            coste = jugador.vida * (self.MUERE_COSTO_CRITICO if critico else self.MUERE_COSTO)
+        else:
+            coste = palabra["vida"]
+        jugador.vida = max(min(jugador.vida, self.VIDA_MINIMA_PALABRA), round(jugador.vida - coste, 2))
+
+    def aplicar_palabra(self, palabra, objetivo, emision):
+        clave = palabra["clave"]
+        direccion = objetivo.posicion - emision.centro
+        if clave == "huye":
+            aplicar_huida(objetivo, self.valor_palabra(palabra), emision.lanzador)
+        elif clave == "sal_volado":
+            if direccion.length_squared() == 0:
+                direccion = pygame.Vector2(1, 0)
+            self.vuelos.append([objetivo, direccion.normalize(), self.valor_palabra(palabra) * PIXELES_POR_PUNTO_EMPUJE])
+        elif clave == "no_te_muevas":
+            duracion = self.valor_palabra(palabra)
+            actual = getattr(objetivo, "inmovilizado", None)
+            if hasattr(objetivo, "inmovilizado") and (actual is None or actual.restante < duracion):
+                aplicar_inmovilizacion(objetivo, duracion)       # no acorta una telarana
+        elif clave == "duerme":
+            aplicar_sueno(objetivo, self.valor_palabra(palabra))
+        elif clave == "explota":
+            self._explotar(objetivo, self.valor_palabra(palabra), emision)
+        elif clave == "muere":
+            self._muere(objetivo)
+
+    def _explotar(self, objetivo, dano, emision):
+        """Explosion instantanea en el objetivo; la mitad a lo que este a EXPLOTA_RADIO px (tu incluido)."""
+        centro = pygame.Vector2(objetivo.posicion)
+        objetivo.recibir_dano(dano, "magico", objetivo.posicion - emision.centro)
+        area = round(dano * self.EXPLOTA_FACTOR_AREA, 2)
+        cercanos = [e for e in emision._enemigos if e is not objetivo and getattr(e, "vivo", True)
+                    and not getattr(e, "es_tumba", False)]
+        if emision.lanzador is not None:
+            cercanos.append(emision.lanzador)
+        for e in cercanos:
+            hacia = e.posicion - centro
+            if hacia.length() <= self.EXPLOTA_RADIO + e.radio:
+                e.recibir_dano(area, "magico", hacia if hacia.length_squared() > 0 else None)
+        self.explosiones.append([centro, self.DURACION_DESTELLO_EXPLOSION])
+
+    def _muere(self, objetivo):
+        """Bajo el 30 % de su vida maxima lo mata; si no, le quita el 90 % de su vida actual."""
+        vida_max = getattr(objetivo, "vida_max", objetivo.vida)
+        if objetivo.vida < self.MUERE_UMBRAL * vida_max:
+            sobra = objetivo.vida + getattr(objetivo, "escudo", 0) + getattr(objetivo, "escudo_magico", 0) + 1
+            objetivo.recibir_dano(sobra, "magico")                 # muerte por su camino normal (XP)
+        else:
+            objetivo.vida = max(0.01, round(objetivo.vida * (1.0 - self.MUERE_QUITA), 2))
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)
+        self._pos_jugador = pygame.Vector2(jugador.posicion)
+        if self.cargando:
+            self.tiempo_carga += dt
 
     def actualizar_ondas(self, dt, enemigos):
         for e in self.emisiones:
             e.actualizar(dt, enemigos)
+        for e in self.emisiones:
+            # Eco: una palabra que no alcanzo a nadie te vuelve a cobrar la vida
+            if not e.activa and e.palabra is not None and not e.afectados and e.lanzador is not None:
+                self.cobrar_vida(e.lanzador, e.palabra)
+                self.mensaje_alerta = "¡Eco! La palabra no alcanzó a nadie"
+                self.tiempo_alerta = 2.0
         self.emisiones = [e for e in self.emisiones if e.activa]
+        for v in self.vuelos:
+            objetivo, direccion, restante = v
+            paso = min(restante, self.VELOCIDAD_VUELO * dt)
+            if hasattr(objetivo, "aplicar_empuje") and getattr(objetivo, "vivo", True):
+                objetivo.aplicar_empuje(direccion, paso / PIXELES_POR_PUNTO_EMPUJE)
+            v[2] = restante - paso
+        self.vuelos = [v for v in self.vuelos if v[2] > 0 and getattr(v[0], "vivo", True)]
+        for x in self.explosiones:
+            x[1] -= dt
+        self.explosiones = [x for x in self.explosiones if x[1] > 0]
+        self.controlados = [e for e in enemigos if getattr(e, "vivo", True)
+                            and (getattr(e, "dormido", None) is not None or getattr(e, "huida", None) is not None)]
 
     def dibujar_ondas(self, pantalla, desplazamiento=(0, 0)):
+        self._desplazamiento = desplazamiento
+        ox, oy = desplazamiento
         for e in self.emisiones:
             for a in e.anillos:
                 a.dibujar(pantalla, desplazamiento)
+        for centro, restante in self.explosiones:
+            t = 1.0 - restante / self.DURACION_DESTELLO_EXPLOSION
+            r = round(self.EXPLOTA_RADIO * (0.4 + 0.6 * t))
+            sup = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(sup, (*self.COLOR_PALABRAS, round(160 * (1 - t))), (r + 2, r + 2), r)
+            pantalla.blit(sup, (round(centro.x - ox) - r - 2, round(centro.y - oy) - r - 2))
+        for e in self.controlados:
+            px, py = round(e.posicion.x - ox), round(e.posicion.y - oy)
+            color = (120, 140, 230) if getattr(e, "dormido", None) is not None else (255, 200, 60)
+            pygame.draw.circle(pantalla, color, (px, py), round(e.radio) + 9, 2)
+        if self.cargando and self.tiempo_carga >= self.UMBRAL_RULETA and self._pos_jugador is not None:
+            self._dibujar_ruleta(pantalla)
+
+    def _dibujar_ruleta(self, pantalla):
+        """Ruleta de las 6 palabras alrededor del personaje: disponibles en rojo, bloqueadas en
+        gris (con su nivel) y la que esta bajo el raton resaltada."""
+        centro = self._pos_jugador - pygame.Vector2(self._desplazamiento)
+        disponibles = self.palabras_disponibles()
+        elegida = self._indice_ruleta(pygame.mouse.get_pos())
+        fuente = _fuente_cara()
+        sector = math.tau / len(self.PALABRAS)
+        for i, palabra in enumerate(self.PALABRAS):
+            ang = -math.pi / 2 + i * sector
+            pos = centro + pygame.Vector2(math.cos(ang), math.sin(ang)) * self.RADIO_RULETA
+            libre = palabra in disponibles
+            if i == elegida and libre:
+                fondo, borde = (120, 20, 20), (255, 90, 90)
+            elif libre:
+                fondo, borde = (60, 15, 15), self.COLOR_PALABRAS
+            else:
+                fondo, borde = (40, 40, 46), (95, 95, 105)
+            texto = palabra["nombre"] if libre else f"{palabra['nombre']} (nv{palabra['desde']})"
+            render = fuente.render(texto, True, (245, 235, 235) if libre else (150, 150, 160))
+            caja = render.get_rect(center=(round(pos.x), round(pos.y))).inflate(10, 6)
+            pygame.draw.rect(pantalla, fondo, caja, border_radius=4)
+            pygame.draw.rect(pantalla, borde, caja, 1, border_radius=4)
+            pantalla.blit(render, render.get_rect(center=caja.center))
+        pygame.draw.circle(pantalla, (90, 30, 30), (round(centro.x), round(centro.y)), self.ZONA_MUERTA_RULETA, 1)
 
 
 # -----------------------------
@@ -1404,6 +1748,9 @@ def resumen_habilidad(hab):
                         f" | CD {hab.duracion_cooldown:g}s")
     elif hab.nombre == "Onda Sonora":
         detalles = f"{len(hab.danos_ondas)} onda(s) · R{hab.radio:.0f} | CD {hab.duracion_cooldown:.0f}s"
+        if hab.potenciada_activa:
+            detalles = (f"Anillo {hab.PALABRAS_DANO} · {hab.max_objetivos} obj. · Palabras "
+                        f"{len(hab.palabras_disponibles())}/{len(hab.PALABRAS)} | CD {hab.duracion_cooldown:g}s")
     elif hab.nombre == "Aura Electrica":
         detalles = f"{hab.duracion_activa:.0f}s (+{hab.porcentaje_buff * 100:.0f}% Vel) · {hab.dano_por_segundo:g}/s | CD {hab.duracion_cooldown:.0f}s"
         if hab.potenciada_activa:
@@ -1425,6 +1772,8 @@ def resumen_habilidad(hab):
             detalles = f"Dureza {dureza:.0f}/{hab.dureza_max} · {hab.duracion_activa:g}s | CD {hab.duracion_cooldown:g}s"
     elif hab.nombre == "Disparo Venenoso":
         detalles = f"Veneno {hab.veneno_total:g} en {hab.veneno_duracion:g}s | CD {hab.duracion_cooldown:g}s"
+        if hab.potenciada_activa:
+            detalles += f" · Corrosión {hab.tope_corrosion * 100:.0f}%"
     elif hab.nombre == "Paso 0":
         detalles = f"Invisible {hab.duracion_activa:g}s | CD {hab.duracion_cooldown:g}s"
         if hab.potenciada_activa:
@@ -2007,6 +2356,103 @@ class EfectoVeneno:
         cantidad = round(cantidad, 2)
         self.aplicado = round(self.aplicado + cantidad, 2)
         objetivo.recibir_dano(cantidad, self.TIPO_DANO)
+
+
+# Corrosion (potenciada de Disparo Venenoso): cada segundo sube CORROSION_PASO hasta su tope.
+# Ese porcentaje resta dano y velocidad al corroido y le quita escudo (del maximo).
+CORROSION_PASO = 0.01               # +1 % por segundo
+CORROSION_DRENAJE_ENERGIA = 0.01    # -1 % de la energia maxima por segundo (sin tope)
+CORROSION_INTERVALO_ARMA = 5.0      # 1 de durabilidad al arma cada 5 s (y 1 al impactar)
+# Atributos de regeneracion que la corrosion reinicia cada frame (escudos y energia)
+CORROSION_RELOJES_REGEN = ("tiempo_sin_dano_escudo", "tiempo_sin_dano_escudo_magico", "tiempo_regen")
+
+
+class EfectoCorrosion:
+    """Corrosion: mientras dura, el 'nivel' sube CORROSION_PASO por segundo hasta 'tope'.
+    - Dano del corroido x (1 - nivel) (factor_dano_corrosion) y lo frena ese porcentaje
+      (ralentizacion_total; la fauna recorta su desplazamiento en AnimalCombatible._frenar).
+    - Escudos: cada subida quita CORROSION_PASO de su maximo y no se regeneran mientras dure.
+    - Energia (si tiene): no se regenera y pierde CORROSION_DRENAJE_ENERGIA del maximo por segundo.
+    - Arma (si tiene): 1 de durabilidad cada CORROSION_INTERVALO_ARMA s.
+    Refrescarla conserva el nivel acumulado."""
+
+    def __init__(self, tope, duracion):
+        self.tope = tope
+        self.restante = duracion
+        self.nivel = 0.0
+        self._acum = 0.0
+        self._acum_arma = 0.0
+
+    @property
+    def activo(self):
+        return self.restante > 0
+
+    def refrescar(self, tope, duracion):
+        self.tope = max(self.tope, tope)
+        self.restante = max(self.restante, duracion)
+
+    def actualizar(self, dt, objetivo):
+        if self.restante <= 0:
+            return
+        self.restante -= dt
+        for reloj in CORROSION_RELOJES_REGEN:
+            if hasattr(objetivo, reloj):
+                setattr(objetivo, reloj, 0.0)
+        self._acum += dt
+        while self._acum >= 1.0:
+            self._acum -= 1.0
+            self._corroer(objetivo)
+        self._acum_arma += dt
+        while self._acum_arma >= CORROSION_INTERVALO_ARMA:
+            self._acum_arma -= CORROSION_INTERVALO_ARMA
+            corroer_arma(objetivo)
+
+    def _corroer(self, objetivo):
+        if self.nivel < self.tope:
+            self.nivel = round(min(self.tope, self.nivel + CORROSION_PASO), 4)
+            for actual, maximo in (("escudo", "escudo_max"), ("escudo_magico", "escudo_magico_max")):
+                tope_escudo = getattr(objetivo, maximo, 0)
+                if tope_escudo > 0 and hasattr(objetivo, actual):
+                    setattr(objetivo, actual, max(0.0, round(getattr(objetivo, actual) - tope_escudo * CORROSION_PASO, 2)))
+        energia_max = getattr(objetivo, "energia_max", 0)
+        if energia_max > 0 and hasattr(objetivo, "energia"):
+            objetivo.energia = max(0.0, round(objetivo.energia - energia_max * CORROSION_DRENAJE_ENERGIA, 2))
+
+
+def corroer_arma(objetivo):
+    """La corrosion desgasta 1 de durabilidad al arma del objetivo (si lleva una sin romper)."""
+    arma = getattr(objetivo, "herramienta", None)
+    if arma is not None and not arma.roto:
+        arma.desgastar(1)
+
+
+def aplicar_corrosion(objetivo, tope, duracion, impacto=False):
+    """Corroe a un objetivo con atributo `corrosion` (o refresca la suya conservando el nivel).
+    'impacto' = golpe directo del disparo: ademas desgasta 1 su arma."""
+    if not hasattr(objetivo, "corrosion"):
+        return
+    actual = objetivo.corrosion
+    if actual is not None and actual.activo:
+        actual.refrescar(tope, duracion)
+    else:
+        objetivo.corrosion = EfectoCorrosion(tope, duracion)
+    if impacto:
+        corroer_arma(objetivo)
+
+
+def ralentizacion_total(entidad):
+    """Ralentizacion que sufre una entidad: la mas fuerte entre la de Onda Sonora (y otras
+    ralentizaciones con duracion) y la de la corrosion. No se suman."""
+    ondas = getattr(entidad, "ralentizacion", 0.0) if getattr(entidad, "tiempo_ralentizacion", 0.0) > 0 else 0.0
+    c = getattr(entidad, "corrosion", None)
+    corrosion = c.nivel if c is not None and c.activo else 0.0
+    return max(ondas, corrosion)
+
+
+def factor_dano_corrosion(entidad):
+    """Multiplicador del dano que hace una entidad corroida (1.0 sin corrosion)."""
+    c = getattr(entidad, "corrosion", None)
+    return 1.0 - c.nivel if c is not None and c.activo else 1.0
 
 
 def aplicar_veneno(objetivo, total, duracion):
@@ -3681,6 +4127,64 @@ class EfectoInmovilizado:
                 objetivo.recibir_dano(self.dano, self.TIPO_DANO)
         if self.restante < 0:
             self.restante = 0
+
+
+# Palabras Malditas: estados de control (fauna y maniqui los consultan para no actuar)
+HUIDA_VELOCIDAD = 140.0             # px/s a los que huye el enemigo de quien lo asusto
+
+
+def _salud_total(objetivo):
+    return objetivo.vida + getattr(objetivo, "escudo", 0) + getattr(objetivo, "escudo_magico", 0)
+
+
+class EfectoHuida:
+    """Huye: el enemigo se aleja de 'amenaza' a HUIDA_VELOCIDAD y no hace nada mas."""
+
+    def __init__(self, duracion, amenaza):
+        self.restante = duracion
+        self.amenaza = amenaza
+
+    @property
+    def activo(self):
+        return self.restante > 0
+
+    def actualizar(self, dt, objetivo, mover=True):
+        if self.restante <= 0:
+            return
+        self.restante -= dt
+        if mover and self.amenaza is not None:
+            lejos = objetivo.posicion - self.amenaza.posicion
+            if lejos.length_squared() > 0:
+                objetivo.posicion += lejos.normalize() * HUIDA_VELOCIDAD * dt
+
+
+class EfectoDormido:
+    """Duerme: el enemigo no ve ni detecta nada. Despierta al recibir dano (vida o escudos)."""
+
+    def __init__(self, duracion, objetivo):
+        self.restante = duracion
+        self._salud = _salud_total(objetivo)
+
+    @property
+    def activo(self):
+        return self.restante > 0
+
+    def actualizar(self, dt, objetivo):
+        if self.restante <= 0:
+            return
+        self.restante -= dt
+        if _salud_total(objetivo) < self._salud - 0.001:
+            self.restante = 0.0
+
+
+def aplicar_huida(objetivo, duracion, amenaza):
+    if hasattr(objetivo, "huida"):
+        objetivo.huida = EfectoHuida(duracion, amenaza)
+
+
+def aplicar_sueno(objetivo, duracion):
+    if hasattr(objetivo, "dormido"):
+        objetivo.dormido = EfectoDormido(duracion, objetivo)
 
 
 def aplicar_inmovilizacion(objetivo, duracion, dano_por_segundo=0):
