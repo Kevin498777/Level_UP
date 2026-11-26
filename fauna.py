@@ -60,6 +60,8 @@ ZORRO_REPRO_INTERVALO = 120.0  # cada 2 min nace +1 si hay al menos 2 zorros
 ATURDIR_GOLPE = 0.3          # s de retraso del siguiente ataque del animal
 ATURDIR_INMUNE = 1.0         # s sin poder volver a aturdirlo
 SALTO_MAX_FRENADO = 200.0    # px: un desplazamiento mayor entre frames (reaparicion) no se frena
+# Jardin de la casa del spawn: (centro, radio) donde ningun animal puede entrar (lo fija mundo)
+ZONA_PROHIBIDA = None
 
 
 def bloqueado_por_escudo(atacante, objetivo, dano):
@@ -87,7 +89,11 @@ def golpear_objetivo(atacante, objetivo, dano, empuje=0):
         return False
     hacia = objetivo.posicion - atacante.posicion
     dano = round(dano * factor_dano_corrosion(atacante), 2)     # Corrosion: pega menos
+    if hasattr(objetivo, "_golpe_de_fauna"):
+        objetivo._golpe_de_fauna = True     # vendedor: si muere de este golpe no da recompensa
     objetivo.recibir_dano(dano, "fisico", None if empuje > 0 else hacia)
+    if hasattr(objetivo, "_golpe_de_fauna"):
+        objetivo._golpe_de_fauna = False
     if empuje > 0 and hasattr(objetivo, "aplicar_empuje"):
         objetivo.aplicar_empuje(hacia, empuje)
     if hasattr(objetivo, "marcar_golpe"):
@@ -503,7 +509,9 @@ class SistemaFauna:
             return p
         return None
 
-    def actualizar(self, dt, jugador, vista):
+    def actualizar(self, dt, jugador, vista, presas_hostiles=()):
+        """'presas_hostiles': otros objetivos que atacan los hostiles (lobos, osos, cocodrilos,
+        lobos solitarios) ademas del jugador y sus sombras, p. ej. los vendedores ambulantes."""
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
         # Antes de limpiar las listas: XP de los animales que murieron desde el ultimo frame.
         self._recoger_muertes()
@@ -546,6 +554,7 @@ class SistemaFauna:
         for z in getattr(self, "zorros", ()):
             if z.vivo and z.hambriento and not z.invisible:
                 amenazas.append(z)
+        hostiles = amenazas + [p for p in presas_hostiles if zona.collidepoint(p.posicion.x, p.posicion.y)]
 
         # Conejos salvajes: quitar muertos y actualizar los cercanos.
         self.conejos = [c for c in self.conejos if c.vivo]
@@ -625,7 +634,7 @@ class SistemaFauna:
                 otro = self._centro_manada(evitar=zona, lejos_de=man.centro) if not man.vivos() else None
                 man.repoblar(otro)
             if any(l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y) for l in man.lobos):
-                man.actualizar(dt, jugador, amenazas, presas)
+                man.actualizar(dt, jugador, hostiles, presas)
             else:
                 man.alertada = False     # fuera de la vista no hay combate (si no, nunca creceria)
 
@@ -644,7 +653,7 @@ class SistemaFauna:
             if not cerca:
                 continue
             if oso.vivo:
-                oso.actualizar(dt, jugador, amenazas, self.charcos, self.rugidos)
+                oso.actualizar(dt, jugador, hostiles, self.charcos, self.rugidos)
             if oso.orbe is not None and oso.orbe.activo:
                 oso.orbe.actualizar(dt, jugador)
                 if not oso.orbe.activo:
@@ -665,7 +674,7 @@ class SistemaFauna:
         # Cocodrilos: emboscada acuatica (actualizar los cercanos).
         for coco in self.cocodrilos:
             if coco.vivo and (zona.collidepoint(coco.posicion.x, coco.posicion.y) or zona.collidepoint(coco.centro_lago.x, coco.centro_lago.y)):
-                coco.actualizar(dt, jugador, amenazas)
+                coco.actualizar(dt, jugador, hostiles)
 
         # Lobos solitarios: reaparece otro 1 min tras morir (siempre hay LOBO_SOL_CANTIDAD).
         for i, ls in enumerate(self.lobos_solitarios):
@@ -676,7 +685,7 @@ class SistemaFauna:
                 self.lobos_solitarios[i] = self._nuevo_lobo_solitario(evitar=zona)
         for ls in self.lobos_solitarios:
             if ls.vivo and zona.collidepoint(ls.posicion.x, ls.posicion.y):
-                ls.actualizar(dt, jugador, amenazas, self.rugidos)
+                ls.actualizar(dt, jugador, hostiles, self.rugidos)
 
         # Cofres escondidos: al tocarlos dan monedas + XP una vez (no reaparecen).
         for cofre in self.cofres:
@@ -1111,9 +1120,22 @@ class AnimalCombatible:
                 self.posicion.update(self._pos_frenado + delta * (1.0 - factor))
         self._pos_frenado = pygame.Vector2(self.posicion)
 
+    def _fuera_del_jardin(self):
+        """Ningun animal entra en el jardin de la casa (ZONA_PROHIBIDA): se le saca al borde."""
+        if ZONA_PROHIBIDA is None:
+            return
+        centro, radio = ZONA_PROHIBIDA
+        lejos = self.posicion - centro
+        minimo = radio + self.radio
+        if lejos.length() < minimo:
+            normal = lejos.normalize() if lejos.length_squared() > 0 else pygame.Vector2(1, 0)
+            self.posicion.update(centro + normal * minimo)
+            self._pos_frenado = pygame.Vector2(self.posicion)
+
     def _tick_efectos(self, dt):
         actualizar_ralentizacion(self, dt)
         self._frenar()
+        self._fuera_del_jardin()
         if self._t_inmune_aturdir > 0:
             self._t_inmune_aturdir = max(0.0, self._t_inmune_aturdir - dt)
         if self.desangrado is not None:

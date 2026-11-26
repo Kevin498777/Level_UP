@@ -11,7 +11,10 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
                          animaciones_activas, set_animaciones_activas)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
+import fauna as FAUNA
 from fauna import SistemaFauna
+from spawn import Casa, RADIO_JARDIN
+from vendedores import SistemaVendedores, dibujar_tienda, rect_tienda, todos_al_maximo
 from tumba import Tumba, guardar_estado, restaurar_estado
 from inventario import dibujar_inventario, rect_inventario, nuevo_estado_inventario, manejar_clic_inventario
 import talismanes as TL
@@ -40,7 +43,7 @@ INTENTOS_POR_CHARCO = 60        # Intentos de colocacion por lago objetivo
 RADIO_CHARCO_MIN = 150
 RADIO_CHARCO_MAX = 750
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
-ZONA_SEGURA_SPAWN = 140     # Radio alrededor del centro sin obstáculos (para no aparecer atrapado)
+ZONA_SEGURA_SPAWN = RADIO_JARDIN + 50   # Sin rocas, lagos ni plantas: la casa del spawn y su jardin
 SUAVIZADO_CAMARA = 8.0      # Más alto = la cámara sigue más pegada al personaje
 TAMANO_CUADRICULA = 60
 
@@ -1053,8 +1056,14 @@ def iniciar_mundo(config):
     vegetacion.registrar_obstaculos(rocas)
     fauna = SistemaFauna(CENTRO_MUNDO, RADIO_MUNDO, vegetacion, charcos, rocas)
 
-    # Maniqui de pruebas en el centro del mapa (recibe dano para probar las invocaciones)
-    maniqui = Maniqui(CENTRO_MUNDO)
+    # Casa del spawn: paredes solidas e indestructibles (van con las rocas, despues de la fauna
+    # para que ningun oso las elija de cueva) y jardin sin fauna
+    casa = Casa(CENTRO_MUNDO)
+    rocas.extend(casa.paredes)
+    FAUNA.ZONA_PROHIBIDA = (pygame.Vector2(CENTRO_MUNDO), casa.radio_jardin)
+
+    # Maniqui de pruebas en el jardin, al sur de la puerta
+    maniqui = Maniqui(casa.punto_maniqui)
 
     # Capa oscura para simular la poca visibilidad dentro de un arbusto
     capa_oscura = pygame.Surface((mundo_w, mundo_h), pygame.SRCALPHA)
@@ -1138,6 +1147,8 @@ def iniciar_mundo(config):
     tumba = None              # Tumba de la ultima muerte sin totem (guarda el progreso 10 min)
     niebla_previa = False     # Cuerpo de niebla (Espectro) activo el frame anterior
     inventario_abierto = False  # [I]: inventario superpuesto (NO pausa el mundo)
+    tienda_abierta = None       # [E] junto a un vendedor: su tienda (NO pausa el mundo)
+    mensaje_tienda = None
     estado_inv = nuevo_estado_inventario()
     aviso_totem = None          # [texto, segundos transcurridos] tras salvarte un tótem
     cola_ruletas = []           # premios de orbes Gacha por mostrar
@@ -1284,6 +1295,8 @@ def iniciar_mundo(config):
         camara.update(jugador.posicion)
         textos_flotantes.clear()
 
+    vendedores = SistemaVendedores(CENTRO_MUNDO, RADIO_MUNDO, casa, charcos, jugador)
+
     while ejecutando:
         dt = reloj.tick(60) / 1000.0  # Delta time en segundos
 
@@ -1304,7 +1317,8 @@ def iniciar_mundo(config):
                 hab.modo_combate = (hab.estado == "INVOCADO" and teclas_estado[hab.tecla])
 
         # Enemigos actuales (por ahora solo el maniqui de pruebas)
-        enemigos_sin_tumba = ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
+        enemigos_sin_tumba = (([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
+                              + vendedores.objetivos())
         # La tumba recibe solo los golpes directos (arma, proyectiles, cuchillas, ondas, explosiones)
         enemigos = enemigos_sin_tumba + ([tumba] if tumba is not None and tumba.vivo else [])
 
@@ -1351,6 +1365,19 @@ def iniciar_mundo(config):
                     mostrar_hitboxes = not mostrar_hitboxes
                 elif evento.key == pygame.K_c:
                     mostrar_brujula = not mostrar_brujula
+
+                # [E] Comerciar con el vendedor cercano (o cerrar su tienda)
+                elif evento.key == pygame.K_e and not muerto:
+                    if tienda_abierta is not None:
+                        tienda_abierta = None
+                    else:
+                        cercano = vendedores.cercano(jugador)
+                        if cercano is not None:
+                            tienda_abierta, mensaje_tienda = cercano, None
+                            inventario_abierto = False
+                        elif todos_al_maximo(jugador) and vendedores.alguno_cerca(jugador):
+                            textos_flotantes.append(["Ya tienes todos los anillos al máximo", COLOR_XP_MAX,
+                                                     jugador.posicion - pygame.Vector2(0, 48), 0.0])
 
                 # [1] Exclusivo para Herramientas (Espada Ligera sacar/guardar)
                 elif evento.key == pygame.K_1:
@@ -1474,6 +1501,13 @@ def iniciar_mundo(config):
                         ejecutando = False
                     elif click_btn == "__cerrar_inv__":
                         inventario_abierto = False
+                    elif click_btn == "__cerrar_tienda__":
+                        tienda_abierta = None
+                    elif click_btn == "__tienda_fondo__":
+                        pass                      # clic dentro de la tienda: no mueve al personaje
+                    elif click_btn and click_btn.startswith("__tienda__"):
+                        if tienda_abierta is not None:
+                            mensaje_tienda = tienda_abierta.comprar(int(click_btn.split("_")[-1]), jugador)
                     elif click_btn == "__inv_fondo__":
                         pass                      # clic dentro del inventario: no mueve al personaje
                     elif click_btn and click_btn.startswith("__inv__"):
@@ -1499,7 +1533,8 @@ def iniciar_mundo(config):
                     # Sin ninguna invocacion en modo combate, el clic derecho es el Autoapuntado:
                     # sobre un enemigo lo fija; en terreno libre o sobre el mismo objetivo lo quita.
                     mouse_x, mouse_y = evento.pos
-                    sobre_inventario = inventario_abierto and rect_inventario(area_mundo_pantalla).collidepoint(mouse_x, mouse_y)
+                    sobre_inventario = ((inventario_abierto and rect_inventario(area_mundo_pantalla).collidepoint(mouse_x, mouse_y))
+                                        or (tienda_abierta is not None and rect_tienda(area_mundo_pantalla).collidepoint(mouse_x, mouse_y)))
                     if mundo_x <= mouse_x <= (mundo_x + mundo_w) and not sobre_inventario:
                         vista = vista_camara()
                         punto = pygame.Vector2(
@@ -1777,9 +1812,13 @@ def iniciar_mundo(config):
         vista = vista_camara()
         desplazamiento = (vista.x - mundo_x, vista.y - mundo_y)  # mundo -> pantalla
         if not muerto:
-            fauna.actualizar(dt, jugador, vista)
-            # Experiencia de los animales que mataste tú o tus sombras
-            xp = fauna.tomar_xp()
+            fauna.actualizar(dt, jugador, vista, vendedores.objetivos())
+            vendedores.actualizar(dt, jugador)
+            if tienda_abierta is not None and not tienda_abierta.puede_comerciar(jugador):
+                tienda_abierta = None          # se alejo, huyo, murio o se fue a casa
+            xp_vend, monedas_vend = vendedores.tomar_recompensa()
+            # Experiencia de los animales (y vendedores) que mataste tú o tus sombras
+            xp = fauna.tomar_xp() + xp_vend
             if xp > 0:
                 niveles = jugador.ganar_xp(xp)
                 textos_flotantes.append([f"+{xp:g} XP", COLOR_XP, pygame.Vector2(jugador.posicion), 0.0])
@@ -1787,7 +1826,7 @@ def iniciar_mundo(config):
                     textos_flotantes.append([f"NIVEL {jugador.nivel}  +{niveles * MONEDAS_POR_NIVEL} monedas", COLOR_XP_MAX,
                                              jugador.posicion - pygame.Vector2(0, 32), 0.0])
             # Monedas de la caza
-            monedas = fauna.tomar_monedas()
+            monedas = fauna.tomar_monedas() + monedas_vend
             if monedas > 0:
                 jugador.monedas += monedas
                 textos_flotantes.append([f"+{monedas} monedas", COLOR_MONEDAS,
@@ -1809,6 +1848,7 @@ def iniciar_mundo(config):
         pantalla.set_clip(area_mundo_pantalla)
 
         dibujar_suelo(pantalla, vista, desplazamiento)
+        casa.dibujar_suelo(pantalla, vista, desplazamiento)
 
         for charco in charcos:
             if charco.rect.colliderect(vista):
@@ -1852,6 +1892,7 @@ def iniciar_mundo(config):
         fauna.dibujar_lobos(pantalla, vista, desplazamiento)
         fauna.dibujar_osos(pantalla, vista, desplazamiento)
         fauna.dibujar_cocodrilos(pantalla, vista, desplazamiento)
+        vendedores.dibujar(pantalla, vista, desplazamiento, fuentes["mini"], jugador)
 
         # Mira roja sobre el enemigo autoapuntado
         if jugador.objetivo_apuntado is not None:
@@ -1871,7 +1912,8 @@ def iniciar_mundo(config):
         jugador.combustible.dibujar(pantalla, desplazamiento)
 
         # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)
-        vivos_parpadeo = [jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
+        vivos_parpadeo = ([jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
+                          + vendedores.objetivos())
         for hab in jugador.fuentes_criaturas():
             vivos_parpadeo.extend(getattr(hab, "criaturas", ()))
         actualizar_parpadeos(vivos_parpadeo, 0.0 if muerto else dt)
@@ -1889,6 +1931,8 @@ def iniciar_mundo(config):
             entidades.extend(getattr(hab, "criaturas", ()))
         entidades.extend(fauna.cuerpos_solidos(vista))
         vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
+        # Techo de la casa (casi transparente con el jugador dentro)
+        casa.dibujar_techo(pantalla, vista, desplazamiento, casa.contiene(jugador.posicion))
         # Pajaros (ambiental): se omiten con las animaciones pausadas (rendimiento)
         if animaciones_activas():
             fauna.dibujar_pajaros(pantalla, vista, desplazamiento)
@@ -1937,6 +1981,7 @@ def iniciar_mundo(config):
             objetivos_b = fauna.brujula(jugador.posicion)
             if maniqui.vivo:
                 objetivos_b.append(("M", (230, 120, 120), pygame.Vector2(maniqui.posicion)))
+            objetivos_b.extend(vendedores.brujula())
             fuente_b = fuentes["mini"]
             for etiqueta_b, color_b, pos_b in objetivos_b:
                 d_b = pos_b - jugador.posicion
@@ -1952,7 +1997,7 @@ def iniciar_mundo(config):
                 pygame.draw.polygon(pantalla, color_b, [p1, p2, p3])
                 txt_b = fuente_b.render("%s %d" % (etiqueta_b, int(dist_b)), True, color_b)
                 pantalla.blit(txt_b, (cx + int(dn.x * 76) - txt_b.get_width() // 2, cy + int(dn.y * 76) - txt_b.get_height() // 2))
-            leyenda = fuente_b.render("[C] Brujula  C=conejo  L=lobo  O=oso  M=maniqui", True, (200, 210, 225))
+            leyenda = fuente_b.render("[C] Brujula  C=conejo  L=lobo  O=oso  M=maniqui  V=vendedor", True, (200, 210, 225))
             pantalla.blit(leyenda, (mundo_x + 12, mundo_y + 12))
 
         # Dibujar Hitboxes si está activada la visualización [H]
@@ -2045,6 +2090,9 @@ def iniciar_mundo(config):
         if inventario_abierto and not muerto:
             botones_stats.update(dibujar_inventario(pantalla, area_mundo_pantalla, jugador, fuentes,
                                                     pygame.time.get_ticks() / 1000.0, estado_inv))
+        if tienda_abierta is not None and not muerto:
+            botones_stats.update(dibujar_tienda(pantalla, area_mundo_pantalla, tienda_abierta, jugador, fuentes,
+                                                pygame.time.get_ticks() / 1000.0, mensaje_tienda))
 
         # Ruleta del orbe Gacha (encima del mundo y del inventario; no bloquea)
         t_ruleta = pygame.time.get_ticks() / 1000.0

@@ -9,7 +9,7 @@ antes y durante cada modificación.
 
 Antes de hacer **cualquier** cambio, leer el proyecto completo (todos los módulos
 relevantes: `main.py`, `mundo.py`, `personaje.py`, `herramientas.py`,
-`habilidades.py`, `vegetacion.py`, `fauna.py`, `inventario.py`, `talismanes.py`, `gacha.py`) para entender el estado actual.
+`habilidades.py`, `vegetacion.py`, `fauna.py`, `inventario.py`, `talismanes.py`, `gacha.py`, `tumba.py`, `spawn.py`, `vendedores.py`) para entender el estado actual.
 
 - Los documentos de información del proyecto (especificaciones, tablas de
   escalado, hojas de cálculo) están en la carpeta `Documentacion/`; ver su

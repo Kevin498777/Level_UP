@@ -153,3 +153,7 @@ Con las monedas de caza más **+20 por nivel**, un bot que tiraba en cuanto junt
 ### Prueba
 
 Teclas de prueba: **[K]** da 100 monedas para probar el Gacha, **[T]** da un talismán al azar (un anillo con las probabilidades de rareza de arriba o, 1 de cada 5 veces, un tótem) y **[Y]** da una herramienta o habilidad que no tengas.
+
+## Vendedores ambulantes (26/11/2026)
+
+Otra forma de conseguir anillos: **3 vendedores** por el mapa con **5 anillos distintos** cada uno (rareza al azar: común 50 %, especial 30 %, épico 15 %, legendario 5 %) a **100 / 200 / 400 / 1000 monedas** según la rareza. Comprar da el anillo o **+1 nivel**, como el Gacha. Detalle en `vendedores.py` y en la especificación (10.0b).

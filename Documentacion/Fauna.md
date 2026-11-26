@@ -246,6 +246,11 @@ El zorro tiene **tres pasivas**:
 
 ---
 
+## Jardín del spawn y vendedores
+
+- **Zona segura:** ningún animal entra en el jardín de la casa del spawn (350 px alrededor del centro); se le saca al borde (`fauna.ZONA_PROHIBIDA`, en `AnimalCombatible._fuera_del_jardin`).
+- **Vendedores ambulantes:** los hostiles (manadas, lobo solitario, osos y cocodrilos) los cazan como a una amenaza más cuando están cerca y visibles (`SistemaFauna.actualizar(..., presas_hostiles)`). Al ser golpeados activan Paso 0 y dejan de ser objetivo. Si los mata la fauna no dan recompensa. Detalle en la especificación (10.0b).
+
 ## Cofres escondidos
 
 - Entre **20 y 40 cofres** por mundo, escondidos junto a árboles y arbustos (nunca

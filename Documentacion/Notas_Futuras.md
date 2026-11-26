@@ -496,3 +496,24 @@ me cobra 20 + 20 = 40
 
 ### DOMINIO (Afortunado → JackPot)
 
+
+
+No por el momento dejemoslo asi por ahora agregemos los sigueintes, NPC y en todo el mapa habran 3 vendedores hambulantes de anillos los cuales venderan los anillos en los sigueintes precios
+Solo puede vender 5 anillos por NPC
+comun 100 MONEDAS
+especial  200 MONEDAS
+epiko     400 MONEDAS
+legendario 1000 MONEDAS
+
+probabilidad de que salga
+comun       50% 
+especial    30%
+epiko       15%
+legendario  5%
+
+Los npc tienen las misma skin tipo bolita pero con gorrito mochila ademas si puede morir por los enemigos del mapa
+si resive daño activa paso 0 por 10s y escapa del lugar 
+Tiene siempre 20 de vida
+Si muere uno tarda 5 minutos en reaparecer otro con nuevos anillos
+Este da 20 de xp y 20 de oro si lo mata el jugador 
+Alguna duda o algo que se me pase

@@ -622,9 +622,26 @@ Todo **lineal** (rebalance del 26/11/2026, ajustado tras simular con bots): cost
 
 Cada punto de **daño** aplica **1 punto de empuje** (retroceso) a quien lo recibe, alejándolo del atacante. Además, **quien genera el daño también retrocede** un poco al golpear: así un grupo de invocaciones no inflige todo su daño a la vez (daño explosivo en conjunto), sino **por intervalos**, al tener que reacercarse tras cada golpe (junto con su recarga de ataque de 1 s). El **Escudo** aplica 2 puntos de empuje a su propio portador al bloquear. Los **golpes con arma** no usan esta regla: empujan con los puntos fijos de cada arma (ver 8.5), y en el **choque de armas** ambos retroceden con la misma fuerza.
 
+### 10.0 Casa del spawn
+
+En el centro del mapa hay una **casa cuadrada de 300 × 300 px** (paredes de 16 px) con una **puerta de 60 px** en la pared sur y un **jardín circular de 350 px** de radio (césped, camino de piedras y una valla baja decorativa que no bloquea). El personaje **empieza y reaparece** en el centro del salón.
+
+- **Paredes:** sólidas como las rocas (bloquean al jugador y los proyectiles) e **indestructibles**: ni Cortar, ni Desmantelar, ni Estrella Ígnea; el Cuerpo de niebla de Espectro tampoco las atraviesa (son como las rocas de las cuevas de oso).
+- **Techo:** se ve desde fuera y se vuelve casi transparente cuando estás dentro.
+- **Jardín = zona segura:** ningún animal entra; si llega al borde, se queda fuera. Sin rocas, lagos ni plantas alrededor (`ZONA_SEGURA_SPAWN` = 400).
+- El **maniquí** de pruebas está en el jardín, 120 px al sur de la puerta.
+
+### 10.0b Vendedores ambulantes de anillos
+
+Hay **3 vendedores** por el mapa a la vez: bolita como el personaje (cuerpo café claro) con **gorrito rojo** y **mochila verde**, con su nombre encima. Pasean despacio (45 px/s) por puntos al azar, lejos del spawn (más de 1500 px) y fuera del agua. La **brújula [C]** los señala (V, dorado).
+
+- **Tienda:** a **80 px**, **[E]** abre su ventana (no pausa el juego; [E] o la X la cierran). Lleva **5 anillos distintos** (dos vendedores sí pueden repetir): primero se sortea la rareza (**común 50 %, especial 30 %, épico 15 %, legendario 5 %**, entre las que aún tienen anillos que puedas subir) y luego un anillo de esa rareza. Precios: **común 100, especial 200, épico 400, legendario 1000 monedas**. Comprar funciona como el Gacha: anillo nuevo o **+1 nivel**; los que ya tienes al máximo salen en gris.
+- **Sin nada que venderte** camina hasta la casa del spawn y **entra por la puerta**; **5 min** después sale otro en un punto al azar con anillos nuevos. Con **todos tus anillos al máximo** ya no abre tienda ni vuelve a casa: solo deambula.
+- **Combate:** **20 de vida**, sin escudos. Le hacen daño tus ataques (también los de área) y la fauna hostil (lobos, lobo solitario, osos y cocodrilos lo cazan). Al recibir daño activa **Paso 0 durante 10 s** (invisible del todo, nadie puede golpearlo) y **huye** del golpe a 140 px/s; al terminar se cura entero. Si muere, otro aparece a los **5 min**. **Si lo matas tú** da **20 XP y 20 monedas**; si lo mata la fauna, nada.
+
 ### 10.1 Maniquí de pruebas (beta de enemigos)
 
-En el centro del mapa hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar).
+En el jardín de la casa del spawn hay un **maniquí**: **100 de vida** y **escudos físico y mágico de 50** (mismas reglas que los del personaje: reparto, regeneración y anulación por Cortar).
 
 - **Ataque:** lleva una **Espada Larga** (nivel 1, Fuerza 2). Con una IA simple **gira hacia el personaje** y, si está a menos de 150 de distancia, lanza un golpe cada **2 s**. **No detecta** al personaje **oculto en un arbusto** ni **invisible** (Paso 0): deja de girarse hacia él y no inicia golpes, aunque un golpe que ya estaba en marcha termina y puede dañarlo. Su filo hace **daño físico** y empuja tanto al personaje como a sus **invocaciones**. Si el personaje lleva el **Escudo** desenfundado y el golpe le llega por el frente, lo **bloquea** (ver 8.2). Su espada también se desgasta y puede chocar con la del personaje (ver 8.5).
 - **Daño recibido:** le afectan el arma del personaje y **todas las habilidades con daño**: Disparo Veloz, Carga de Fuego (con quemadura), Disparo Venenoso (veneno, anillo verde), Cortar, Onda Sonora, Aura Eléctrica, las invocaciones (con el desangrado de los lobos) y la telaraña de la Sombra Araña (inmovilización). Muestra una **barra de vida** (roja mientras sangra) y encima sus dos escudos (verde físico, azul mágico; recuadro rojo si el mágico está anulado). Como no se mueve, muestra la ralentización recibida como texto (**"Vel -X%"**) junto a sus barras. Al recibir un golpe retrocede y luego **vuelve a su posición** (sigue siendo un blanco centrado); mientras está **inmovilizado** no retrocede ni vuelve. Si lo destruyen, **reaparece a los 5 s** con la vida y los escudos llenos y una espada nueva.
@@ -679,8 +696,9 @@ Reglas comunes:
 | Clic derecho junto a ti | Llamar de vuelta a las sombras (vuelven a seguirte) |
 | Clic derecho sobre un enemigo (sin modo combate) | **Autoapuntado**: el personaje mira siempre a ese enemigo (−40 % Vel, rango 500). En terreno libre o sobre el mismo objetivo lo quita (ver 6.4) |
 | [H] | Mostrar / ocultar las hitboxes |
-| [C] | Mostrar / ocultar la **brújula** a los animales más cercanos (conejo, lobo, oso) y al maniquí |
+| [C] | Mostrar / ocultar la **brújula** a los animales más cercanos (conejo, lobo, oso), al maniquí y a los vendedores |
 | [I] | Abrir / cerrar el **inventario** (no pausa el juego; también se cierra con la X) |
+| [E] | Junto a un **vendedor ambulante**: abrir / cerrar su tienda de anillos |
 | [T] | (Prueba) Conseguir un talismán al azar (anillo o Tótem de vida) hasta que exista el Gacha |
 | [Y] | (Prueba) Conseguir una herramienta o habilidad que no tengas, a nivel 1 |
 | [K] | (Prueba) +100 monedas para probar el Gacha |
