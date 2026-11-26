@@ -355,3 +355,12 @@ La onda viaja a **300 px/s** y al **doble (600 px/s)** si se lanza desde el agua
 | 10 | 2 | 295 | 20 | 19.5 s |
 | 15 | 2 | 347 | 25 | 24.7 s |
 | 20 | 3 | 400 | 30 | 30 s |
+
+
+
+### Disparo Venenoso → Corrocion
+nivel maximo 30
+Es un disparo color cafe verde y morado con las mismas propiedades que disparo venenoso pero
+Hace daño por segundo a la vida como disparo venenoso
+hace daño al 
+

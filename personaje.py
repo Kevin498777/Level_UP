@@ -370,8 +370,13 @@ class Personaje:
 
     def golpear_con_arma(self, enemigo, dano, tipo_dano, direccion=None):
         """Golpe del arma (hoja o flecha) a un enemigo. Con Fuerza Colosal activa, lo que absorbe
-        su escudo fisico se le resta un 30 % extra al escudo (la vida recibe lo mismo).
-        Devuelve el dano aplicado."""
+        su escudo fisico se le resta un 30 % extra al escudo (la vida recibe lo mismo). Con
+        Espectro activo, el primer golpe a cada enemigo lleva el bono de Emboscada y, si lo mata,
+        la Ejecucion alarga la invisibilidad. Devuelve el dano aplicado."""
+        espectro = self._espectro()
+        bono = espectro.emboscar(enemigo) if espectro else 0.0
+        if bono > 0:
+            dano = round(dano * (1.0 + bono), 2)
         escudo_antes = getattr(enemigo, "escudo", 0.0)
         aplicado = enemigo.recibir_dano(dano, tipo_dano, direccion) if direccion is not None else enemigo.recibir_dano(dano, tipo_dano)
         extra = self.extra_dano_escudo
@@ -379,7 +384,26 @@ class Personaje:
             absorbido = max(0.0, escudo_antes - enemigo.escudo)
             enemigo.escudo = max(0.0, round(enemigo.escudo - absorbido * extra, 2))
         self._aturdir_electrico(enemigo)
+        if bono > 0 and not getattr(enemigo, "vivo", True):
+            espectro.ejecutar()
         return aplicado
+
+    def _espectro(self):
+        """Paso 0 potenciado (Espectro) activo, o None."""
+        return next((h for h in self.habilidades_en_efecto()
+                     if getattr(h, "cuerpo_de_niebla", False)), None)
+
+    @property
+    def cuerpo_de_niebla(self):
+        """Espectro activo: atraviesa fauna, rocas (no cuevas) y troncos y no recibe empuje."""
+        return self._espectro() is not None
+
+    def romper_invisibilidad(self):
+        """Un ataque (arma, flecha o habilidad de dano) cancela Paso 0, salvo con Espectro."""
+        for h in self.habilidades_en_efecto():
+            if (getattr(h, "da_invisibilidad", False) and h.estado == "ACTIVA"
+                    and not getattr(h, "ataca_sin_romper", False)):
+                h.terminar_activo(self)
 
     def _aturdir_electrico(self, enemigo):
         """Vestigios Miticos activo: el golpe deja al enemigo sin moverse ni atacar unos instantes.
@@ -862,7 +886,7 @@ class Personaje:
 
     def aplicar_empuje(self, direccion, puntos):
         """Añade retroceso: 'puntos' de empuje en la dirección indicada (alejándose del atacante)."""
-        if puntos <= 0:
+        if puntos <= 0 or self.cuerpo_de_niebla:
             return
         d = pygame.Vector2(direccion)
         if d.length_squared() == 0:

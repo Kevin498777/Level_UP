@@ -197,6 +197,8 @@ class HerramientaBase:
         self.tiempo_desde_golpe = 0.0
         self.angulo_swing = self.SWING_INICIO
         self.enemigos_golpeados.clear()
+        if jugador is not None and hasattr(jugador, "romper_invisibilidad"):
+            jugador.romper_invisibilidad()      # atacar cancela Paso 0
         return True
 
     # -----------------------------
@@ -732,6 +734,7 @@ class Arco(HerramientaBase):
             return None
         alcance, porcentaje = self.TRAMOS_CARGA[tramo]
         self.flechas -= 1
+        jugador.romper_invisibilidad()          # disparar cancela Paso 0
         rad = math.radians(jugador.angulo)
         frente = pygame.Vector2(math.sin(rad), -math.cos(rad))
         salida = jugador.posicion + frente * (jugador.radio + 4)

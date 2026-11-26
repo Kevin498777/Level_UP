@@ -44,7 +44,7 @@ Gancho para enemigos: `Personaje.bloquear_con_escudo(daño, origen)`. Los ataque
 | **Nivel máximo** | 20 | **40** (20 → 40: +8410 XP) |
 | **Disparo Veloz (nerf)** | Vel 14 → 40, daño 8 → 30, recarga 2 → 0.5 s | Vel **14 → 35**, daño **8 → 25**, recarga **4 → 2 s** |
 | **Cuevas de oso** | Cortar a nivel 20 las destruía | Nada las destruye |
-| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos, Reforzamiento Inverso y Desmantelar (niveles 21 – 30, 2 puntos por nivel); Inversión Vital (niveles 11 – 15, 3 puntos por nivel) |
+| **Habilidades potenciadas** | — | Relámpago, Fuerza Colosal, Ráfaga Veloz, Estrella Ígnea, Vestigios Míticos, Reforzamiento Inverso y Desmantelar (niveles 21 – 30, 2 puntos por nivel); Inversión Vital y Espectro (niveles 11 – 15, 3 puntos por nivel) |
 
 **Medición (simulación de 10 000 partidas con el bot):** con todo lo anterior el **83 %** llega al nivel 20 (mediana **134 min**), 5.9 muertes por partida y el 80 % llega al 20 con todos los objetos del Gacha. Duelos solo con arma contra la fauna real: la manada ya se gana desde el nivel 5 (antes 15) y el oso desde el 15.
 
@@ -94,14 +94,14 @@ Según el porcentaje que llega al nivel 20 empezando con esa arma o habilidad (s
 1. **Invocar Lobos (demasiado fuerte, prioridad):** daño **4 → 30** en vez de 8 → 30 y desangrado del 33 % al **20 %**.
 2. **Volver a medir** con la simulación: el nerf de Disparo Veloz, las 6 potenciadas, la economía del Gacha (15 / 20) y el rebalance de Reforzamiento Mágico (25/11: nv20 = 10 s de campo cada 18 s por 30 En., casi un 55 % del tiempo protegido; vigilar, opción: recarga de nv20 a 12 s).
 3. ~~**Regeneración Inversa (débil)**~~ **Hecho 25/11:** rebalance a ~2 – 2.5 En. por vida (nv10: +12 vida / −25 En. cada 2 s) con −20 % de velocidad al mantenerla, y potenciada Inversión Vital (vida → energía a 1.2 En. por vida; la vuelta completa siempre pierde ~40 %). Volver a medir.
-4. **Paso 0 (débil):** darle un plus (p. ej. +50 % de daño en el primer ataque desde la invisibilidad) o bajar el coste de nv1 a 20.
+4. ~~**Paso 0 (débil)**~~ **Hecho 26/11:** rebalance lineal (6 → 15 s, 20 → 60 En., recarga 8 → 16 s) pero **el primer ataque la cancela**; potenciada **Espectro** (nv11 – 15: 16 → 20 s, atacar no cancela, Emboscada +50 → +100 % al primer golpe a cada enemigo, Cuerpo de niebla y Ejecución en el 15). Volver a medir (vigilar Emboscada + Fuerza Colosal + Vestigios Míticos en el mismo golpe).
 5. **Espada Ligera (sin papel):** darle un rasgo propio (más cadencia o no desgastarse en los choques).
-6. **Disparo Venenoso y anillo de Defensa mágica (los más flojos).**
+6. **Disparo Venenoso y anillo de Defensa mágica (los más flojos).** Disparo Venenoso **rebalanceado 26/11**: veneno lento y largo (0.5 → 1.5 de daño/s durante 30 → 60 s, total 15 → 90; recarga 20 → 10 s, siempre menor que la duración: varios enemigos envenenados a la vez); autoveneno de Golpe de Suerte a la mitad del total y de la duración. Volver a medir. Falta el anillo de Defensa mágica.
 7. **Lobo solitario (vigilar):** con 10 XP y 10 monedas fijas es la mejor fuente de XP del bot; si se nota en partida, bajar a 6 – 8 XP.
 8. **Estrella Ígnea (vigilar):** una carga de 5 s o más borra una manada de lobos normales con la explosión (29 – 38 de daño en 100 px).
 8b. **Desmantelar + fuego (vigilar):** cada carga de combustible pegada suma +50 % del golpe de fuego que la prende (25/11). Estrella Ígnea nv30 al máximo con 3 cargas = 318.5 a un objetivo. Sola, Desmantelar es cara (60 → 120 En., 10 → 20 s) y el combustible no hace nada sin una habilidad de fuego. Cortar se nerfeó al inicio (daño 2 por nivel, antes 5 → 40).
 9. **Nivel 20 → 40:** con solo la fauna actual se tarda ≈10 h (14.5 XP/min); depende de los enemigos nuevos.
-10. **Habilidades potenciadas pendientes de diseñar:** Invocar Conejos, Invocar Lobos, Onda Sonora, Golpe de Suerte, Sombra Araña, Paso 0 y Disparo Venenoso.
+10. **Habilidades potenciadas pendientes de diseñar:** Invocar Conejos, Invocar Lobos, Onda Sonora, Golpe de Suerte, Sombra Araña y Disparo Venenoso.
 
 ## 5. Pendientes de documentación
 

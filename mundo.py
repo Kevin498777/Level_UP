@@ -583,6 +583,9 @@ def dibujar_panel_estadisticas(pantalla, x, y, ancho, alto, jugador, fuentes, mo
 # EJECUCIÓN PRINCIPAL DEL MUNDO (PYGAME)
 # -----------------------------
 ITERACIONES_SEPARACION = 2   # pasadas por frame para resolver solapamientos entre cuerpos
+# Cuerpo de niebla (Espectro): al terminar, busqueda del hueco libre mas cercano en anillos
+PASO_BUSQUEDA_HUECO = 8      # px entre anillos de la busqueda
+ALCANCE_BUSQUEDA_HUECO = 1500  # px maximos de busqueda (una roca gigante mide 150-300)
 
 
 def rect_circulo_colisionan(rect, centro, radio):
@@ -592,6 +595,45 @@ def rect_circulo_colisionan(rect, centro, radio):
     dx = centro.x - cx
     dy = centro.y - cy
     return (dx * dx + dy * dy) <= radio * radio
+
+
+def punto_libre(punto, radio, rocas, circulares, cuerpos, centro_mundo, radio_mundo):
+    """True si un circulo en 'punto' no toca rocas, obstaculos circulares (centro, radio),
+    cuerpos solidos ni sale del mapa."""
+    if (punto - centro_mundo).length() > radio_mundo - radio:
+        return False
+    if any(rect_circulo_colisionan(r.rect, punto, radio) for r in rocas):
+        return False
+    if any((punto - c).length() < r + radio for c, r in circulares):
+        return False
+    return not any((punto - c.posicion).length() < c.radio + radio for c in cuerpos)
+
+
+def sacar_a_hueco_libre(entidad, rocas, circulares, cuerpos, centro_mundo, radio_mundo):
+    """Cuerpo de niebla al terminar: si la entidad quedo dentro de algo, la mueve al punto libre
+    mas cercano (anillos cada PASO_BUSQUEDA_HUECO px). Devuelve True si la movio."""
+    radio = entidad.radio
+    origen = pygame.Vector2(entidad.posicion)
+    alcance = ALCANCE_BUSQUEDA_HUECO + radio
+    zona = pygame.Rect(0, 0, alcance * 2, alcance * 2)
+    zona.center = (round(origen.x), round(origen.y))
+    rocas = [r for r in rocas if zona.colliderect(r.rect)]
+    circulares = [(c, r) for c, r in circulares if (c - origen).length() <= alcance + r]
+    cuerpos = [c for c in cuerpos if c is not entidad and (c.posicion - origen).length() <= alcance + c.radio]
+    libre = lambda p: punto_libre(p, radio, rocas, circulares, cuerpos, centro_mundo, radio_mundo)
+    if libre(origen):
+        return False
+    for d in range(PASO_BUSQUEDA_HUECO, ALCANCE_BUSQUEDA_HUECO + 1, PASO_BUSQUEDA_HUECO):
+        pasos = max(8, int(math.tau * d / PASO_BUSQUEDA_HUECO))
+        for k in range(pasos):
+            ang = math.tau * k / pasos
+            p = origen + pygame.Vector2(math.cos(ang), math.sin(ang)) * d
+            if libre(p):
+                entidad.posicion = p
+                entidad.destino = p.copy()
+                entidad.empuje.update(0, 0)
+                return True
+    return False
 
 
 def hitboxes_de_armas_chocan(arma_a, arma_b):
@@ -1073,6 +1115,7 @@ def iniciar_mundo(config):
     ejecutando = True
     muerto = False            # Vida a 0: el mundo se congela y sale la pantalla de muerte
     tumba = None              # Tumba de la ultima muerte sin totem (guarda el progreso 10 min)
+    niebla_previa = False     # Cuerpo de niebla (Espectro) activo el frame anterior
     inventario_abierto = False  # [I]: inventario superpuesto (NO pausa el mundo)
     estado_inv = nuevo_estado_inventario()
     aviso_totem = None          # [texto, segundos transcurridos] tras salvarte un tótem
@@ -1660,8 +1703,15 @@ def iniciar_mundo(config):
             # Calcular velocidad acumulando debuffs y buffs
             jugador.actualizar_velocidad()
 
-            # Mover personaje respetando el círculo del mapa y las rocas
-            jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, rocas, vegetacion.obstaculos_para(jugador))
+            # Mover personaje respetando el círculo del mapa y las rocas. Con Cuerpo de niebla
+            # (Espectro) solo lo frenan las cuevas de oso y los arbustos en los que no cabe.
+            niebla = jugador.cuerpo_de_niebla
+            if niebla:
+                jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO,
+                              [r for r in rocas if getattr(r, "es_cueva", False)],
+                              vegetacion.obstaculos_para(jugador, con_troncos=False))
+            else:
+                jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, rocas, vegetacion.obstaculos_para(jugador))
 
             # Aplicar el retroceso acumulado por empuje (combate futuro; por ahora suele ser 0)
             jugador.actualizar_empuje(dt, CENTRO_MUNDO, RADIO_MUNDO)
@@ -1673,12 +1723,20 @@ def iniciar_mundo(config):
             maniqui.actualizar(dt, jugador)
 
             # Cuerpos solidos: jugador, maniqui e invocaciones no se solapan entre si
-            cuerpos = [jugador] + ([maniqui] if maniqui.vivo else [])
+            # (con Cuerpo de niebla el jugador no entra: atraviesa a todos)
+            cuerpos = ([] if niebla else [jugador]) + ([maniqui] if maniqui.vivo else [])
             for hab in jugador.fuentes_criaturas():
                 cuerpos.extend(getattr(hab, "criaturas", ()))
             cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
             if tumba is not None:
                 cuerpos.append(tumba)           # solida: nada la atraviesa ni la mueve
+            # Fin del Cuerpo de niebla: si quedo dentro de algo, sale al hueco libre mas cercano
+            if niebla_previa and not niebla:
+                propias = {id(cr) for hab in jugador.fuentes_criaturas() for cr in getattr(hab, "criaturas", ())}
+                ajenos = [c for c in cuerpos if id(c) not in propias]   # tus sombras se apartan solas
+                sacar_a_hueco_libre(jugador, rocas, vegetacion.obstaculos_para(jugador), ajenos,
+                                    CENTRO_MUNDO, RADIO_MUNDO)
+            niebla_previa = niebla
             resolver_solapamientos(cuerpos)
             jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
             jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)

@@ -379,7 +379,7 @@ Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientr
 
 Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico), **Disparo Venenoso** o **nada**. "Nada" tiene un **30 %** y los otros **9** resultados se reparten el resto a partes iguales (**≈7.78 %** cada uno); en **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**≈10.56 %** cada uno).
 
-**Disparo Venenoso es un resultado negativo:** no dispara nada; **envenena al portador** con el veneno del nivel que marca el tramo, pero a la **mitad del daño** y con la **misma duración** (ej. tramo nv1: 10 de daño en 20 s; nv20: 20 de daño en 10 s). Es daño mágico, así que lo amortigua su escudo mágico. Cuenta como resultado instantáneo (espera básica). Paso 0 otorgado no pasa de su nivel máximo (10).
+**Disparo Venenoso es un resultado negativo:** no dispara nada; **envenena al portador** con el veneno del nivel que marca el tramo, pero a la **mitad del daño** y en la **mitad de la duración** (ej. tramo nv1: 7.5 de daño en 15 s; nv20: 45 de daño en 30 s). Es daño mágico, así que lo amortigua su escudo mágico. Cuenta como resultado instantáneo (espera básica). Paso 0 otorgado no pasa de su nivel máximo (10).
 
 | Nivel | Coste En. | Nivel de la habilidad otorgada | Duración otorgada | Espera (instantáneos) | Recarga |
 |---|---|---|---|---|---|
@@ -523,20 +523,26 @@ Coste **50 → 100 En.** e inmovilización **5 → 20 s**, ambos lineales. Nivel
 Habilidad **mágica** de la categoría **Potenciadores**. Vuelve **invisible** al personaje durante un tiempo (sus **invocaciones no**).
 
 - **Enemigos:** mientras eres invisible **no te detectan**: no te miran ni inician ataques contra ti. Pero **sí puedes recibir daño** de lo que te toque igualmente: un golpe que ya estaba en marcha, el agua profunda, los arbustos venenosos, etc.
-- **Duración:** sigues invisible **hasta que se acaba el tiempo**, aunque ataques o recibas daño. La **recarga** empieza al terminar.
+- **Duración:** sigues invisible hasta que se acaba el tiempo aunque recibas daño, pero **el primer ataque la cancela**: golpe del arma, flecha disparada o lanzar una habilidad de daño (Disparo Veloz, Disparo Venenoso, Cortar, Onda Sonora, Carga de Fuego al soltarla, Aura Eléctrica, Relámpago). Tus invocaciones atacando no la cancelan. La **recarga** empieza al terminar o al cancelarse.
 - **Cómo se ve:** al activarse **te desvaneces en 0.4 s** (y al terminar vuelves a verte con el mismo fundido); es solo visual, para los enemigos la invisibilidad empieza y acaba al instante. Invisible te ves como una **silueta casi transparente** (contorno tenue y ojos) para saber dónde estás. Se ocultan el **nombre**, el **arma** (cualquiera, también el arco o el escudo), las **auras** de habilidades (Destello, Burst, Aura Eléctrica, Reforzamiento, Regeneración) y el **círculo de destino**. Siguen viéndose las **invocaciones**, los **ataques** (Carga de Fuego, Disparo Veloz, Cortar, flechas, Onda Sonora, telarañas) y la **animación del golpe** del arma.
 - **Pantalla:** el mapa se **oscurece** igual que dentro de un arbusto; si estás invisible y en un arbusto a la vez **no se oscurece el doble**.
 - **Combo:** lanzarla con otra habilidad activa cuesta el **+5 %** de la energía actual (ver 9.10). También puede salir en **Golpe de Suerte** (ver 9.9).
 
 | Nivel | Invisibilidad | Coste En. | Recarga |
 |---|---|---|---|
-| 1 – 2 | 3 s | 30 | 6 s |
-| 3 – 4 | 4 s | 35 | 8 s |
-| 5 – 7 | 5 s | 40 | 10 s |
-| 8 – 9 | 6 s | 50 | 12 s |
-| 10 | 8 s | 60 | 16 s |
+| 1 | 6 s | 20 | 8 s |
+| 5 | 10 s | 38 | 11.56 s |
+| 10 | 15 s | 60 | 16 s |
 
-Valores **por tramos** (cada nivel conserva el del tramo anterior). Nivel máximo **10**; cada mejora cuesta **2 puntos** (como Regeneración Inversa). Tabla completa en `Tablas_Escalado.md` (2.14).
+Escalado **lineal** (+1 s de invisibilidad por nivel; rebalance del 26/11/2026). Nivel máximo **10**; cada mejora cuesta **2 puntos** (como Regeneración Inversa). Tabla completa en `Tablas_Escalado.md` (2.14).
+
+**Potenciada: Espectro (niveles 11 – 15).** Sale en el Gacha mejorado; se usa con la habilidad en el nivel 10 y cada nivel extra cuesta **3 puntos**. **Atacar ya no cancela** la invisibilidad, que dura **16 → 20 s** (coste **64 → 80 En.**, recarga **16 s** fija). Mientras dura:
+
+- **Emboscada:** el primer golpe del arma o flecha a cada enemigo hace **+50 % → +100 %** de daño (una vez por enemigo y activación). Una chispa violeta lo marca.
+- **Cuerpo de niebla:** atraviesas la fauna, el maniquí, las rocas (no las cuevas de oso) y los troncos, y no recibes empuje. Los arbustos en los que no cabes siguen bloqueando y el agua sigue frenando. Al terminar, si quedaste dentro de algo, **sales al hueco libre más cercano**.
+- **Ejecución (nivel 15):** rematar a un enemigo con la Emboscada alarga la invisibilidad **2 s** (máximo **+6 s** por activación).
+
+Contorno gris humo y violeta.
 
 ### 9.18 Disparo Venenoso
 
@@ -549,13 +555,13 @@ Habilidad de **daño mágico** (categoría Ataque Mágico). Dispara hacia donde 
 
 | Nivel | Coste En. | Veneno total | Duración | Daño por segundo | Recarga |
 |---|---|---|---|---|---|
-| 1 | 20 | 20 | 20 s | 1 | 30 s |
-| 5 | 25 | 24.2 | 17.9 s | 1.35 | 26.8 s |
-| 10 | 32 | 29.5 | 15.3 s | 1.93 | 22.9 s |
-| 15 | 38 | 34.7 | 12.6 s | 2.75 | 18.9 s |
-| 20 | 45 | 40 | 10 s | 4 | 15 s |
+| 1 | 20 | 15 | 30 s | 0.5 | 20 s |
+| 5 | 25 | 25.8 | 36.3 s | 0.71 | 17.9 s |
+| 10 | 32 | 42.9 | 44.2 s | 0.97 | 15.3 s |
+| 15 | 38 | 64.6 | 52.1 s | 1.24 | 12.6 s |
+| 20 | 45 | 90 | 60 s | 1.5 | 10 s |
 
-Todo **lineal**: coste **20 → 45 En.**, veneno **20 → 40** de daño, duración **20 → 10 s** y recarga **30 → 15 s** (a 1 decimal). Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.15).
+Todo **lineal** (rebalance del 26/11/2026): coste **20 → 45 En.**, daño **0.5 → 1.5 por segundo** durante **30 → 60 s** (total **15 → 90**) y recarga **20 → 10 s** (a 1 decimal). Es un veneno **lento y largo**: la recarga siempre es menor que la duración, así que puedes mantener **varios enemigos envenenados a la vez** (3 al nivel 1, 6 al nivel 20). Antes: 20 → 40 de daño en 20 → 10 s y recarga 30 → 15 s. Nivel máximo **20**. Tabla completa en `Tablas_Escalado.md` (2.15).
 
 ## 10. Puntos de empuje (retroceso)
 

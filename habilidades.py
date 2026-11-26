@@ -230,6 +230,8 @@ class HabilidadBase:
     # habilidad llega a su nivel maximo normal (ej. Destello -> Relampago desde el nivel 20).
     POTENCIADA = None
     COLORES_MARCO = ((255, 235, 110), (140, 230, 255))   # rayos del marco de la potenciada
+    # True en las habilidades de dano: lanzarlas cancela la invisibilidad de Paso 0
+    rompe_invisibilidad = False
 
     def __init__(self, nombre, descripcion, costo_energia, duracion_activa, duracion_cooldown, tecla, tecla_str):
         self.nombre = nombre
@@ -347,6 +349,8 @@ class HabilidadBase:
 
         # Ejecutar efecto específico
         self.ejecutar_activacion(jugador)
+        if self.rompe_invisibilidad and hasattr(jugador, "romper_invisibilidad"):
+            jugador.romper_invisibilidad()
 
         if sobrecosto > 0:
             self.mensaje_alerta = f"¡Combo activo! (+{sobrecosto} En.)"
@@ -369,6 +373,13 @@ class HabilidadBase:
     def restaurar_efecto(self, jugador):
         pass
 
+    def terminar_activo(self, jugador):
+        """Termina el efecto activo y empieza la recarga (al agotarse o al cancelarse antes)."""
+        self.estado = "COOLDOWN"
+        self.tiempo_restante_activo = 0.0
+        self.tiempo_restante_cooldown = self.duracion_cooldown
+        self.aplicar_efecto_cooldown(jugador)
+
     def actualizar(self, dt, jugador):
         """Actualiza temporizadores según delta time transcurrido (segundos)."""
         if self.tiempo_alerta > 0:
@@ -379,10 +390,7 @@ class HabilidadBase:
         if self.estado == "ACTIVA":
             self.tiempo_restante_activo -= dt
             if self.tiempo_restante_activo <= 0:
-                self.estado = "COOLDOWN"
-                self.tiempo_restante_activo = 0.0
-                self.tiempo_restante_cooldown = self.duracion_cooldown
-                self.aplicar_efecto_cooldown(jugador)
+                self.terminar_activo(jugador)
 
         elif self.estado == "COOLDOWN":
             self.tiempo_restante_cooldown -= dt
@@ -408,6 +416,11 @@ RELAMPAGO_COSTO_MAX = 60          # En. en el nivel 30 (lineal desde 40)
 
 class Destello(HabilidadBase):
     POTENCIADA = {"nombre": "Relámpago", "nivel_max": 30, "costo_mejora": 2}
+
+    @property
+    def rompe_invisibilidad(self):
+        """Solo Relampago hace dano (su aura); Destello normal no cancela Paso 0."""
+        return self.potenciada_activa
 
     def __init__(self):
         super().__init__(
@@ -613,6 +626,7 @@ RAFAGA_RECARGA_MIN = 0.5
 
 
 class DisparoVeloz(HabilidadBase):
+    rompe_invisibilidad = True          # hace dano: cancela Paso 0
     # Daño mágico fijo, velocidad del proyectil (su punto fuerte) y recarga, lineales de nivel 1 a 20
     DANO_NV1, DANO_NV_MAX = 8.0, 25.0
     VELOCIDAD_NV1, VELOCIDAD_NV_MAX = 14.0, 35.0
@@ -738,12 +752,15 @@ class DisparoVenenoso(HabilidadBase):
     Se detiene en el primer enemigo (las rocas la bloquean) y lo envenena: daño mágico por
     segundo que amortigua el escudo mágico. El impacto no hace daño ni empuja. El veneno no
     se acumula: volver a envenenar reinicia el efecto con los valores del nuevo disparo.
+    Veneno lento y largo: la recarga siempre es menor que la duracion, asi que se pueden
+    tener varios enemigos envenenados a la vez.
     """
+    rompe_invisibilidad = True          # hace dano: cancela Paso 0
     VELOCIDAD_PROYECTIL = 12.0
     COSTO_NV1, COSTO_NV_MAX = 20, 45
-    VENENO_NV1, VENENO_NV_MAX = 20.0, 40.0          # daño total del veneno
-    DURACION_NV1, DURACION_NV_MAX = 20.0, 10.0      # segundos que dura el veneno
-    RECARGA_NV1, RECARGA_NV_MAX = 30.0, 15.0
+    DPS_NV1, DPS_NV_MAX = 0.5, 1.5                  # daño del veneno por segundo
+    DURACION_NV1, DURACION_NV_MAX = 30.0, 60.0      # segundos que dura el veneno
+    RECARGA_NV1, RECARGA_NV_MAX = 20.0, 10.0
 
     def __init__(self):
         super().__init__(
@@ -758,15 +775,16 @@ class DisparoVenenoso(HabilidadBase):
 
     def _aplicar_nivel(self):
         """
-        Escalado lineal (nivel 1 a 20):
+        Escalado lineal (nivel 1 a 20), rebalance 26/11/2026:
         - coste: 20 -> 45 En. (entero)
-        - veneno: 20 de daño en 20 s (1/s) -> 40 de daño en 10 s (4/s), a 1 decimal
-        - recarga: 30 s -> 15 s, a 1 decimal
+        - veneno: 0.5/s durante 30 s (15) -> 1.5/s durante 60 s (90); total = daño/s x duracion
+        - recarga: 20 s -> 10 s, a 1 decimal (siempre menor que la duracion)
         """
         t = (self.nivel - 1) / (self.nivel_max - 1)
         self.costo_energia = round(self.COSTO_NV1 + (self.COSTO_NV_MAX - self.COSTO_NV1) * t)
-        self.veneno_total = round(self.VENENO_NV1 + (self.VENENO_NV_MAX - self.VENENO_NV1) * t, 1)
+        self.veneno_por_segundo = round(self.DPS_NV1 + (self.DPS_NV_MAX - self.DPS_NV1) * t, 2)
         self.veneno_duracion = round(self.DURACION_NV1 + (self.DURACION_NV_MAX - self.DURACION_NV1) * t, 1)
+        self.veneno_total = round(self.veneno_por_segundo * self.veneno_duracion, 1)
         self.duracion_cooldown = round(self.RECARGA_NV1 + (self.RECARGA_NV_MAX - self.RECARGA_NV1) * t, 1)
 
     def ejecutar_activacion(self, jugador):
@@ -956,6 +974,7 @@ class Cortar(HabilidadBase):
     cuchillas rojas alrededor del personaje (el norte es hacia donde mira), con un alcance de
     DESMANTELAR_ALCANCE px; cada una atraviesa hasta 3 objetos y se para en el primer enemigo.
     Al pararse deja combustible (SistemaCombustible): pegado al enemigo o en el suelo."""
+    rompe_invisibilidad = True          # hace dano: cancela Paso 0
     DANO_POR_NIVEL = 2                  # dano = 2 x nivel (nv20 = 40)
     POTENCIADA = {"nombre": "Desmantelar", "nivel_max": 30, "costo_mejora": 2}
     COLORES_MARCO = ((220, 30, 40), (255, 140, 120))      # rojo y rojo claro
@@ -1148,6 +1167,7 @@ class OndaSonora(HabilidadBase):
     - tierra -> tierra: normal; agua -> agua: dano y ralentizacion x2.
     - cambio de medio (tierra <-> agua): la onda pierde energia, dano y ralentizacion x0.5.
     Desde el agua el anillo viaja al doble de velocidad."""
+    rompe_invisibilidad = True          # hace dano: cancela Paso 0
     DANOS = (10, 20, 30)                    # dano fijo de la 1a, 2a y 3a onda
     NIVEL_SEGUNDA = 10
     NIVEL_TERCERA = 20
@@ -1406,7 +1426,11 @@ def resumen_habilidad(hab):
     elif hab.nombre == "Disparo Venenoso":
         detalles = f"Veneno {hab.veneno_total:g} en {hab.veneno_duracion:g}s | CD {hab.duracion_cooldown:g}s"
     elif hab.nombre == "Paso 0":
-        detalles = f"Invisible {hab.duracion_activa:.0f}s | CD {hab.duracion_cooldown:.0f}s"
+        detalles = f"Invisible {hab.duracion_activa:g}s | CD {hab.duracion_cooldown:g}s"
+        if hab.potenciada_activa:
+            detalles += f" · Emboscada +{hab.bono_emboscada * 100:.0f}%"
+            if hab.tiene_ejecucion:
+                detalles += " · Ejecución"
     elif hab.nombre == "Sombra Araña":
         detalles = f"Inmoviliza {hab.inmovilizacion:.0f}s · Telarañas {len(hab.telaranas)}/{hab.MAX_TELARANAS}"
     else:
@@ -2292,6 +2316,7 @@ class CargaDeFuego(HabilidadBase):
     completo de carga, la diferencia hasta el coste de ese nivel de carga. Si no hay
     energía para el siguiente segundo, la carga se detiene en el nivel ya pagado.
     """
+    rompe_invisibilidad = True          # hace dano: cancela Paso 0
     # Por segundo completo de carga (0 = sin carga): multiplicador del daño base, segundos de
     # quemadura, coste de energía acumulado y radio visual
     # Los segundos 6 a 8 solo existen en Estrella Ignea (potenciada)
@@ -2383,6 +2408,7 @@ class CargaDeFuego(HabilidadBase):
         self.cargando = False
         self.carga_detenida = False
         tier = self.tier_pagado
+        jugador.romper_invisibilidad()
 
         dano = round(self.dano_base * self.MULT_CARGA[tier], 1)
         radio = self.RADIO_CARGA[tier]
@@ -2753,6 +2779,7 @@ class AuraElectrica(HabilidadBase):
     - Autodano al portador de 0.5/s (1 cada 2s) que cuenta como dano MAGICO
       (lo amortigua el escudo magico del propio personaje).
     """
+    rompe_invisibilidad = True          # hace dano: cancela Paso 0
     RADIO_AURA = 100  # Radio del aura en pixeles (alcance del dano por segundo)
     COSTO_BASE = 20       # Coste de energia en nivel 1
     COSTO_POR_NIVEL = 2   # Coste extra por cada nivel (siempre entero)
@@ -3354,44 +3381,116 @@ class Paso0(HabilidadBase):
     Potenciador mágico: vuelve invisible al personaje (no a sus invocaciones) durante un
     tiempo. Invisible, los enemigos no lo detectan (no lo miran ni inician ataques contra él),
     pero lo que lo toque sí le hace daño. Su arma se oculta salvo durante el golpe y sus
-    ataques (proyectiles, cuchillas, ondas...) sí se ven. Dura todo su tiempo aunque ataque
-    o reciba daño; la recarga empieza al terminar. El mundo se ve oscurecido como dentro de
-    un arbusto (sin oscurecerse el doble). Nivel máximo 10; cada mejora cuesta 2 puntos.
+    ataques (proyectiles, cuchillas, ondas...) sí se ven. El primer ataque (golpe del arma,
+    flecha o habilidad de daño) la cancela y empieza la recarga. El mundo se ve oscurecido
+    como dentro de un arbusto (sin oscurecerse el doble). Nivel máximo 10; mejora: 2 puntos.
+
+    Potenciada: Espectro (nivel 10 con la potenciada desbloqueada, hasta el 15, 3 puntos por
+    nivel). Atacar ya no la cancela y, mientras dura:
+    - Emboscada: el primer golpe del arma o flecha a cada enemigo hace +50 % -> +100 %.
+    - Cuerpo de niebla: atraviesa fauna, rocas (no las cuevas de oso) y troncos y no recibe
+      empuje. Al terminar, si quedó dentro de algo, sale al hueco libre más cercano (mundo).
+    - Ejecución (nivel 15): matar con la Emboscada alarga la invisibilidad 2 s (máx. +6 s).
     """
     NIVEL_MAX = 10
     COSTO_MEJORA = 2                    # Como Regeneración Inversa
+    POTENCIADA = {"nombre": "Espectro", "nivel_max": 15, "costo_mejora": 3}
+    COLORES_MARCO = ((150, 150, 165), (170, 90, 230))     # gris humo y violeta
     da_invisibilidad = True             # Personaje.invisible lo consulta
-    # Tramos por nivel: (nivel desde el que aplica, valor)
-    TRAMOS_DURACION = ((1, 3.0), (3, 4.0), (5, 5.0), (8, 6.0), (10, 8.0))
-    TRAMOS_COSTE = ((1, 30), (3, 35), (5, 40), (8, 50), (10, 60))
-    TRAMOS_RECARGA = ((1, 6.0), (3, 8.0), (5, 10.0), (8, 12.0), (10, 16.0))
+    # Tablas (nivel, valor), lineales entre los puntos: Paso 0 de 1 a 10 y Espectro de 10 a 15
+    PUNTOS_DURACION = ((1, 6.0), (10, 15.0), (15, 20.0))
+    PUNTOS_COSTE = ((1, 20), (10, 60), (15, 80))
+    PUNTOS_RECARGA = ((1, 8.0), (10, 16.0))                # Espectro: 16 s fijos
+    PUNTOS_EMBOSCADA = ((11, 0.50), (15, 1.00))            # bono de dano del primer golpe
+    EJECUCION_NIVEL = 15
+    EJECUCION_EXTRA = 2.0               # s de invisibilidad por enemigo rematado con Emboscada
+    EJECUCION_MAX = 6.0                 # s extra como maximo por activacion
+    DURACION_CHISPA = 0.35              # destello violeta en el enemigo emboscado (solo visual)
+    COLOR_CHISPA = (190, 110, 255)
 
     def __init__(self):
         super().__init__(
             nombre="Paso 0",
-            descripcion="Te vuelve invisible: los enemigos no te detectan, pero puedes recibir daño. Tus invocaciones y ataques sí se ven.",
-            costo_energia=30,
-            duracion_activa=3.0,
-            duracion_cooldown=6.0,
+            descripcion="Te vuelve invisible: los enemigos no te detectan, pero puedes recibir daño. Atacar (arma, flecha o habilidad de daño) la cancela.",
+            costo_energia=20,
+            duracion_activa=6.0,
+            duracion_cooldown=8.0,
             tecla=pygame.K_2,
             tecla_str="2"
         )
         self.nivel_max = self.NIVEL_MAX
         self.costo_mejora = self.COSTO_MEJORA
+        self.emboscados = []            # enemigos que ya recibieron la Emboscada (no id: se reutiliza)
+        self.extra_ejecucion = 0.0      # s ya sumados por Ejecucion en esta activacion
+        self.chispas = []               # [posicion, tiempo restante]
 
     def _aplicar_nivel(self):
         """
-        Escalado por tramos (nivel 1 a 10):
-        - nv1-2: 3s invisible, 30 En., recarga 6s
-        - nv3-4: 4s, 35 En., recarga 8s
-        - nv5-7: 5s, 40 En., recarga 10s
-        - nv8-9: 6s, 50 En., recarga 12s
-        - nv10:  8s, 60 En., recarga 16s
+        Escalado lineal:
+        - Paso 0 (nv1 -> nv10): invisible 6 -> 15 s, coste 20 -> 60 En., recarga 8 -> 16 s
+        - Espectro (nv11 -> nv15): invisible 16 -> 20 s, coste 64 -> 80 En., recarga 16 s,
+          Emboscada +50 % -> +100 %; Ejecucion desde el nivel 15
         """
         n = self.nivel
-        self.duracion_activa = _valor_por_tramo(n, self.TRAMOS_DURACION)
-        self.costo_energia = _valor_por_tramo(n, self.TRAMOS_COSTE)
-        self.duracion_cooldown = _valor_por_tramo(n, self.TRAMOS_RECARGA)
+        self.duracion_activa = round(_valor_interpolado(n, self.PUNTOS_DURACION), 2)
+        self.costo_energia = int(_valor_interpolado(n, self.PUNTOS_COSTE) + 0.5)
+        self.duracion_cooldown = round(_valor_interpolado(n, self.PUNTOS_RECARGA), 2)
+        self.bono_emboscada = (round(_valor_interpolado(n, self.PUNTOS_EMBOSCADA), 4)
+                               if self.potenciada_activa and n > self.NIVEL_MAX else 0.0)
+        self.tiene_ejecucion = self.potenciada_activa and n >= self.EJECUCION_NIVEL
+
+    @property
+    def ataca_sin_romper(self):
+        """Espectro: atacar no cancela la invisibilidad."""
+        return self.potenciada_activa
+
+    @property
+    def cuerpo_de_niebla(self):
+        """Espectro activo: atraviesa fauna, rocas y troncos y no recibe empuje."""
+        return self.potenciada_activa and self.estado == "ACTIVA"
+
+    def ejecutar_activacion(self, jugador):
+        self.emboscados.clear()
+        self.extra_ejecucion = 0.0
+        super().ejecutar_activacion(jugador)
+
+    def emboscar(self, enemigo):
+        """Bono de dano (0 si no aplica) del golpe a este enemigo; lo marca como emboscado."""
+        if (self.bono_emboscada <= 0 or self.estado != "ACTIVA" or getattr(enemigo, "es_tumba", False)
+                or any(e is enemigo for e in self.emboscados)):
+            return 0.0
+        self.emboscados.append(enemigo)
+        self.chispas.append([pygame.Vector2(enemigo.posicion), self.DURACION_CHISPA])
+        return self.bono_emboscada
+
+    def ejecutar(self):
+        """Ejecucion: un enemigo rematado con la Emboscada alarga la invisibilidad (con tope)."""
+        if not self.tiene_ejecucion or self.estado != "ACTIVA":
+            return 0.0
+        extra = min(self.EJECUCION_EXTRA, self.EJECUCION_MAX - self.extra_ejecucion)
+        if extra <= 0:
+            return 0.0
+        self.extra_ejecucion += extra
+        self.tiempo_restante_activo += extra
+        return extra
+
+    def actualizar(self, dt, jugador):
+        super().actualizar(dt, jugador)
+        for c in self.chispas:
+            c[1] -= dt
+        self.chispas = [c for c in self.chispas if c[1] > 0]
+
+    def dibujar_invocaciones(self, pantalla, desplazamiento=(0, 0)):
+        """Chispa violeta que se abre sobre cada enemigo al recibir la Emboscada."""
+        for pos, restante in self.chispas:
+            t = 1.0 - restante / self.DURACION_CHISPA
+            cx, cy = pos.x - desplazamiento[0], pos.y - desplazamiento[1]
+            largo = 8 + 14 * t
+            for k in range(4):
+                ang = math.pi / 4 + k * math.pi / 2
+                dx, dy = math.cos(ang) * largo, math.sin(ang) * largo
+                pygame.draw.line(pantalla, self.COLOR_CHISPA, (round(cx - dx * 0.3), round(cy - dy * 0.3)),
+                                 (round(cx + dx), round(cy + dy)), 2)
 
 
 # -----------------------------
@@ -3403,7 +3502,7 @@ class GolpeDeSuerte(HabilidadBase):
     Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica,
     Paso 0 (al nivel que marca el tramo de Golpe de Suerte, sin pasar del máximo de cada una),
     energía al máximo, escudos al máximo, Disparo Venenoso (resultado NEGATIVO: no dispara,
-    envenena al portador con la mitad del daño del veneno de ese nivel y la misma duración)
+    envenena al portador con la mitad del daño del veneno de ese nivel en la mitad de tiempo)
     o nada (30%). Los 9 resultados que no son "nada" se reparten el resto a partes iguales
     (7.78% cada uno). En nivel 20 "nada" baja a 5% y el resto se reparte igual (10.56% cada uno).
 
@@ -3418,7 +3517,8 @@ class GolpeDeSuerte(HabilidadBase):
     ESCUDOS = "Escudos al máximo"
     REGENERACION = "Regeneración Inversa"
     VENENO = "Disparo Venenoso"
-    FACTOR_AUTOVENENO = 0.5              # El portador recibe la mitad del daño del veneno
+    FACTOR_AUTOVENENO = 0.5              # El portador recibe la mitad del daño del veneno...
+    FACTOR_AUTOVENENO_DURACION = 0.5     # ...en la mitad de su duracion
     # Habilidades que puede otorgar (se activan como efecto temporal, sin recarga propia)
     EFECTOS = {
         "Burst de Fuerza": BurstDeFuerza,
@@ -3500,7 +3600,8 @@ class GolpeDeSuerte(HabilidadBase):
             disparo = DisparoVenenoso()
             while disparo.nivel < self.nivel_efecto and disparo.subir_nivel():
                 pass
-            aplicar_veneno(jugador, round(disparo.veneno_total * self.FACTOR_AUTOVENENO, 2), disparo.veneno_duracion)
+            aplicar_veneno(jugador, round(disparo.veneno_total * self.FACTOR_AUTOVENENO, 2),
+                           round(disparo.veneno_duracion * self.FACTOR_AUTOVENENO_DURACION, 2))
             return f"{resultado} nv{disparo.nivel}: ¡te envenena!"
         if resultado == self.REGENERACION:
             efecto = RegeneracionSuerte(*self.regeneracion)   # Conserva sus propios tiempos

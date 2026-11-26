@@ -420,7 +420,7 @@ Habilidad mágica que se **mantiene pulsada**, sin recarga. Cada intervalo compl
 
 ### 2.9 Golpe de Suerte
 
-Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o Paso 0) como efecto temporal sin coste extra, energía al máximo, escudos al máximo, Disparo Venenoso (negativo: envenena al portador con la mitad del daño del veneno de ese nivel y la misma duración) o nada. La habilidad otorgada sale al nivel del tramo de Golpe de Suerte, con las estadísticas de ese nivel (el Destello otorgado no deja fatiga). "Nada" tiene un 30 % y los otros 9 resultados se reparten el resto a partes iguales; en nivel 20 "nada" baja al 5 %. Paso 0 otorgado no pasa de su nivel máximo (10). **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; después empieza la recarga. La habilidad otorgada dura según el tramo (la Regeneración usa sus propios tiempos) y un resultado instantáneo (energía, escudos o nada) bloquea durante una espera básica antes de la recarga.
+Al lanzarla otorga un resultado aleatorio: una habilidad (Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o Paso 0) como efecto temporal sin coste extra, energía al máximo, escudos al máximo, Disparo Venenoso (negativo: envenena al portador con la mitad del daño del veneno de ese nivel en la mitad de tiempo) o nada. La habilidad otorgada sale al nivel del tramo de Golpe de Suerte, con las estadísticas de ese nivel (el Destello otorgado no deja fatiga). "Nada" tiene un 30 % y los otros 9 resultados se reparten el resto a partes iguales; en nivel 20 "nada" baja al 5 %. Paso 0 otorgado no pasa de su nivel máximo (10). **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; después empieza la recarga. La habilidad otorgada dura según el tramo (la Regeneración usa sus propios tiempos) y un resultado instantáneo (energía, escudos o nada) bloquea durante una espera básica antes de la recarga.
 
 | Nivel | Coste En. | Nivel de la habilidad otorgada | Duración de la habilidad otorgada | Espera (instantáneos) | Recarga | Prob. nada | Prob. de cada resultado |
 |---|---|---|---|---|---|---|---|
@@ -581,46 +581,61 @@ Tercera de las Artes de las Sombras. Invoca **una araña** (1 HP, sin ataque, ve
 
 ### 2.14 Paso 0
 
-Potenciador **mágico**: vuelve invisible al personaje (no a sus invocaciones). Los enemigos no lo detectan (no lo miran ni inician ataques contra él), pero sí puede recibir daño. Dura todo su tiempo aunque ataque o reciba daño; la recarga empieza al terminar. El mapa se oscurece como dentro de un arbusto (sin oscurecerse el doble). Nivel máximo **10**; cada mejora cuesta **2 puntos**. Valores por tramos.
+Potenciador **mágico**: vuelve invisible al personaje (no a sus invocaciones). Los enemigos no lo detectan (no lo miran ni inician ataques contra él), pero sí puede recibir daño. **El primer ataque la cancela** (golpe del arma, flecha disparada o habilidad de daño: Disparo Veloz, Disparo Venenoso, Cortar, Onda Sonora, Carga de Fuego al soltarla, Aura Eléctrica y Relámpago); la recarga empieza al terminar o al cancelarse. Las invocaciones atacando no la cancelan. El mapa se oscurece como dentro de un arbusto (sin oscurecerse el doble). Nivel máximo **10**; cada mejora cuesta **2 puntos**. Escalado **lineal** (rebalance del 26/11/2026; antes 3 → 8 s, 30 → 60 En. y 6 → 16 s por tramos).
 
 | Nivel | Invisibilidad | Coste En. | Recarga |
 |---|---|---|---|
-| 1 | 3 s | 30 | 6 s |
-| 2 | 3 s | 30 | 6 s |
-| 3 | 4 s | 35 | 8 s |
-| 4 | 4 s | 35 | 8 s |
-| 5 | 5 s | 40 | 10 s |
-| 6 | 5 s | 40 | 10 s |
-| 7 | 5 s | 40 | 10 s |
-| 8 | 6 s | 50 | 12 s |
-| 9 | 6 s | 50 | 12 s |
-| 10 | 8 s | 60 | 16 s |
+| 1 | 6 s | 20 | 8 s |
+| 2 | 7 s | 24 | 8.89 s |
+| 3 | 8 s | 29 | 9.78 s |
+| 4 | 9 s | 33 | 10.67 s |
+| 5 | 10 s | 38 | 11.56 s |
+| 6 | 11 s | 42 | 12.44 s |
+| 7 | 12 s | 47 | 13.33 s |
+| 8 | 13 s | 51 | 14.22 s |
+| 9 | 14 s | 56 | 15.11 s |
+| 10 | 15 s | 60 | 16 s |
+
+**Espectro (potenciada, nivel 10 con la potenciada desbloqueada y niveles 11 – 15).** Sale en el Gacha mejorado; los niveles 11 – 15 cuestan **3 puntos**. **Atacar ya no cancela** la invisibilidad. Mientras dura:
+- **Emboscada:** el primer golpe del arma o flecha a **cada enemigo** hace **+50 % → +100 %** de daño (una vez por enemigo y activación; la tumba no cuenta). Chispa violeta sobre el enemigo.
+- **Cuerpo de niebla:** atraviesa la fauna, el maniquí, las rocas (no las cuevas de oso) y los troncos, y **no recibe empuje**. Los arbustos en los que no cabe siguen bloqueando y el agua sigue frenando. Al terminar, si quedó dentro de algo, sale al **hueco libre más cercano**.
+- **Ejecución (nivel 15):** rematar a un enemigo con la Emboscada alarga la invisibilidad **2 s** (máx. **+6 s** por activación).
+
+Recarga fija de **16 s**. Contorno gris humo y violeta.
+
+| Nivel | Invisibilidad | Coste En. | Recarga | Emboscada | Ejecución |
+|---|---|---|---|---|---|
+| 11 | 16 s | 64 | 16 s | +50 % | — |
+| 12 | 17 s | 68 | 16 s | +62.5 % | — |
+| 13 | 18 s | 72 | 16 s | +75 % | — |
+| 14 | 19 s | 76 | 16 s | +87.5 % | — |
+| 15 | 20 s | 80 | 16 s | +100 % | +2 s (máx. +6) |
 
 ### 2.15 Disparo Venenoso
 
-Habilidad de **daño mágico**: esfera verde (núcleo morado, velocidad 12) que se detiene en el primer enemigo y lo **envenena**; el impacto no daña ni empuja. El veneno hace su daño total repartido en su duración (un golpe por segundo), lo amortigua el escudo mágico y no se acumula (reinicia). Escalado **lineal** (coste 20 → 45 En.).
+Habilidad de **daño mágico**: esfera verde (núcleo morado, velocidad 12) que se detiene en el primer enemigo y lo **envenena**; el impacto no daña ni empuja. El veneno hace su daño total repartido en su duración (un golpe por segundo), lo amortigua el escudo mágico y no se acumula (reinicia). Escalado **lineal** (rebalance del 26/11/2026): veneno **lento y largo**, 0.5 → 1.5 de daño/s durante 30 → 60 s (total 15 → 90); la recarga (20 → 10 s) siempre es menor que la duración, así que puedes tener varios enemigos envenenados a la vez. Coste 20 → 45 En.
 
 | Nivel | Coste En. | Veneno total | Duración | Daño por segundo | Recarga |
 |---|---|---|---|---|---|
-| 1 | 20 | 20 | 20 s | 1 | 30 s |
-| 2 | 21 | 21.1 | 19.5 s | 1.08 | 29.2 s |
-| 3 | 23 | 22.1 | 18.9 s | 1.17 | 28.4 s |
-| 4 | 24 | 23.2 | 18.4 s | 1.26 | 27.6 s |
-| 5 | 25 | 24.2 | 17.9 s | 1.35 | 26.8 s |
-| 6 | 27 | 25.3 | 17.4 s | 1.45 | 26.1 s |
-| 7 | 28 | 26.3 | 16.8 s | 1.57 | 25.3 s |
-| 8 | 29 | 27.4 | 16.3 s | 1.68 | 24.5 s |
-| 9 | 31 | 28.4 | 15.8 s | 1.8 | 23.7 s |
-| 10 | 32 | 29.5 | 15.3 s | 1.93 | 22.9 s |
-| 11 | 33 | 30.5 | 14.7 s | 2.07 | 22.1 s |
-| 12 | 34 | 31.6 | 14.2 s | 2.23 | 21.3 s |
-| 13 | 36 | 32.6 | 13.7 s | 2.38 | 20.5 s |
-| 14 | 37 | 33.7 | 13.2 s | 2.55 | 19.7 s |
-| 15 | 38 | 34.7 | 12.6 s | 2.75 | 18.9 s |
-| 16 | 40 | 35.8 | 12.1 s | 2.96 | 18.2 s |
-| 17 | 41 | 36.8 | 11.6 s | 3.17 | 17.4 s |
-| 18 | 42 | 37.9 | 11.1 s | 3.41 | 16.6 s |
-| 19 | 44 | 38.9 | 10.5 s | 3.7 | 15.8 s |
-| 20 | 45 | 40 | 10 s | 4 | 15 s |
+| 1 | 20 | 15 | 30 s | 0.5 | 20 s |
+| 2 | 21 | 17.4 | 31.6 s | 0.55 | 19.5 s |
+| 3 | 23 | 20.3 | 33.2 s | 0.61 | 18.9 s |
+| 4 | 24 | 22.9 | 34.7 s | 0.66 | 18.4 s |
+| 5 | 25 | 25.8 | 36.3 s | 0.71 | 17.9 s |
+| 6 | 27 | 28.8 | 37.9 s | 0.76 | 17.4 s |
+| 7 | 28 | 32.4 | 39.5 s | 0.82 | 16.8 s |
+| 8 | 29 | 35.8 | 41.1 s | 0.87 | 16.3 s |
+| 9 | 31 | 39.2 | 42.6 s | 0.92 | 15.8 s |
+| 10 | 32 | 42.9 | 44.2 s | 0.97 | 15.3 s |
+| 11 | 33 | 47.2 | 45.8 s | 1.03 | 14.7 s |
+| 12 | 34 | 51.2 | 47.4 s | 1.08 | 14.2 s |
+| 13 | 36 | 55.3 | 48.9 s | 1.13 | 13.7 s |
+| 14 | 37 | 59.6 | 50.5 s | 1.18 | 13.2 s |
+| 15 | 38 | 64.6 | 52.1 s | 1.24 | 12.6 s |
+| 16 | 40 | 69.3 | 53.7 s | 1.29 | 12.1 s |
+| 17 | 41 | 74.1 | 55.3 s | 1.34 | 11.6 s |
+| 18 | 42 | 79 | 56.8 s | 1.39 | 11.1 s |
+| 19 | 44 | 84.7 | 58.4 s | 1.45 | 10.5 s |
+| 20 | 45 | 90 | 60 s | 1.5 | 10 s |
 
-**Autoveneno de Golpe de Suerte** (resultado negativo): mitad del daño total, misma duración, al nivel del tramo (nv1 → 10 en 20 s · nv5 → 12.1 en 17.9 s · nv10 → 14.75 en 15.3 s · nv15 → 17.35 en 12.6 s · nv20 → 20 en 10 s).
+**Autoveneno de Golpe de Suerte** (resultado negativo): mitad del daño total en la mitad de la duración, al nivel del tramo (nv1 → 7.5 en 15 s · nv5 → 12.9 en 18.15 s · nv10 → 21.45 en 22.1 s · nv15 → 32.3 en 26.05 s · nv20 → 45 en 30 s).

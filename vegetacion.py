@@ -705,10 +705,12 @@ class SistemaVegetacion:
         for f in self._idx_flores.visibles(vista):
             f.dibujar(pantalla, desplazamiento)
 
-    def obstaculos_para(self, personaje):
-        """Solidos para el personaje: arbustos en los que no cabe + troncos de arboles."""
+    def obstaculos_para(self, personaje, con_troncos=True):
+        """Solidos para el personaje: arbustos en los que no cabe + troncos de arboles (sin
+        troncos con el Cuerpo de niebla de Espectro)."""
         solidos = [(a.centro, a.radio) for a in self.arbustos if not a.puede_entrar(personaje)]
-        solidos.extend((t.centro, t.radio_tronco) for t in self.arboles)
+        if con_troncos:
+            solidos.extend((t.centro, t.radio_tronco) for t in self.arboles)
         return solidos
 
     def actualizar(self, dt, jugador):
