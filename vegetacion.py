@@ -71,6 +71,13 @@ COLOR_DEBUG = {
 }
 
 
+def a_pixel(v):
+    """Coordenada de pantalla: redondea siempre hacia arriba en .5 (round() de Python redondea al
+    par, y entonces el mismo objeto se movia 1 px segun la posicion de la camara o del trozo del
+    fondo; asi se dibuja igual en la pantalla y en los trozos del fondo pre-dibujado)."""
+    return math.floor(v + 0.5)
+
+
 def circulos_nube(x, y, radio):
     """Devuelve los círculos (centro, radio) que forman una nube: núcleo + lóbulos alrededor."""
     circulos = [(pygame.Vector2(x, y), radio * 0.62)]
@@ -261,6 +268,7 @@ class IndiceDibujo:
     def __init__(self, celda, objetos):
         self.celda = celda
         self.celdas = {}
+        self.orden = {id(o): k for k, o in enumerate(objetos)}
         for o in objetos:
             r = o.rect
             x0, y0 = int(r.left // celda), int(r.top // celda)
@@ -284,6 +292,8 @@ class IndiceDibujo:
                         vistos.add(oid)
                         if o.rect.colliderect(vista):
                             res.append(o)
+        # siempre en el orden de la lista: dibujar por trozos da lo mismo que de una vez
+        res.sort(key=lambda o: self.orden[id(o)])
         return res
 
 
@@ -318,8 +328,8 @@ class Arbol:
 
     def dibujar_base(self, pantalla, desplazamiento):
         """Sombra + tronco (y ramas del seco): va DEBAJO de las entidades."""
-        px = round(self.centro.x - desplazamiento[0])
-        py = round(self.centro.y - desplazamiento[1])
+        px = a_pixel(self.centro.x - desplazamiento[0])
+        py = a_pixel(self.centro.y - desplazamiento[1])
         rc, rt = self.radio_copa, self.radio_tronco
         pygame.draw.circle(pantalla, COLOR_SOMBRA_ARBOL, (px + 3, py + 4), rc)
         pygame.draw.circle(pantalla, COLOR_TRONCO, (px, py), rt)
@@ -347,8 +357,8 @@ class Arbol:
         debajo, se dibuja semitransparente para no ocultarlo (bajo un arbol no te escondes)."""
         if self.tipo == "seco":
             return
-        px = round(self.centro.x - desplazamiento[0])
-        py = round(self.centro.y - desplazamiento[1])
+        px = a_pixel(self.centro.x - desplazamiento[0])
+        py = a_pixel(self.centro.y - desplazamiento[1])
         if not desvanecer:
             self._pintar_copa(pantalla, px, py)
             return
@@ -411,8 +421,8 @@ class Pasto:
         self.rect = pygame.Rect(round(x - ext), round(y - ext), ext * 2, ext * 2)
 
     def dibujar(self, pantalla, desplazamiento):
-        bx = round(self.centro.x - desplazamiento[0])
-        by = round(self.centro.y - desplazamiento[1])
+        bx = a_pixel(self.centro.x - desplazamiento[0])
+        by = a_pixel(self.centro.y - desplazamiento[1])
         for ox, h, curva, col in self.briznas:
             x0 = bx + int(ox)
             pygame.draw.line(pantalla, col, (x0, by), (x0 + int(curva), by - int(h)), 2)
@@ -427,8 +437,8 @@ class Flor:
         self.rect = pygame.Rect(round(x - 6), round(y - self.alto - 6), 12, self.alto + 12)
 
     def dibujar(self, pantalla, desplazamiento):
-        bx = round(self.centro.x - desplazamiento[0])
-        by = round(self.centro.y - desplazamiento[1])
+        bx = a_pixel(self.centro.x - desplazamiento[0])
+        by = a_pixel(self.centro.y - desplazamiento[1])
         ty = by - self.alto
         pygame.draw.line(pantalla, COLOR_TALLO_FLOR, (bx, by), (bx, ty), 1)
         for i in range(5):
@@ -466,6 +476,10 @@ class SistemaVegetacion:
         self.pasto = []
         self.flores = []
         self.reapariciones_frutal = []  # temporizadores (segundos restantes)
+        # Fase 3: 'version' sube cada vez que aparece o desaparece un obstaculo (la rejilla de
+        # obstaculos se rehace) y 'cambios' guarda sus cajas (el fondo redibuja esos trozos)
+        self.version = 0
+        self.cambios = []
         # Rejilla de espacio ocupado: la consultan la generacion y la reaparicion de frutales
         self.rejilla = RejillaEspacial(CELDA_REJILLA)
         for z in zonas_ocupadas:
@@ -517,6 +531,9 @@ class SistemaVegetacion:
         cortados, frutales consumidos). Usa la caja reservada al crearlos si la tienen."""
         for o in objetos:
             self.rejilla.quitar(getattr(o, "caja_rejilla", o.rect))
+            self.cambios.append(pygame.Rect(o.rect))
+        if objetos:
+            self.version += 1
 
     def _en_agua(self, x, y, margen):
         """True si el punto esta dentro de un lago o a menos de `margen` de su borde."""
@@ -674,10 +691,10 @@ class SistemaVegetacion:
             if a.rect.colliderect(vista):
                 a.dibujar_base(pantalla, desplazamiento)
 
-    def dibujar_arboles_copas(self, pantalla, vista, desplazamiento, entidades=()):
+    def dibujar_arboles_copas(self, pantalla, vista, desplazamiento, entidades=(), arboles=None):
         """Copas encima de todo. Si alguna entidad (jugador, maniqui, invocaciones) esta
         debajo, aunque sea en parte, la copa se ve semitransparente para no ocultarla."""
-        for a in self.arboles:
+        for a in (self.arboles if arboles is None else arboles):
             if a.rect.colliderect(vista):
                 desv = any((e.posicion - a.centro).length() <= a.radio_copa + e.radio for e in entidades)
                 a.dibujar_copa(pantalla, desplazamiento, desv)
@@ -764,12 +781,13 @@ class SistemaVegetacion:
         self.actualizar_personaje(dt, jugador)
         self.actualizar_frutales(dt, evitar=jugador.posicion)
 
-    def actualizar_personaje(self, dt, jugador):
+    def actualizar_personaje(self, dt, jugador, candidatos=None):
         """Arbustos para un personaje (jugador o no): ocultarse, hierba venenosa y orbes de los
-        frutales. Se llama una vez por personaje y fotograma."""
+        frutales. Se llama una vez por personaje y fotograma. 'candidatos': los arbustos cercanos
+        (en el orden de la lista), si ya se conocen (rejilla de obstaculos); si no, todos."""
         # ¿En qué arbusto está metido?
         jugador.arbusto_actual = None
-        for a in self.arbustos:
+        for a in (self.arbustos if candidatos is None else candidatos):
             if a.puede_entrar(jugador) and a.contiene(jugador.posicion):
                 jugador.arbusto_actual = a
                 break
@@ -819,6 +837,7 @@ class SistemaVegetacion:
                 nuevo = self._crear_en_lugar_libre(TIPO_FRUTAL, evitar=evitar, fase="brote")
                 if nuevo:
                     self.arbustos.append(nuevo)
+                    self.version += 1
                 else:
                     pendientes.append(1.0)  # Reintentar en 1 segundo si no hubo espacio
             else:

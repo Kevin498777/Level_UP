@@ -1210,7 +1210,11 @@ class Personaje:
         # invisible ya salió antes)
         if self.oculto:
             return
-        texto_nombre = fuente_nombre.render(self.nombre, True, (255, 255, 255))
+        # el nombre se renderiza una vez (y otra solo si cambia el nombre o la fuente)
+        clave = (self.nombre, id(fuente_nombre))
+        if getattr(self, "_nombre_cache", (None, None))[0] != clave:
+            self._nombre_cache = (clave, fuente_nombre.render(self.nombre, True, (255, 255, 255)))
+        texto_nombre = self._nombre_cache[1]
         rect_texto = texto_nombre.get_rect(center=(pos_x, pos_y - self.radio - 14))
 
         fondo_tag = pygame.Surface((rect_texto.width + 10, rect_texto.height + 4), pygame.SRCALPHA)

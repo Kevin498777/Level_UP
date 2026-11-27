@@ -79,7 +79,7 @@ class Casa:
                                              RADIO_JARDIN * 2, RADIO_JARDIN * 2)):
             return
         ox, oy = desplazamiento
-        cx, cy = round(self.centro.x - ox), round(self.centro.y - oy)
+        cx, cy = math.floor(self.centro.x - ox + 0.5), math.floor(self.centro.y - oy + 0.5)   # como vegetacion.a_pixel
         pygame.draw.circle(pantalla, COLOR_JARDIN, (cx, cy), RADIO_JARDIN)
         pygame.draw.circle(pantalla, COLOR_JARDIN_BORDE, (cx, cy), RADIO_JARDIN, 3)
         # Camino de piedras de la puerta al borde sur del jardin
@@ -94,13 +94,14 @@ class Casa:
             if abs(math.atan2(math.sin(ang - math.pi / 2), math.cos(ang - math.pi / 2))) < 0.12:
                 puntos.append(None)
                 continue
-            puntos.append((cx + math.cos(ang) * (RADIO_JARDIN - 4), cy + math.sin(ang) * (RADIO_JARDIN - 4)))
+            puntos.append((math.floor(cx + math.cos(ang) * (RADIO_JARDIN - 4) + 0.5),
+                           math.floor(cy + math.sin(ang) * (RADIO_JARDIN - 4) + 0.5)))
         for a, b in zip(puntos, puntos[1:] + puntos[:1]):
             if a is not None and b is not None:
                 pygame.draw.line(pantalla, COLOR_VALLA, a, b, 2)
         for p in puntos:
             if p is not None:
-                pygame.draw.circle(pantalla, COLOR_VALLA, (round(p[0]), round(p[1])), 3)
+                pygame.draw.circle(pantalla, COLOR_VALLA, p, 3)
         # Suelo del salon
         interior = self.interior.move(-ox, -oy)
         pygame.draw.rect(pantalla, COLOR_SUELO_CASA, interior)

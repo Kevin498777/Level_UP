@@ -145,10 +145,13 @@ s = pygame.Surface((200, 200)); arbol.dibujar_copa(s, (400, 400), True); arbol.d
 check(True, "dibujar_copa real (opaca y transparente) sin errores")
 
 # 8. Orden de dibujo en mundo.iniciar_mundo: cobertura < troncos < entidades < arbustos < copas
+# (desde la Fase 3 el pasto y los troncos van en el fondo pre-dibujado, que se pega antes que todo)
+src_fondo = inspect.getsource(mundo.dibujo_del_fondo)
+check(src_fondo.index("dibujar_cobertura(") < src_fondo.index("dibujar_arboles_base("), "fondo: pasto < troncos")
 src = inspect.getsource(mundo.iniciar_mundo)
-i_cob = src.index("dibujar_cobertura("); i_base = src.index("dibujar_arboles_base(")
+i_fondo = src.index("fondo.dibujar(pantalla")
 i_man = src.index("maniqui.dibujar("); i_arb = src.index("vegetacion.dibujar(pantalla"); i_cop = src.index("dibujar_arboles_copas(")
-check(i_cob < i_base < i_man < i_arb < i_cop, "orden: pasto < troncos < entidades < arbustos < copas")
+check(i_fondo < i_man < i_arb < i_cop, "orden: fondo (pasto y troncos) < entidades < arbustos < copas")
 check("entidades" in src[i_arb:i_cop + 80], "las copas reciben la lista de entidades")
 
 # 9. Coste por frame en un bosque

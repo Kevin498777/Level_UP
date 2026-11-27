@@ -698,6 +698,7 @@ Reglas comunes:
 | Clic derecho junto a ti | Llamar de vuelta a las sombras (vuelven a seguirte) |
 | Clic derecho sobre un enemigo (sin modo combate) | **Autoapuntado**: el personaje mira siempre a ese enemigo (−40 % Vel, rango 500). En terreno libre o sobre el mismo objetivo lo quita (ver 6.4) |
 | [H] | Mostrar / ocultar las hitboxes |
+| [P] | (Prueba) Mostrar / ocultar el tiempo de cada fotograma en ms y los fps (verde por debajo de 16,7 ms = 60 fps) |
 | [C] | Mostrar / ocultar la **brújula** a los animales más cercanos (conejo, lobo, oso), al maniquí y a los vendedores |
 | [I] | Abrir / cerrar el **inventario** (no pausa el juego; también se cierra con la X) |
 | [E] | Junto a un **vendedor ambulante**: abrir / cerrar su tienda de anillos |

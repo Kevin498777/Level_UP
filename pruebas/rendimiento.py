@@ -7,6 +7,8 @@ fotograma (logica + dibujo) en una pantalla de 1920x1080:
 - bosque: junto a una manada de lobos, peleando con arma y habilidades.
 - lago:   en la orilla de un lago con cocodrilos.
 - caos:   muchas habilidades a la vez (Palabras Malditas, Estrella Ignea, invocaciones) entre lobos.
+- npc_lejos / npc_cerca: como "centro" con 19 NPC de prueba lejos de la camara (simulacion
+  resumida) o con 8 paseando alrededor del jugador (Fase 3; sin inteligencia todavia).
 El reloj del juego se simula a 60 fps (dt fijo de 16 ms), asi cada ejecucion hace exactamente el
 mismo trabajo y solo cambia lo que tarda tu equipo en hacerlo.
 
@@ -41,7 +43,10 @@ SEMILLA_RENDIMIENTO = 2026          # fauna, cofres y botin repetibles entre eje
 ANCHO, ALTO = 1920, 1080
 DT_MS = 16
 CALENTAMIENTO = 60                  # fotogramas que no se miden al empezar cada escenario
-ESCENARIOS = ("centro", "bosque", "lago", "caos")
+ESCENARIOS = ("centro", "npc_lejos", "npc_cerca", "bosque", "lago", "caos")
+# Fase 3: NPC de prueba (sin inteligencia, solo pasean) y su presupuesto frente a "centro"
+NPC_LEJOS, NPC_CERCA = 19, 8
+PRESUPUESTO_NPC = {"npc_lejos": 1.0, "npc_cerca": 3.0}       # ms de mas como mucho (Anexo B)
 NOMBRE_JUGADOR = "Medidor"
 VIDA_INMORTAL = 100000              # el jugador no muere durante la medicion
 MARGEN_AVISO = 0.10                 # +10 % sobre la linea base se marca como empeora
@@ -112,9 +117,28 @@ class Guion:
         vivas = [m for m in self.fauna.manadas if any(l.vivo for l in m.lobos)]
         return vivas[indice % len(vivas)] if vivas else None
 
+    def poner_npc(self, cantidad, distancia):
+        """NPC de prueba que pasean cerca de su punto de partida ('distancia' px del jugador)."""
+        rng = random.Random(cantidad)
+        for k in range(cantidad):
+            ang = 2 * 3.14159 * k / cantidad
+            casa_npc = mundo.CENTRO_MUNDO + pygame.Vector2(distancia, 0).rotate_rad(ang)
+            npc = Personaje("NPC %d" % k, casa_npc.x, casa_npc.y, 1, 2, 100, 3, 100, 0, (200, 120, 60), [],
+                            herramientas.crear_herramienta("Espada Larga"))
+            npc.casa_npc = casa_npc
+
+            def pasear(c, ctx, jugador, rng=rng):
+                c.mover_a(c.casa_npc + pygame.Vector2(rng.uniform(-120, 120), rng.uniform(-120, 120)))
+            self.ctx.agregar_combatiente(npc, pasear)
+
     def iniciar_escenario(self, nombre):
-        if nombre == "centro":
+        self.ctx.combatientes.clear()
+        if nombre in ("centro", "npc_lejos", "npc_cerca"):
             self.colocar(mundo.CENTRO_MUNDO)
+            if nombre == "npc_lejos":
+                self.poner_npc(NPC_LEJOS, 5000)
+            elif nombre == "npc_cerca":
+                self.poner_npc(NPC_CERCA, 280)
         elif nombre in ("bosque", "caos"):
             manada = self.manada_viva(0 if nombre == "bosque" else 1)
             lobo = next(l for l in manada.lobos if l.vivo)
@@ -168,7 +192,7 @@ class Guion:
         if self.j is None:
             # El bucle del juego es quien llama: sus variables locales dan acceso a todo
             loc = sys._getframe(2).f_locals
-            self.j, self.fauna, self.camara = loc["jugador"], loc["fauna"], loc["camara"]
+            self.j, self.fauna, self.camara, self.ctx = loc["jugador"], loc["fauna"], loc["camara"], loc["ctx"]
         indice, f = divmod(self.f, self.por_escenario)
         self.f += 1
         if indice >= len(ESCENARIOS):
@@ -233,6 +257,10 @@ def main():
         a = resultados[e]["actividad"]
         print("  %-7s enemigos heridos %d, proyectiles %d, invocaciones %d | %s" % (
             e, a["enemigos_heridos"], a["proyectiles_max"], a["criaturas_max"], ", ".join(a["habilidades"])))
+    base_npc = resultados["centro"]["media_ms"]
+    for e, maximo in PRESUPUESTO_NPC.items():
+        extra = resultados[e]["media_ms"] - base_npc
+        print("  %-9s %+.2f ms frente a centro (presupuesto <= +%.0f ms): %s" % (e, extra, maximo, "OK" if extra <= maximo else "EXCEDE"))
     print("Duracion total: %.0f s" % total)
     if "--base" in args:
         datos = {"fecha": time.strftime("%Y-%m-%d"), "segundos_por_escenario": segundos,

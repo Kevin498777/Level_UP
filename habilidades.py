@@ -2947,9 +2947,14 @@ class CargaDeFuego(HabilidadBase):
         for p in jugador.proyectiles:
             if not p.activo or getattr(p, "al_impactar", None) != self.programar_explosion:
                 continue
-            if any((p.posicion - a.centro).length() <= a.radio_tronco + p.radio for a in arboles) or any(
+            # descarte rapido por caja: solo los arboles y arbustos que la esfera puede tocar
+            px, py = p.posicion.x, p.posicion.y
+            arboles_cerca = [a for a in arboles if abs(a.centro.x - px) <= a.radio_tronco + p.radio
+                             and abs(a.centro.y - py) <= a.radio_tronco + p.radio]
+            arbustos_cerca = [arb for arb in arbustos if arb.rect.inflate(p.radio * 2, p.radio * 2).collidepoint(px, py)]
+            if any((p.posicion - a.centro).length() <= a.radio_tronco + p.radio for a in arboles_cerca) or any(
                     not (arb.contiene(p.origen) or arb.contiene(jugador.posicion)) and any((p.posicion - c).length() <= r + p.radio for c, r in arb.circulos)
-                    for arb in arbustos):
+                    for arb in arbustos_cerca):
                 p.impactar()
         # 2) Explosiones que ya toca detonar
         for exp in self.explosiones:

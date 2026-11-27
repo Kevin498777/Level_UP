@@ -1,5 +1,7 @@
 import math
 import random
+import time
+from collections import deque
 import pygame
 from personaje import (Personaje, repartir_dano, REGEN_ESCUDO_RETRASO, REGEN_ESCUDO_POR_SEGUNDO,
                        AUTOAPUNTADO_MARGEN_CLIC, MONEDAS_POR_NIVEL, PUNTOS_MEJORA_POR_NIVEL,
@@ -11,6 +13,7 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
                          animaciones_activas, set_animaciones_activas)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
+from espacial import RejillaObstaculos, FondoPorTrozos
 from limite_mundo import LIMITE as LIMITE_MUNDO, BORDE_LIBRE
 from diseno_mapa import Diseno
 import fauna as FAUNA
@@ -175,6 +178,8 @@ class Charco:
 
     def contiene(self, punto):
         """True si el punto (centro del jugador) está sobre el agua."""
+        if not self.rect.collidepoint(punto):      # descarte rapido: fuera de su caja
+            return False
         return any((punto - c).length() <= r for c, r in self.circulos) and not self._evaporado(punto)
 
     def en_zona_peligro(self, punto):
@@ -731,12 +736,13 @@ def punto_libre(punto, radio, rocas, circulares, cuerpos, limite=LIMITE):
     return not any((punto - c.posicion).length() < c.radio + radio for c in cuerpos)
 
 
-def sacar_a_hueco_libre(entidad, rocas, circulares, cuerpos, limite=LIMITE):
+def sacar_a_hueco_libre(entidad, rocas, circulares, cuerpos, limite=LIMITE, alcance_max=None):
     """Cuerpo de niebla al terminar: si la entidad quedo dentro de algo, la mueve al punto libre
     mas cercano (anillos cada PASO_BUSQUEDA_HUECO px). Devuelve True si la movio."""
     radio = entidad.radio
     origen = pygame.Vector2(entidad.posicion)
-    alcance = ALCANCE_BUSQUEDA_HUECO + radio
+    alcance_max = alcance_max or ALCANCE_BUSQUEDA_HUECO
+    alcance = alcance_max + radio
     zona = pygame.Rect(0, 0, alcance * 2, alcance * 2)
     zona.center = (round(origen.x), round(origen.y))
     rocas = [r for r in rocas if zona.colliderect(r.rect)]
@@ -745,7 +751,7 @@ def sacar_a_hueco_libre(entidad, rocas, circulares, cuerpos, limite=LIMITE):
     libre = lambda p: punto_libre(p, radio, rocas, circulares, cuerpos, limite)
     if libre(origen):
         return False
-    for d in range(PASO_BUSQUEDA_HUECO, ALCANCE_BUSQUEDA_HUECO + 1, PASO_BUSQUEDA_HUECO):
+    for d in range(PASO_BUSQUEDA_HUECO, alcance_max + 1, PASO_BUSQUEDA_HUECO):
         pasos = max(8, int(math.tau * d / PASO_BUSQUEDA_HUECO))
         for k in range(pasos):
             ang = math.tau * k / pasos
@@ -907,9 +913,20 @@ class Contexto:
         self.fauna = fauna
         self.limites_mundo = limites_mundo
         self.combatientes = []          # personajes que no son el jugador (NPC)
+        # Fase 3: obstaculos por celdas (mover y dibujar preguntan solo por lo cercano) y zonas
+        # del fondo que hay que redibujar (lagos evaporados; lo destruido lo anota la vegetacion)
+        self.obstaculos = RejillaObstaculos(rocas, vegetacion)
+        self.cambios_fondo = []
 
-    def agregar_combatiente(self, personaje):
+    def agregar_combatiente(self, personaje, cerebro=None):
+        """Mete un personaje en el mundo. 'cerebro(c, ctx, jugador)' (opcional) decide sus
+        intenciones; se llama cada 'pensar_cada' s, repartido entre fotogramas (IA escalonada)."""
         personaje.es_combatiente = True
+        personaje.cerebro = cerebro
+        personaje.modo = "activo"            # activo, intermedio o resumido (nivel de detalle)
+        personaje.pensar_cada = random.uniform(*PENSAR_CADA)
+        personaje.t_pensar = random.uniform(0, personaje.pensar_cada)   # desfase: no piensan todos a la vez
+        personaje.t_resumen = 0.0
         self.combatientes.append(personaje)
         return personaje
 
@@ -920,11 +937,16 @@ def vista_de(c):
     return pygame.Rect(round(c.posicion.x - ancho / 2), round(c.posicion.y - alto / 2), ancho, alto)
 
 
-def enemigos_de(c, ctx, jugador):
+def enemigos_de(c, ctx, jugador, animales=None):
     """Objetivos de un combatiente que no es el jugador: el jugador, los demas combatientes y los
-    animales que tiene cerca. (Las facciones y el odio entre razas llegan en la Fase 5.)"""
+    animales que tiene cerca. 'animales': los de la zona activa ya buscados en este fotograma (asi
+    no se recorre toda la fauna por cada NPC). (Facciones y odio entre razas: Fase 5.)"""
     rivales = ([jugador] if jugador is not c and jugador.vida > 0 else []) + [o for o in ctx.combatientes if o is not c and o.vida > 0]
-    return rivales + ctx.fauna.animales_con_vida(vista_de(c))
+    vista = vista_de(c)
+    if animales is None:
+        return rivales + ctx.fauna.animales_con_vida(vista)
+    zona = vista.inflate(FAUNA.MARGEN_CULL * 2, FAUNA.MARGEN_CULL * 2)
+    return rivales + [a for a in animales if zona.collidepoint(a.posicion.x, a.posicion.y)]
 
 
 def golpear_personaje(atacante, obj, dano, arma):
@@ -1058,6 +1080,8 @@ def combatiente_habilidades(c, ctx, dt, enemigos):
             ctx.vegetacion.liberar_obstaculos(destruidas)
             for centro_ev, radio_ev in evaporado:
                 ctx.fauna.quitar_fauna_acuatica(centro_ev, radio_ev)
+                ctx.cambios_fondo.append(pygame.Rect(round(centro_ev.x - radio_ev), round(centro_ev.y - radio_ev),
+                                                     round(radio_ev * 2) + 1, round(radio_ev * 2) + 1))
 
     # Combustible de Desmantelar: suelto, pegado a enemigos, explosiones y suelo en llamas
     c.combustible.actualizar(dt, c, enemigos, ctx.charcos)
@@ -1112,15 +1136,15 @@ def combatiente_estado(c, ctx, dt, enemigos, enemigos_sin_tumba):
     # resultado es el mismo y mover() no recorre todas las rocas del mapa en cada sub-paso
     zona = pygame.Rect(0, 0, ZONA_OBSTACULOS_MOVER * 2, ZONA_OBSTACULOS_MOVER * 2)
     zona.center = (round(c.posicion.x), round(c.posicion.y))
-    rocas_cerca = [r for r in ctx.rocas if r.rect.colliderect(zona)]
+    rocas_cerca = ctx.obstaculos.rocas_en(zona)
     if c.inspector:                             # ShadowGOD: lo atraviesa todo
         c.mover(ctx.limites_mundo, LIMITE, [], [])
     elif c.cuerpo_de_niebla:
         c.mover(ctx.limites_mundo, LIMITE,
                 [r for r in rocas_cerca if getattr(r, "es_cueva", False) or getattr(r, "indestructible", False)],
-                ctx.vegetacion.obstaculos_cerca(c, zona, con_troncos=False))
+                ctx.obstaculos.obstaculos_cerca(c, zona, con_troncos=False))
     else:
-        c.mover(ctx.limites_mundo, LIMITE, rocas_cerca, ctx.vegetacion.obstaculos_cerca(c, zona))
+        c.mover(ctx.limites_mundo, LIMITE, rocas_cerca, ctx.obstaculos.obstaculos_cerca(c, zona))
     # Retroceso acumulado por empuje
     c.actualizar_empuje(dt, LIMITE)
     if c.inspector:
@@ -1140,15 +1164,130 @@ def marcar_autor(salud_antes, de_npc):
             o.ultimo_golpe_npc = de_npc
 
 
-def actualizar_combatiente(c, ctx, dt, jugador):
+def actualizar_combatiente(c, ctx, dt, jugador, animales=None):
     """Un fotograma completo de un combatiente que no es el jugador (sus intenciones ya puestas)."""
-    enemigos = enemigos_de(c, ctx, jugador)
+    enemigos = enemigos_de(c, ctx, jugador, animales)
     antes = salud_de(enemigos)
     combatiente_golpes(c, dt, enemigos)
     combatiente_habilidades(c, ctx, dt, enemigos)
     combatiente_estado(c, ctx, dt, enemigos, enemigos)
-    ctx.vegetacion.actualizar_personaje(dt, c)
+    cerca = pygame.Rect(round(c.posicion.x) - c.radio, round(c.posicion.y) - c.radio, c.radio * 2 + 1, c.radio * 2 + 1)
+    ctx.vegetacion.actualizar_personaje(dt, c, ctx.obstaculos.arbustos_en(cerca))
     marcar_autor(antes, True)
+
+
+# -----------------------------
+# NIVEL DE DETALLE DE LOS NPC (Fase 3 del plan de NPC)
+# -----------------------------
+MAX_NPC_ACTIVOS = 8             # NPC con simulacion completa a la vez (los mas cercanos al jugador)
+ZONA_ACTIVA_FACTOR = 2.0        # zona activa = la vista de la camara agrandada (media pantalla por lado)
+PENSAR_CADA = (0.2, 0.5)        # s entre dos "pensamientos" de un NPC activo (repartidos entre fotogramas)
+FACTOR_PENSAR_INTERMEDIO = 3    # un NPC intermedio piensa 3 veces menos a menudo
+RESUMEN_CADA = 2.0              # s entre dos pasos de la simulacion resumida (lejos de la camara)
+ALCANCE_MATERIALIZAR = 1500     # px que busca hueco libre un NPC que se materializa dentro de algo
+                                # (en una montaña el hueco puede quedar lejos)
+# XP por minuto segun el nivel en la simulacion resumida: sacada de la simulacion de progresion
+# del 24/11/2026 (sistema_xp.md: nivel 10 a los 48 min, 15 a los 77, 20 a los 134 y ~14.5 XP/min
+# despues). Provisional: se calibra en la Fase 7 con los NPC reales.
+XP_POR_MINUTO_RESUMEN = ((1, 2.46), (10, 10.34), (15, 11.05), (20, 14.5))
+# Muertes por minuto en la simulacion resumida: 5.9 muertes en 134 min (misma simulacion), mas
+# en el borde del mapa (animales mas peligrosos) que en el centro. Provisional (Fase 7).
+MUERTES_POR_MINUTO_RESUMEN = 5.9 / 134
+PELIGRO_CENTRO, PELIGRO_BORDE = 0.5, 1.5
+
+
+def dibujo_del_fondo(casa, charcos, vegetacion, obstaculos):
+    """Funcion que dibuja lo fijo del mundo en el orden de siempre (suelo, casa, agua, rocas,
+    pasto y flores y la base de los arboles: sombra y tronco). FondoPorTrozos la usa una vez por
+    trozo; dibujarla directamente en la pantalla da la misma imagen."""
+    def dibujar_fondo(superficie, vista_fondo, desplazamiento_fondo):
+        dibujar_suelo(superficie, vista_fondo, desplazamiento_fondo)
+        casa.dibujar_suelo(superficie, vista_fondo, desplazamiento_fondo)
+        for charco in charcos:
+            if charco.rect.colliderect(vista_fondo):
+                charco.dibujar(superficie, desplazamiento_fondo)
+        for roca in obstaculos.rocas_en(vista_fondo):
+            roca.dibujar(superficie, desplazamiento_fondo)
+        vegetacion.dibujar_cobertura(superficie, vista_fondo, desplazamiento_fondo)
+        vegetacion.dibujar_arboles_base(superficie, vista_fondo, desplazamiento_fondo)
+    return dibujar_fondo
+
+
+def zona_activa(vista):
+    """Rectangulo del mundo con simulacion completa: la vista agrandada ZONA_ACTIVA_FACTOR veces."""
+    return vista.inflate(round(vista.width * (ZONA_ACTIVA_FACTOR - 1)), round(vista.height * (ZONA_ACTIVA_FACTOR - 1)))
+
+
+def xp_por_minuto_resumen(nivel):
+    valor = XP_POR_MINUTO_RESUMEN[0][1]
+    for desde, xp in XP_POR_MINUTO_RESUMEN:
+        if nivel >= desde:
+            valor = xp
+    return valor
+
+
+def peligro_zona(p):
+    """Peligro de la zona (multiplica las muertes): de PELIGRO_CENTRO en el centro a PELIGRO_BORDE
+    en el borde del mapa (anillos de peligro del Anexo E)."""
+    frac = max(0.0, min(1.0, 1 - LIMITE.distancia_al_borde(p) / LIMITE.mitad))
+    return PELIGRO_CENTRO + (PELIGRO_BORDE - PELIGRO_CENTRO) * frac
+
+
+def simular_resumido(c, t, rng=random):
+    """Paso de la simulacion resumida de un NPC lejos de la camara durante 't' segundos: avanza
+    hacia su destino a su velocidad (sin choques finos, dentro del mapa), gana la XP por minuto
+    de su nivel y puede morir segun el peligro de la zona. Las peleas lejos (Fase 5, facciones)
+    y el gasto de puntos (Fase 4, inteligencia) llegaran con esas fases."""
+    hacia = c.destino - c.posicion
+    paso = c.velocidad * 60.0 * t             # 'velocidad' son px por fotograma a 60 fps
+    if hacia.length() > paso:
+        hacia.scale_to_length(paso)
+    c.posicion = LIMITE.acotar(c.posicion + hacia, c.radio)
+    c.ganar_xp(xp_por_minuto_resumen(c.nivel) * t / 60.0)
+    prob_muerte = 1 - (1 - min(1.0, MUERTES_POR_MINUTO_RESUMEN * peligro_zona(c.posicion))) ** (t / 60.0)
+    if rng.random() < prob_muerte:
+        c.vida = 0
+
+
+def materializar(c, ctx):
+    """Un NPC resumido entra en la zona activa: si cayo dentro de algo, sale al hueco libre mas
+    cercano (como al terminar el Cuerpo de niebla)."""
+    zona = pygame.Rect(0, 0, (ALCANCE_MATERIALIZAR + 100) * 2, (ALCANCE_MATERIALIZAR + 100) * 2)
+    zona.center = (round(c.posicion.x), round(c.posicion.y))
+    sacar_a_hueco_libre(c, ctx.obstaculos.rocas_en(zona), ctx.obstaculos.obstaculos_cerca(c, zona), [], LIMITE,
+                        ALCANCE_MATERIALIZAR)
+    c.destino = pygame.Vector2(c.destino)
+    c.hitbox.center = (round(c.posicion.x), round(c.posicion.y))
+
+
+def actualizar_otros_combatientes(ctx, dt, jugador, zona):
+    """Nivel de detalle de los NPC: dentro de 'zona' los MAX_NPC_ACTIVOS mas cercanos al jugador
+    se simulan completos y piensan a su ritmo; el resto de la zona tambien se mueve y se ve pero
+    piensa menos a menudo (intermedio); fuera, simulacion resumida cada RESUMEN_CADA s."""
+    dentro = sorted((c for c in ctx.combatientes if zona.collidepoint(c.posicion)),
+                    key=lambda c: (c.posicion - jugador.posicion).length_squared())
+    # la fauna de la zona activa se busca una vez por fotograma para todos los NPC
+    animales = ctx.fauna.animales_con_vida(zona.inflate(*VISTA_COMBATIENTE)) if dentro else []   # cubre la vista de todos
+    activos = set(id(c) for c in dentro[:MAX_NPC_ACTIVOS])
+    en_zona = set(id(c) for c in dentro)
+    for c in list(ctx.combatientes):
+        if id(c) not in en_zona:
+            c.modo = "resumido"
+            c.t_resumen += dt
+            if c.t_resumen >= RESUMEN_CADA:
+                simular_resumido(c, c.t_resumen)
+                c.t_resumen = 0.0
+            continue
+        if c.modo == "resumido":
+            materializar(c, ctx)
+            c.t_resumen = 0.0
+        c.modo = "activo" if id(c) in activos else "intermedio"
+        if c.cerebro is not None:
+            c.t_pensar -= dt
+            if c.t_pensar <= 0:
+                c.t_pensar += c.pensar_cada * (1 if c.modo == "activo" else FACTOR_PENSAR_INTERMEDIO)
+                c.cerebro(c, ctx, jugador)
+        actualizar_combatiente(c, ctx, dt, jugador, animales)
 
 
 def retirar_combatientes_muertos(ctx):
@@ -1578,6 +1717,8 @@ def iniciar_mundo(config):
     for otro in config.get("combatientes", ()):
         ctx.agregar_combatiente(otro)
 
+    fondo = FondoPorTrozos(dibujo_del_fondo(casa, charcos, vegetacion, ctx.obstaculos))
+
     # Capa oscura para simular la poca visibilidad dentro de un arbusto
     capa_oscura = pygame.Surface((mundo_w, mundo_h), pygame.SRCALPHA)
     capa_oscura.fill((0, 0, 0, OSCURECIMIENTO))
@@ -1671,6 +1812,8 @@ def iniciar_mundo(config):
     motivo_salida = "salir"   # "salir" = cerrar juego; "menu" = volver a seleccion
     mostrar_hitboxes = False  # Alternable con la tecla [H]
     mostrar_brujula = False   # Alternable con la tecla [C]
+    mostrar_rendimiento = False  # [P] (prueba): ms por fotograma
+    tiempos_fotograma = deque(maxlen=60)    # ms de logica y dibujo de los ultimos fotogramas
     botones_stats = {}        # Botones del panel (clave -> Rect), se actualizan cada frame
     info_abierta = None       # Tooltip de ayuda abierto: None, "stats" o "hab"
 
@@ -1833,8 +1976,10 @@ def iniciar_mundo(config):
 
     vendedores = SistemaVendedores(LIMITE, casa, charcos, jugador)
 
+    npc_cerca = []                  # NPC con simulacion completa o intermedia (se rehace cada fotograma)
     while ejecutando:
         dt = reloj.tick(60) / 1000.0  # Delta time en segundos
+        t_inicio_fotograma = time.perf_counter()
 
         # Tumba: su tiempo corre siempre (tambien con la pantalla de muerte o el inventario)
         if tumba is not None:
@@ -1854,7 +1999,7 @@ def iniciar_mundo(config):
 
         # Enemigos actuales (por ahora solo el maniqui de pruebas)
         enemigos_sin_tumba = (([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
-                              + vendedores.objetivos() + [c for c in ctx.combatientes if c.vida > 0])
+                              + vendedores.objetivos() + [c for c in ctx.combatientes if c.vida > 0 and c.modo != "resumido"])
         # La tumba recibe solo los golpes directos (arma, proyectiles, cuchillas, ondas, explosiones)
         enemigos = enemigos_sin_tumba + ([tumba] if tumba is not None and tumba.vivo else [])
 
@@ -1901,6 +2046,8 @@ def iniciar_mundo(config):
                     mostrar_hitboxes = not mostrar_hitboxes
                 elif evento.key == pygame.K_c:
                     mostrar_brujula = not mostrar_brujula
+                elif evento.key == pygame.K_p:
+                    mostrar_rendimiento = not mostrar_rendimiento
 
                 # [E] Comerciar con el vendedor cercano (o cerrar su tienda)
                 elif evento.key == pygame.K_e and not muerto:
@@ -2148,21 +2295,24 @@ def iniciar_mundo(config):
             # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
             vegetacion.actualizar(dt, jugador)
 
-            # Los demas combatientes (NPC). En una partida normal todavia no hay ninguno.
-            for otro in list(ctx.combatientes):
-                actualizar_combatiente(otro, ctx, dt, jugador)
+            # Los demas combatientes (NPC). En una partida normal todavia no hay ninguno. Cerca de
+            # la camara: simulacion completa (como mucho MAX_NPC_ACTIVOS; el resto piensa menos);
+            # lejos: simulacion resumida cada RESUMEN_CADA s (Fase 3, nivel de detalle).
+            actualizar_otros_combatientes(ctx, dt, jugador, zona_activa(vista_camara()))
             retirar_combatientes_muertos(ctx)
+            # NPC que se simulan y se ven (los resumidos estan lejos: ni chocan ni se dibujan)
+            npc_cerca = [c for c in ctx.combatientes if c.modo != "resumido"]
 
             # Maniqui de pruebas (tiquea su desangrado y su reaparicion)
             maniqui.actualizar(dt, jugador)
 
             # Cuerpos solidos: combatientes, maniqui e invocaciones no se solapan entre si
             # (con Cuerpo de niebla el combatiente no entra: atraviesa a todos)
-            todos = [jugador] + ctx.combatientes
+            todos = [jugador] + npc_cerca
             cuerpos = ([] if jugador.cuerpo_de_niebla or jugador.inspector else [jugador]) + ([maniqui] if maniqui.vivo else [])
             for hab in jugador.fuentes_criaturas():
                 cuerpos.extend(getattr(hab, "criaturas", ()))
-            for otro in ctx.combatientes:
+            for otro in npc_cerca:
                 cuerpos.extend(cuerpos_de_combatiente(otro))
             cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
             if tumba is not None:
@@ -2196,7 +2346,8 @@ def iniciar_mundo(config):
         vista = vista_camara()
         desplazamiento = (vista.x - mundo_x, vista.y - mundo_y)  # mundo -> pantalla
         if not muerto:
-            fauna.actualizar(dt, jugador, vista, vendedores.objetivos(), ctx.combatientes)
+            fauna.actualizar(dt, jugador, vista, vendedores.objetivos(),
+                             [c for c in ctx.combatientes if c.modo != "resumido"])
             vendedores.actualizar(dt, jugador)
             if tienda_abierta is not None and not tienda_abierta.puede_comerciar(jugador):
                 tienda_abierta = None          # se alejo, huyo, murio o se fue a casa
@@ -2244,33 +2395,25 @@ def iniciar_mundo(config):
         if not lejana:
             pantalla.set_clip(area_mundo_pantalla if pantalla is pantalla_real else None)
 
-            dibujar_suelo(pantalla, vista, desplazamiento)
-            casa.dibujar_suelo(pantalla, vista, desplazamiento)
-
-            for charco in charcos:
-                if charco.rect.colliderect(vista):
-                    charco.dibujar(pantalla, desplazamiento)
+            # Fondo fijo (suelo, casa, agua, rocas, pasto, flores y troncos): trozos ya dibujados
+            # (Fase 3). Lo que cambio (rocas destruidas, lagos evaporados) se redibuja antes.
+            for rect_cambio in vegetacion.cambios + ctx.cambios_fondo:
+                fondo.invalidar(rect_cambio.inflate(8, 8))
+            vegetacion.cambios.clear()
+            ctx.cambios_fondo.clear()
+            fondo.dibujar(pantalla, vista, desplazamiento)
 
             # Peces y ranas (ambiental): se omiten con las animaciones pausadas (rendimiento)
             if animaciones_activas():
                 fauna.dibujar_peces(pantalla, vista, desplazamiento)
                 fauna.dibujar_ranas(pantalla, vista, desplazamiento)
-
-            for roca in rocas:
-                if roca.rect.colliderect(vista):
-                    roca.dibujar(pantalla, desplazamiento)
             fauna.dibujar_entradas_cueva(pantalla, vista, desplazamiento)
             dibujar_puertas(pantalla, vista, desplazamiento, datos_mapa.get("puertas", []), jugador, fuentes["sub"])
-
-            # Pasto y flores (cobertura de suelo, bajo las entidades)
-            vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
             fauna.dibujar_madrigueras(pantalla, vista, desplazamiento)
             # Cofres escondidos (a ras de suelo; arboles y arbustos los tapan)
             fauna.dibujar_cofres(pantalla, vista, desplazamiento)
-            # Arboles (bosques): sombra + tronco solido bajo las entidades; la copa va al final
-            vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
             # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
-            for c in [jugador] + ctx.combatientes:
+            for c in [jugador] + npc_cerca:
                 for hab in c.habilidades:
                     if hasattr(hab, "dibujar_telaranas"):
                         hab.dibujar_telaranas(pantalla, desplazamiento)
@@ -2285,7 +2428,7 @@ def iniciar_mundo(config):
             # Dibujar personaje, auras interiores, herramienta rotada y proyectiles (y los demas
             # combatientes, con el mismo dibujo; solo el jugador tiene paneles, inventario y textos)
             jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
-            for otro in ctx.combatientes:
+            for otro in npc_cerca:
                 otro.dibujar(pantalla, fuentes["nombre"], desplazamiento)
             fauna.dibujar_conejos(pantalla, vista, desplazamiento)
             fauna.dibujar_venados(pantalla, vista, desplazamiento)
@@ -2301,7 +2444,7 @@ def iniciar_mundo(config):
                 dibujar_mira(pantalla, jugador.objetivo_apuntado, desplazamiento)
 
             # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
-            for c in [jugador] + ctx.combatientes:
+            for c in [jugador] + npc_cerca:
                 for hab in c.habilidades:
                     if hasattr(hab, "dibujar_invocaciones"):
                         hab.dibujar_invocaciones(pantalla, desplazamiento)
@@ -2317,7 +2460,7 @@ def iniciar_mundo(config):
             # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)
             vivos_parpadeo = ([jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
                               + vendedores.objetivos())
-            for c in [jugador] + ctx.combatientes:
+            for c in [jugador] + npc_cerca:
                 if c is not jugador:
                     vivos_parpadeo.append(c)
                 for hab in c.fuentes_criaturas():
@@ -2333,13 +2476,14 @@ def iniciar_mundo(config):
             # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
             # semitransparentes si hay una entidad debajo: jugador, maniqui, invocaciones o fauna.
             entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
-            for c in [jugador] + ctx.combatientes:
+            for c in [jugador] + npc_cerca:
                 if c is not jugador:
                     entidades.append(c)
                 for hab in c.fuentes_criaturas():
                     entidades.extend(getattr(hab, "criaturas", ()))
             entidades.extend(fauna.cuerpos_solidos(vista))
-            vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
+            vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades,
+                                             ctx.obstaculos.arboles_en(vista))
             # Techo de la casa (casi transparente con el jugador dentro)
             casa.dibujar_techo(pantalla, vista, desplazamiento, casa.contiene(jugador.posicion))
             # Pajaros (ambiental): se omiten con las animaciones pausadas (rendimiento)
@@ -2501,6 +2645,12 @@ def iniciar_mundo(config):
             True, color_info
         )
         pantalla.blit(txt_coord, (mundo_x + 12, mundo_h - 22))
+        # [P] (prueba) tiempo de cada fotograma: media del ultimo segundo
+        if mostrar_rendimiento:
+            ms_media = sum(tiempos_fotograma) / max(1, len(tiempos_fotograma))
+            txt_ms = fuentes["valor"].render("%.1f ms/fotograma  (%d fps)" % (ms_media, round(1000 / max(0.1, ms_media))),
+                                             True, (255, 230, 120) if ms_media > 16.7 else (150, 255, 160))
+            pantalla.blit(txt_ms, (mundo_x + 12, mundo_h - 64))
         if jugador.mensaje_apuntado:
             txt_aviso = fuentes["sub"].render(jugador.mensaje_apuntado, True, (255, 150, 90))
             pantalla.blit(txt_aviso, (mundo_x + 12, mundo_h - 42))
@@ -2537,6 +2687,7 @@ def iniciar_mundo(config):
             botones_stats.update(dibujar_botones_inspector(pantalla, area_mundo_pantalla, zoom_actual(),
                                                            mostrar_capas, fuentes["sub"]))
 
+        tiempos_fotograma.append((time.perf_counter() - t_inicio_fotograma) * 1000.0)
         pygame.display.flip()
 
     pygame.quit()

@@ -1,6 +1,6 @@
 # Plan por fases — Personajes NPC (razas) en el mundo
 
-Documento de planificación (26/11/2026; añadida la Fase 2 del mundo fijo, cuadrado de 17 700 px y el personaje de inspección ShadowGOD). **Estado: Fases 0 y 1 terminadas y comprobadas (27/11/2026); Fase 2 en curso: versión 1 del mapa y ShadowGOD hechos, pendientes de tus indicaciones**; el resto aún no está implementado. Describe cómo añadir al mundo personajes controlados por la máquina (humanos, semihumanos, elfos, enanos y el guardián) que suben de nivel, usan armas y habilidades y pelean entre ellos, con la fauna y con el jugador, **sin romper lo que ya funciona y sin hundir el rendimiento**.
+Documento de planificación (26/11/2026; añadida la Fase 2 del mundo fijo, cuadrado de 17 700 px y el personaje de inspección ShadowGOD). **Estado: Fases 0, 1 y 2 terminadas y comprobadas (27/11/2026; mapa principal v2 aprobado); Fase 3 hecha por Claude el 27/11/2026, pendiente de tu comprobación**; el resto aún no está implementado. Describe cómo añadir al mundo personajes controlados por la máquina (humanos, semihumanos, elfos, enanos y el guardián) que suben de nivel, usan armas y habilidades y pelean entre ellos, con la fauna y con el jugador, **sin romper lo que ya funciona y sin hundir el rendimiento**.
 
 Cada fase se entrega por separado, con sus pruebas automáticas (las hace Claude), su lista de comprobación manual (la haces tú jugando), su medición de rendimiento y su commit. No se empieza una fase hasta que la anterior esté probada por los dos.
 
@@ -233,6 +233,18 @@ Medición previa (26/11): mover 19 personajes con sus choques cuesta **~10 ms po
 
 **Terminada cuando:** el presupuesto del Anexo B se cumple con NPC de prueba.
 
+### Resultado (27/11/2026)
+- **Rejilla de obstáculos** (`espacial.RejillaObstaculos`): rocas, paredes, troncos y arbustos por celdas de 256 px; mover, la vegetación de cada NPC y las copas visibles solo miran lo cercano. Da exactamente lo mismo que recorrer las listas (5000 zonas al azar, también tras destruir rocas y árboles y tras reaparecer un frutal) y se rehace sola cuando algo cambia.
+- **Fondo por trozos** (`espacial.FondoPorTrozos`, trozos de 512 px dibujados con 128 px de margen, hasta 96 en memoria): suelo, casa, agua, rocas, pasto, flores y la base de los árboles. **Idéntico píxel a píxel** al dibujo directo en 5 posiciones de cámara; destruir una roca o evaporar agua redibuja su trozo. Para conseguirlo, lo que se dibuja en el fondo redondea siempre igual (`vegetacion.a_pixel`): antes un árbol podía moverse 1 px según la cámara.
+- **Arreglos sin cambiar el juego:** arbustos y lagos descartan primero por su caja; la Estrella Ígnea en vuelo solo mira los árboles y arbustos que puede tocar. La huella de equivalencia sigue idéntica.
+- **Rendimiento sin NPC** frente a la línea base de la Fase 0: **centro −28 %, bosque −11 %, lago −17 %, caos −27 %** (8,3 / 11,8 / 8,6 / 14,1 ms). El caos de habilidades ya va a 60 fps.
+- **Nivel de detalle** (`mundo.actualizar_otros_combatientes`): zona activa = la vista agrandada al doble; dentro, los `MAX_NPC_ACTIVOS` (8) más cercanos al jugador van completos y el resto "intermedio" (se mueven y se ven, piensan 3 veces menos); fuera, **simulación resumida** cada 2 s (avanzan hacia su destino sin choques, ganan la XP por minuto de su nivel y pueden morir según el peligro de la zona) y al volver **se materializan** en un hueco libre (100 de 100 veces fuera de las rocas, sin perder nivel, vida ni equipo).
+- **IA escalonada:** cada NPC tiene un `cerebro` que piensa cada 0,2–0,5 s con desfase (nunca más de 4 de 12 en el mismo fotograma).
+- **Presupuesto con NPC de prueba** (pasean, sin inteligencia), en `pruebas/rendimiento.py`: **19 NPC lejos +0,14 ms** (≤ +1) y **8 NPC en pantalla +1,96 ms** (≤ +3). Para que cupiera: la fauna de la zona activa se busca una vez por fotograma para todos los NPC, los arbustos de cada NPC salen de la rejilla y el nombre de cada personaje se renderiza una sola vez.
+- **Indicador [P]:** ms por fotograma (media del último segundo) y fps, en verde por debajo de 16,7 ms.
+- **Valores provisionales** (se calibran en la Fase 7): XP por minuto lejos según el nivel (2,46 / 10,34 / 11,05 / 14,5, sacada de la simulación del 24/11) y 5,9 muertes cada 134 min multiplicadas por el peligro de la zona (×0,5 en el centro a ×1,5 en el borde).
+- **Pendiente para las fases que lo necesitan:** comparar la XP lejos con la de cerca (±20 %) cuando los NPC cacen (Fase 4); gastar los puntos en la simulación resumida (Fase 4, con su inteligencia); peleas resueltas por tirada entre NPC hostiles lejos (Fase 5, facciones); el presupuesto con NPC **peleando** (Anexo B) se mide con la inteligencia (Fase 4).
+
 ---
 
 ## Fase 4 — Inteligencia del bot y navegación (primera raza: Humanos)
@@ -399,7 +411,8 @@ Objetivo: **60 fps** (16.7 ms por fotograma) con margen. Línea base de la Fase 
 | Caos de habilidades (Estrella Ígnea, Palabras Malditas, lobos) | **19.2 / 26.3** | base + 1 ms |
 | 4 NPC en pantalla peleando | — | p95 ≤ 16 ms |
 | 8 NPC en pantalla peleando (caso extremo) | — | p95 ≤ 16.7 ms |
-| 19 NPC lejos (simulación resumida) | — | base + 1 ms |
+| 19 NPC lejos (simulación resumida) | Fase 3: +0,14 ms | base + 1 ms |
+| 8 NPC en pantalla paseando (sin inteligencia) | Fase 3: +1,96 ms | base + 3 ms |
 
 **Lectura de la línea base:** sin NPC, el juego ya usa ~70 % del fotograma en el centro y el caos de habilidades **ya baja de 60 fps** (19 ms de media) en este equipo. Por eso la Fase 3 (rendimiento) va antes que los NPC, y los NPC tendrán poco margen hasta entonces.
 
