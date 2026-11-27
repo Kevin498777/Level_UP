@@ -9,6 +9,7 @@ import os, sys, math
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 sys.path.insert(0, sys.argv[1])
 import pygame
+from limite_mundo import LimiteMundo
 pygame.init()
 pygame.display.set_mode((10, 10))
 import habilidades as H
@@ -50,7 +51,7 @@ def lobo(x, y):
 def correr_cuchillas(h, rocas, arbustos, arboles, enemigos, seg=3):
     destruidos = []
     for _ in range(int(seg * 60)):
-        destruidos += h.actualizar_cuchillas(rocas, arbustos, arboles, enemigos, pygame.Vector2(0, 0), 10000)
+        destruidos += h.actualizar_cuchillas(rocas, arbustos, arboles, enemigos, LimiteMundo(10 ** 7, centro=(0, 0)))
     return destruidos
 
 # 1. Escalado Cortar
@@ -194,7 +195,7 @@ S = SistemaCombustible(); S.soltar(pygame.Vector2(10, 10), 5); e = lobo(50, 50);
 S.zonas.append([pygame.Vector2(0, 0), 3]); S.destellos.append([pygame.Vector2(0, 0), 0.2])
 S.dibujar(pant); S.dibujar_suelo(pant)
 h = cortar(30, True); j = jug([h], 300); h.intentar_activar(j)
-for _ in range(5): h.actualizar_cuchillas([], [], [], [], pygame.Vector2(0, 0), 10000)
+for _ in range(5): h.actualizar_cuchillas([], [], [], [], LimiteMundo(10 ** 7, centro=(0, 0)))
 h.dibujar_cuchillas(pant, (-200, -200))
 # reaparecer limpia
 e = lobo(0, 0); j.combustible.pegar(e, 10); j.__init__("t", 0, 0, 1, 2, 30, 1, 100, 0, (1, 1, 1), habilidades=[])

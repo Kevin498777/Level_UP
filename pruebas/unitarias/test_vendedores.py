@@ -13,6 +13,7 @@ import random
 from collections import Counter
 sys.path.insert(0, os.getcwd())
 import pygame
+from limite_mundo import LimiteMundo
 pygame.init()
 
 from personaje import Personaje
@@ -33,6 +34,7 @@ def comprobar(cond, texto):
 
 
 CENTRO = pygame.Vector2(10000, 10000)
+LIMITE_T = LimiteMundo(20000, centro=CENTRO)
 
 
 def jugador():
@@ -51,12 +53,12 @@ comprobar(casa.punto_maniqui.y > casa.rect.bottom and casa.en_jardin(casa.punto_
 j = jugador()
 j.destino = pygame.Vector2(CENTRO.x, CENTRO.y - 400)             # intentar salir por la pared norte
 for _ in range(200):
-    j.mover((0, 0, 20000, 20000), CENTRO, 10000, casa.paredes, [])
+    j.mover((0, 0, 20000, 20000), LIMITE_T, casa.paredes, [])
 comprobar(j.posicion.y > casa.rect.top, f"la pared norte bloquea al jugador (y={j.posicion.y:.0f})")
 j = jugador()
 j.destino = pygame.Vector2(CENTRO.x, CENTRO.y + 400)             # salir por la puerta
 for _ in range(200):
-    j.mover((0, 0, 20000, 20000), CENTRO, 10000, casa.paredes, [])
+    j.mover((0, 0, 20000, 20000), LIMITE_T, casa.paredes, [])
 comprobar(j.posicion.y > casa.rect.bottom + 50, "se sale por la puerta")
 comprobar(mundo.ZONA_SEGURA_SPAWN > RADIO_JARDIN, "sin rocas ni lagos en el jardín")
 
@@ -96,7 +98,7 @@ comprobar(all(TL.ANILLOS[s["anillo"]]["rareza"] == TL.COMUN for s in stock) and 
 
 # 4. Compra
 j = jugador()
-sistema = V.SistemaVendedores(CENTRO, 10000, casa, [], j, random.Random(1))
+sistema = V.SistemaVendedores(LIMITE_T, casa, [], j, random.Random(1))
 v = sistema.vendedores[0]
 v.posicion.update(j.posicion + pygame.Vector2(50, 0))
 comprobar(len(sistema.vendedores) == 3 and all((x.posicion - CENTRO).length() >= V.DISTANCIA_MIN_CENTRO
@@ -128,7 +130,7 @@ comprobar(v.estado == "paseo" and v.presente and (v.posicion - CENTRO).length() 
 
 # 5. Daño: Paso 0, huida, curación; muerte por jugador vs por fauna
 j = jugador()
-sistema = V.SistemaVendedores(CENTRO, 10000, casa, [], j, random.Random(2))
+sistema = V.SistemaVendedores(LIMITE_T, casa, [], j, random.Random(2))
 v = sistema.vendedores[0]
 p0 = pygame.Vector2(v.posicion)
 v.recibir_dano(5, "fisico", pygame.Vector2(1, 0))
@@ -154,7 +156,7 @@ comprobar(not v.vivo and sistema.tomar_recompensa() == (0, 0), "lo mata la fauna
 j = jugador()
 for a, d in TL.ANILLOS.items():
     j.talismanes.anillos[a] = d["nivel_max"]
-sistema = V.SistemaVendedores(CENTRO, 10000, casa, [], j, random.Random(3))
+sistema = V.SistemaVendedores(LIMITE_T, casa, [], j, random.Random(3))
 v = sistema.vendedores[0]
 v.posicion.update(j.posicion + pygame.Vector2(40, 0))
 v.actualizar(0.5, j)

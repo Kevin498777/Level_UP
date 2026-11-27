@@ -47,10 +47,10 @@ check(j.nivel == NIVEL_MAXIMO, "[L] tambien se detiene en %d" % NIVEL_MAXIMO)
 
 # ---------- mundo real ----------
 charcos = mundo.generar_charcos()
-veg = mundo.SistemaVegetacion(mundo.CENTRO_MUNDO, mundo.RADIO_MUNDO, mundo.ZONA_SEGURA_SPAWN, charcos)
+veg = mundo.SistemaVegetacion(mundo.LIMITE, mundo.ZONA_SEGURA_SPAWN, charcos)
 rocas = mundo.generar_rocas(list(charcos) + veg.arbustos + veg.arboles)
 veg.registrar_obstaculos(rocas)
-sf = fauna.SistemaFauna(mundo.CENTRO_MUNDO, mundo.RADIO_MUNDO, veg, charcos, rocas)
+sf = fauna.SistemaFauna(mundo.LIMITE, veg, charcos, rocas)
 lejos = pygame.Rect(-50000, -50000, 10, 10)     # vista fuera del mundo: nada se actualiza por IA
 j = jugador(); j.posicion = pygame.Vector2(-40000, -40000)
 

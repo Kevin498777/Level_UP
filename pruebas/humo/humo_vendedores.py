@@ -77,7 +77,7 @@ def eventos():
         log["dentro_inicio"] = mundo.Casa  # noqa (solo para comprobar que existe)
         j.destino = j.posicion + pygame.Vector2(0, 400)          # salir por la puerta
     if f == 150:
-        log["salio"] = j.posicion.y - 10000
+        log["salio"] = j.posicion.y - mundo.CENTRO_MUNDO.y
         j.monedas = 3000
         v = sv.vendedores[0]
         j.destino = pygame.Vector2(j.posicion)                    # quieto

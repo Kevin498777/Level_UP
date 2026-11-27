@@ -245,47 +245,44 @@ class Vendedor:
 
 
 class SistemaVendedores:
-    def __init__(self, centro_mundo, radio_mundo, casa, charcos, jugador, rng=random):
-        self.centro = pygame.Vector2(centro_mundo)
-        self.radio_mundo = radio_mundo
+    def __init__(self, limite, casa, charcos, jugador, rng=random):
+        self.limite = limite                 # cuadrado del mapa (limite_mundo.LimiteMundo)
+        self.centro = pygame.Vector2(limite.centro)
         self.casa = casa
         self.charcos = charcos
         self.pos_jugador = pygame.Vector2(jugador.posicion)
-        self._xp = 0
-        self._monedas = 0
+        self._muertos = []              # muertos desde la ultima recompensa (se decide al cobrarla)
         self.vendedores = [Vendedor(self, jugador, rng) for _ in range(VENDEDORES)]
 
     def punto_al_azar(self, rng, cerca_de=None):
         """Punto en tierra, lejos del spawn y del borde (cerca de 'cerca_de' si se da)."""
         for _ in range(60):
             if cerca_de is None:
-                ang = rng.uniform(0, math.tau)
-                dist = rng.uniform(DISTANCIA_MIN_CENTRO, self.radio_mundo - MARGEN_BORDE)
-                p = self.centro + pygame.Vector2(math.cos(ang), math.sin(ang)) * dist
+                p = self.limite.punto_al_azar(MARGEN_BORDE, rng)
             else:
                 p = cerca_de + pygame.Vector2(rng.uniform(-ALCANCE_PASEO, ALCANCE_PASEO),
                                               rng.uniform(-ALCANCE_PASEO, ALCANCE_PASEO))
             d = (p - self.centro).length()
-            if (DISTANCIA_MIN_CENTRO <= d <= self.radio_mundo - MARGEN_BORDE
+            if (d >= DISTANCIA_MIN_CENTRO and self.limite.dentro(p, MARGEN_BORDE)
                     and not any(c.contiene(p) for c in self.charcos)):
                 return p
         return pygame.Vector2(cerca_de) if cerca_de is not None else self.centro + pygame.Vector2(DISTANCIA_MIN_CENTRO, 0)
 
     def dentro_del_mapa(self, p):
-        d = p - self.centro
-        limite = self.radio_mundo - RADIO_VENDEDOR
-        return self.centro + d.normalize() * limite if d.length() > limite else p
+        return p if self.limite.dentro(p, RADIO_VENDEDOR) else self.limite.acotar(p, RADIO_VENDEDOR)
 
     def registrar_muerte(self, vendedor):
-        if not vendedor.muerto_por_fauna:
-            self._xp += XP_VENDEDOR
-            self._monedas += MONEDAS_VENDEDOR
+        self._muertos.append(vendedor)
 
     def tomar_recompensa(self):
-        """(XP, monedas) de los vendedores que mataste desde la ultima llamada."""
-        r = (self._xp, self._monedas)
-        self._xp = self._monedas = 0
-        return r
+        """(XP, monedas) de los vendedores que mataste desde la ultima llamada. No cuentan los que
+        mato la fauna ni los que remato un NPC (el autor se marca al terminar su turno, por eso la
+        recompensa se decide aqui y no en el momento de la muerte)."""
+        tuyos = [v for v in self._muertos if not v.muerto_por_fauna and not getattr(v, "ultimo_golpe_npc", False)]
+        for v in self._muertos:
+            v.ultimo_golpe_npc = False
+        self._muertos = []
+        return (XP_VENDEDOR * len(tuyos), MONEDAS_VENDEDOR * len(tuyos))
 
     def actualizar(self, dt, jugador):
         self.pos_jugador = pygame.Vector2(jugador.posicion)

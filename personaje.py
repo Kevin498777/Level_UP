@@ -211,6 +211,9 @@ class Personaje:
         self.dormido = None          # Palabras Malditas "Duerme": no se mueve ni actua
         self.huida = None            # Palabras Malditas "Huye": huye y no ataca
         self.mantiene_ataque = False # intencion: mantener el ataque (golpes seguidos segun la cadencia)
+        # ShadowGOD (personaje de inspeccion del mapa): no recibe dano, nadie lo detecta, lo
+        # atraviesa todo y se teletransporta al punto marcado (mover_a)
+        self.inspector = False
         self.ralentizacion = 0.0     # Debuff de velocidad recibido (ej. Onda Sonora), 0.20 = -20%
         self.tiempo_ralentizacion = 0.0
         self.masa = MASA_PERSONAJE   # Al separar cuerpos solapados, las invocaciones le ceden el paso
@@ -595,7 +598,13 @@ class Personaje:
     # ---------------------------------------------------------------- Intenciones (Fase 1 NPC)
     # El jugador las genera con el teclado y el raton (mundo.py); un bot las generara con su
     # inteligencia. Un personaje controlado (dormido, asustado, inmovilizado) no ataca.
-    def mover_a(self, punto):
+    def mover_a(self, punto, limite=None):
+        if self.inspector:                       # ShadowGOD: teletransporte instantaneo
+            p = limite.acotar(punto, self.radio) if limite is not None else pygame.Vector2(punto)
+            self.posicion = pygame.Vector2(p)
+            self.destino = pygame.Vector2(p)
+            self.empuje.update(0, 0)
+            return
         if self.puede_moverse:
             self.destino = pygame.Vector2(punto)
 
@@ -663,7 +672,7 @@ class Personaje:
     def detectable(self):
         """Los enemigos no detectan al personaje oculto en un arbusto ni invisible (no lo miran
         ni inician ataques contra él), aunque lo que lo toque sí le hace daño."""
-        return not (self.oculto or self.invisible)
+        return not (self.oculto or self.invisible or self.inspector)
 
     def agregar_efecto(self, efecto):
         """Añade un efecto temporal ya activado; si hay otro con el mismo nombre, lo reemplaza."""
@@ -894,11 +903,11 @@ class Personaje:
         # Velocidad final con umbral mínimo seguro
         self.velocidad = max(0.4, round(self.velocidad_base * (1.0 + modificador), 2))
 
-    def mover(self, limites_mundo, centro_mundo=None, radio_mundo=None, obstaculos=None, obstaculos_circulares=None):
+    def mover(self, limites_mundo, limite=None, obstaculos=None, obstaculos_circulares=None):
         """
         Mueve al personaje hacia el destino, rota su orientación y actualiza su hitbox.
         - limites_mundo: rectángulo (min_x, min_y, max_x, max_y) de seguridad.
-        - centro_mundo / radio_mundo: límite circular del mapa (opcional).
+        - limite: el cuadrado del mapa (limite_mundo.LimiteMundo, opcional).
         - obstaculos: lista de rocas (pygame.Rect en .rect) que no se pueden atravesar.
         - obstaculos_circulares: lista de (centro, radio) sólidos, ej. arbustos demasiado pequeños para entrar.
         """
@@ -960,12 +969,9 @@ class Personaje:
         self.posicion.x = max(min_x + self.radio, min(self.posicion.x, max_x - self.radio))
         self.posicion.y = max(min_y + self.radio, min(self.posicion.y, max_y - self.radio))
 
-        # Límite circular del mapa: no puede salir del círculo
-        if centro_mundo is not None and radio_mundo is not None:
-            desde_centro = self.posicion - centro_mundo
-            limite = radio_mundo - self.radio
-            if desde_centro.length() > limite:
-                self.posicion = centro_mundo + desde_centro.normalize() * limite
+        # Límite del mapa: no puede salir del cuadrado
+        if limite is not None and not limite.dentro(self.posicion, self.radio):
+            self.posicion = limite.acotar(self.posicion, self.radio)
 
         # Si quedó bloqueado (destino dentro de una roca o fuera del círculo), detenerse
         if self.esta_en_movimiento() and (self.posicion - posicion_previa).length() < 0.05:
@@ -1002,7 +1008,7 @@ class Personaje:
 
     def aplicar_empuje(self, direccion, puntos):
         """Añade retroceso: 'puntos' de empuje en la dirección indicada (alejándose del atacante)."""
-        if puntos <= 0 or self.cuerpo_de_niebla:
+        if puntos <= 0 or self.cuerpo_de_niebla or self.inspector:
             return
         d = pygame.Vector2(direccion)
         if d.length_squared() == 0:
@@ -1013,7 +1019,7 @@ class Personaje:
     def invulnerable(self):
         """True durante INVULNERABILIDAD_TRAS_GOLPE s despues de recibir un golpe. Solo protege
         de golpes (fauna, espada del maniqui); efectos, ondas y terreno siguen haciendo dano."""
-        return self.t_invulnerable > 0
+        return self.t_invulnerable > 0 or self.inspector
 
     def marcar_golpe(self):
         """Lo llaman los ataques que golpean al personaje: empieza la invulnerabilidad breve."""
@@ -1027,7 +1033,7 @@ class Personaje:
         if self.t_invulnerable > 0:
             self.t_invulnerable = max(0.0, self.t_invulnerable - dt)
 
-    def actualizar_empuje(self, dt, centro_mundo=None, radio_mundo=None):
+    def actualizar_empuje(self, dt, limite=None):
         """Aplica progresivamente el retroceso acumulado (con decaimiento) y respeta el límite del mundo."""
         if self.empuje.length_squared() < 0.25:
             self.empuje.update(0, 0)
@@ -1036,11 +1042,8 @@ class Personaje:
         self.posicion += paso
         self.empuje -= paso
 
-        if centro_mundo is not None and radio_mundo is not None:
-            desde_centro = self.posicion - centro_mundo
-            limite = radio_mundo - self.radio
-            if desde_centro.length() > limite:
-                self.posicion = centro_mundo + desde_centro.normalize() * limite
+        if limite is not None and not limite.dentro(self.posicion, self.radio):
+            self.posicion = limite.acotar(self.posicion, self.radio)
 
         self.hitbox.x = round(self.posicion.x - self.radio)
         self.hitbox.y = round(self.posicion.y - self.radio)
@@ -1057,6 +1060,8 @@ class Personaje:
         pasa también a la vida. Por cada punto de daño aplicado se genera 1 punto de
         empuje (retroceso); 'direccion_empuje' va del atacante hacia este personaje.
         """
+        if self.inspector:
+            return 0.0                   # ShadowGOD no recibe dano
         cantidad = max(0.0, float(cantidad))
         if cantidad <= 0:
             return 0.0

@@ -41,7 +41,7 @@ for l in bloque:
     exec(l, ns)
 veg, charcos, rocas = ns["vegetacion"], ns["charcos"], ns["rocas"]
 veg.registrar_obstaculos(rocas)
-sf = fauna.SistemaFauna(mundo.CENTRO_MUNDO, mundo.RADIO_MUNDO, veg, charcos, rocas)
+sf = fauna.SistemaFauna(mundo.LIMITE, veg, charcos, rocas)
 
 # 1. Pasto (incluido el alto de fauna) fuera de los lagos
 en_agua = sum(1 for g in veg.pasto if veg._en_agua(g.centro.x, g.centro.y, 0))

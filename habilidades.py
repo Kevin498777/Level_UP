@@ -971,7 +971,7 @@ class CuchillaCortante:
         if self.objetos_cortados >= self.max_objetos:
             self._romper()
 
-    def avanzar(self, rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo):
+    def avanzar(self, rocas, arbustos, arboles, enemigos, limite):
         """Mueve la cuchilla un frame. Las rocas, arbustos y arboles destruidos se quitan de sus
         listas. Devuelve la lista de obstaculos destruidos para liberar su zona en la vegetacion."""
         destruidos = []
@@ -1024,7 +1024,7 @@ class CuchillaCortante:
             if self.alcance is not None and self.recorrido >= self.alcance:
                 self._romper()
                 return destruidos
-            if (self.posicion - centro_mundo).length() > radio_mundo:
+            if not limite.dentro(self.posicion):
                 self.activo = False
                 return destruidos
         return destruidos
@@ -1147,12 +1147,12 @@ class Cortar(HabilidadBase):
         self.tiempo_restante_activo = 0.0
         self.tiempo_restante_cooldown = self.duracion_cooldown
 
-    def actualizar_cuchillas(self, rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo):
+    def actualizar_cuchillas(self, rocas, arbustos, arboles, enemigos, limite):
         """Mueve las cuchillas. Devuelve los obstaculos (rocas, arbustos, arboles) destruidos
         en este frame."""
         destruidas = []
         for c in self.cuchillas:
-            destruidas.extend(c.avanzar(rocas, arbustos, arboles, enemigos, centro_mundo, radio_mundo))
+            destruidas.extend(c.avanzar(rocas, arbustos, arboles, enemigos, limite))
         self.cuchillas = [c for c in self.cuchillas if c.activo]
         return destruidas
 

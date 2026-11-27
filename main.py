@@ -110,6 +110,9 @@ def generar_estadisticas():
 # PERSONAJE DE PRUEBAS (NOMBRE CLAVE)
 # -----------------------------
 NOMBRE_CLAVE_PRUEBAS = "shadow498"
+# ShadowGOD: personaje de inspeccion del mapa (no recibe dano, invisible, lo atraviesa todo, se
+# teletransporta al clic, acerca/aleja la vista y muestra las capas del mapa). Ver mundo.py.
+NOMBRE_INSPECTOR = "shadowgod"
 
 # shadow498 empieza con las estadisticas NORMALES de cualquier jugador (generar_estadisticas);
 # sus ventajas de prueba son opcionales y se eligen con las casillas de "Opciones de pruebas":
@@ -515,7 +518,8 @@ def construir_interfaz(ventana, ancho, alto, al_comenzar=None):
             # Opciones del personaje de pruebas: solo valen si el nombre es el nombre clave
             "puntos_extra": bool(opt_puntos_var.get()) and (nombre.lower() == NOMBRE_CLAVE_PRUEBAS),
             "dar_todo": bool(opt_inventario_var.get()) and (nombre.lower() == NOMBRE_CLAVE_PRUEBAS),
-            "es_pruebas": (nombre.lower() == NOMBRE_CLAVE_PRUEBAS)
+            "es_pruebas": (nombre.lower() == NOMBRE_CLAVE_PRUEBAS),
+            "inspector": (nombre.strip().lower() == NOMBRE_INSPECTOR)
         }
 
     def al_comenzar_mundo():

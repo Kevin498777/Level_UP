@@ -23,14 +23,15 @@ def check(cond, msg):
 def generar(seed):
     random.seed(seed)
     ch = mundo.generar_charcos()
-    veg = V.SistemaVegetacion(mundo.CENTRO_MUNDO, mundo.RADIO_MUNDO, mundo.ZONA_SEGURA_SPAWN, ch)
+    veg = V.SistemaVegetacion(mundo.LIMITE, mundo.ZONA_SEGURA_SPAWN, ch)
     rocas = mundo.generar_rocas(list(ch) + veg.arbustos + veg.arboles)
     veg.registrar_obstaculos(rocas)
     return ch, veg, rocas
 
 # 1. Escalado de rocas y lagos con el area
-check(mundo.ESCALA_AREA_MUNDO == 4.0, "escala de area = 4 (radio 10000 vs 5000)")
-check((mundo.MIN_ROCAS, mundo.MAX_ROCAS) == (600, 1200), f"rocas 600-1200 -> {mundo.MIN_ROCAS}-{mundo.MAX_ROCAS}")
+# Cuadrado de 17 700 px: casi la misma superficie que el circulo de radio 10 000 (escala 4)
+check(abs(mundo.ESCALA_AREA_MUNDO - 4.0) < 0.02, "escala de area ~4 (cuadrado de 17 700 frente a circulo de radio 5000): %.3f" % mundo.ESCALA_AREA_MUNDO)
+check(abs(mundo.MIN_ROCAS - 600) <= 3 and abs(mundo.MAX_ROCAS - 1200) <= 5, f"rocas ~600-1200 -> {mundo.MIN_ROCAS}-{mundo.MAX_ROCAS}")
 check((mundo.MIN_CHARCOS, mundo.MAX_CHARCOS) == (24, 40), f"lagos 24-40 -> {mundo.MIN_CHARCOS}-{mundo.MAX_CHARCOS}")
 
 for seed in range(5):
@@ -43,7 +44,7 @@ for seed in range(5):
     check(mundo.MIN_ROCAS <= len(rocas) <= mundo.MAX_ROCAS, f"[{seed}] rocas en rango")
     check(dt < 3.0, f"[{seed}] generacion rapida (<3 s)")
     # Lagos y rocas dentro del mundo
-    check(all((c.centro - mundo.CENTRO_MUNDO).length() + c.radio <= mundo.RADIO_MUNDO for c in ch), f"[{seed}] lagos dentro del mapa")
+    check(all(mundo.LIMITE.dentro(c.centro, c.radio) for c in ch), f"[{seed}] lagos dentro del mapa")
     check(not any(r.rect.colliderect(c.rect) for r in rocas for c in ch), f"[{seed}] ninguna roca sobre un lago")
 
     # 2. Pasto y flores: ni en lagos (incl. barro) ni debajo de rocas
@@ -88,7 +89,7 @@ check(sum(1 for l in veg.rejilla.celdas.values() if any(c is arb.caja_rejilla fo
 def lanzar_contra(obj_centro, rocas_, arbustos_, arboles_, corta_grandes=True):
     c = H.CuchillaCortante(obj_centro.x - 200, obj_centro.y, 1, 0, 12, 10, corta_grandes)
     for _ in range(200):
-        r = c.avanzar(rocas_, arbustos_, arboles_, [], mundo.CENTRO_MUNDO, mundo.RADIO_MUNDO)
+        r = c.avanzar(rocas_, arbustos_, arboles_, [], mundo.LIMITE)
         if not c.activo:
             return r
     return "sin_golpe"

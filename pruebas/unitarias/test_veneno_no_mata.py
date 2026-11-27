@@ -7,6 +7,7 @@ PROY = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 sys.path.insert(0, PROY); os.chdir(PROY)
 import pygame
+from limite_mundo import LimiteMundo
 pygame.init()
 import habilidades as H
 import herramientas
@@ -59,7 +60,7 @@ comprobar(m.vida <= 0 or not m.vivo, "el veneno sigue pudiendo matar a los enemi
 
 # Hierba venenosa (arbusto venenoso): tampoco mata
 import vegetacion as V
-veg = V.SistemaVegetacion(pygame.Vector2(5000, 5000), 3000, 300, [])
+veg = V.SistemaVegetacion(LimiteMundo(6000, centro=(5000, 5000)), 300, [])
 venenoso = next(a for a in veg.arbustos if a.tipo == V.TIPO_VENENOSO and a.puede_entrar(jugador()))
 j = jugador(3)
 j.posicion = pygame.Vector2(venenoso.centro)

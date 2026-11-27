@@ -16,6 +16,6 @@ Las reglas de desarrollo se mantienen en la raíz: `../reglas.md`.
 | `Cambios_2026-11-24.md` | Reporte de los cambios del 24/11/2026 (balance, combate, Gacha, nivel 40 y 5 habilidades potenciadas) con una lista de verificación manual. |
 | `Notas_Futuras.md` | Ideas y notas sueltas para el diseño futuro (aún no implementadas). |
 | `Medidas_PixelArt.md` | Medidas (tamaño en juego y lienzo recomendado) de cada objeto que puede llevar un dibujo en pixel art: personajes, armas, proyectiles, auras, terreno e interfaz. |
-| `Plan_Personajes_NPC.md` | Plan por fases (Fase 0 hecha el 27/11/2026: pruebas en `pruebas/`, medidor de rendimiento y semilla fija del terreno; Fase 1 hecha el 27/11/2026: todo personaje es un combatiente) para añadir personajes NPC de varias razas: combate general, rendimiento, inteligencia y navegación, odio entre razas, cada raza, pruebas automáticas y manuales, presupuesto de rendimiento y preguntas abiertas. |
+| `Plan_Personajes_NPC.md` | Plan por fases (Fase 0 hecha el 27/11/2026: pruebas en `pruebas/`, medidor de rendimiento y semilla fija del terreno; Fase 1 hecha el 27/11/2026: todo personaje es un combatiente; Fase 2 en curso: mapa cuadrado fijo en `mapas/`, validador, vista previa y ShadowGOD) para añadir personajes NPC de varias razas: combate general, rendimiento, inteligencia y navegación, odio entre razas, cada raza, pruebas automáticas y manuales, presupuesto de rendimiento y preguntas abiertas. |
 
 Cualquier documento nuevo de información del proyecto debe guardarse aquí.

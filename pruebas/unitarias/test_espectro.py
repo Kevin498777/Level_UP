@@ -11,6 +11,7 @@ import os
 import sys
 sys.path.insert(0, os.getcwd())
 import pygame
+from limite_mundo import LimiteMundo
 pygame.init()
 
 from personaje import Personaje
@@ -167,22 +168,22 @@ centro = pygame.Vector2(0, 0)
 j = nuevo_jugador([])
 j.posicion = pygame.Vector2(5, 5)
 roca = mundo.Roca(0, 0, 200)
-movido = mundo.sacar_a_hueco_libre(j, [roca], [], [], centro, 10000)
+movido = mundo.sacar_a_hueco_libre(j, [roca], [], [], LimiteMundo(20000, centro=centro))
 comprobar(movido and not mundo.rect_circulo_colisionan(roca.rect, j.posicion, j.radio)
           and (j.posicion - pygame.Vector2(5, 5)).length() < 100 + j.radio + mundo.PASO_BUSQUEDA_HUECO * 2,
           f"dentro de una roca gigante -> sale al borde mas cercano ({j.posicion.x:.0f}, {j.posicion.y:.0f})")
 j.posicion = pygame.Vector2(300, 300)
-comprobar(not mundo.sacar_a_hueco_libre(j, [roca], [], [], centro, 10000), "en un hueco libre no se mueve")
+comprobar(not mundo.sacar_a_hueco_libre(j, [roca], [], [], LimiteMundo(20000, centro=centro)), "en un hueco libre no se mueve")
 otro = Enemigo()
 otro.posicion = pygame.Vector2(300, 300)
 otro.radio = 30
 tronco = (pygame.Vector2(340, 300), 20)
-mundo.sacar_a_hueco_libre(j, [roca], [tronco], [otro], centro, 10000)
-comprobar(mundo.punto_libre(j.posicion, j.radio, [roca], [tronco], [otro], centro, 10000),
+mundo.sacar_a_hueco_libre(j, [roca], [tronco], [otro], LimiteMundo(20000, centro=centro))
+comprobar(mundo.punto_libre(j.posicion, j.radio, [roca], [tronco], [otro], LimiteMundo(20000, centro=centro)),
           "dentro de un animal junto a un tronco -> sale a un punto sin nada")
 j.posicion = pygame.Vector2(9995, 0)
-mundo.sacar_a_hueco_libre(j, [], [], [], centro, 10000)
-comprobar(j.posicion.length() <= 10000 - j.radio + 0.01, "nunca queda fuera del mapa")
+mundo.sacar_a_hueco_libre(j, [], [], [], LimiteMundo(20000, centro=centro))
+comprobar(LimiteMundo(20000, centro=centro).dentro(j.posicion, j.radio - 0.01), "nunca queda fuera del mapa (cuadrado)")
 
 # 11. Golpe de Suerte: el Paso 0 otorgado tambien se cancela al atacar
 g = GolpeDeSuerte()

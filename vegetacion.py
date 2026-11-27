@@ -17,6 +17,8 @@ Estando dentro no se le ve desde afuera (`personaje.oculto`) y él ve el mapa m�
 import math
 import random
 import pygame
+from diseno_mapa import Diseno
+from limite_mundo import BORDE_LIBRE
 
 # -----------------------------
 # CONFIGURACIÓN
@@ -190,10 +192,6 @@ class Arbusto:
 # -----------------------------
 CELDA_REJILLA = 256            # Tamanio de celda para la rejilla espacial de colocacion
 
-NUM_BOSQUES_MIN = 10
-NUM_BOSQUES_MAX = 16
-BOSQUE_RADIO_MIN = 500
-BOSQUE_RADIO_MAX = 1600
 PROB_ARBUSTO_EN_BOSQUE = 0.70  # sesgo de los arbustos hacia los bosques
 
 TIPOS_ARBOL = ["frondoso", "pino", "seco"]
@@ -203,8 +201,6 @@ ARBOL_ESCALA_MAX = 1.9
 ARBOL_COPA_BASE = 34           # radio de la copa a escala 1 (solo visual)
 ARBOL_TRONCO_BASE = 7          # radio del tronco (solido) a escala 1
 ARBOL_ESPACIADO = 110          # separacion objetivo entre arboles de un bosque
-DENSIDAD_BOSQUE = 0.22         # fraccion del area del bosque que se llena de arboles
-ARBOL_SOLITARIO_CADA = 500     # 1 arbol solitario por cada N px de radio del mundo
 
 COLOR_SOMBRA_ARBOL = (20, 23, 29)
 COLOR_TRONCO = (92, 66, 44)
@@ -367,10 +363,6 @@ class Arbol:
 # -----------------------------
 ALFA_COPA_DESVANECIDA = 95     # Alfa de la copa de un arbol con una entidad debajo
 
-NUM_PRADERAS_MIN = 8
-NUM_PRADERAS_MAX = 14
-PRADERA_RADIO_MIN = 600
-PRADERA_RADIO_MAX = 1800
 
 PASTO_ESPACIADO = 90
 DENSIDAD_PRADERA_PASTO = 0.25
@@ -380,8 +372,6 @@ PASTO_ALTURA_MAX = 22
 PASTO_ESCALA_MIN = 0.8
 PASTO_ESCALA_MAX = 1.4
 # Bioma de pasto alto: zonas visuales de hierba mas alta (bajo las entidades, no tapan al jugador)
-NUM_PASTIZALES_MIN = 8
-NUM_PASTIZALES_MAX = 12
 PASTIZAL_RADIO_MIN = 300
 PASTIZAL_RADIO_MAX = 700
 PASTO_ALTO_ESCALA_MIN = 1.8
@@ -404,6 +394,7 @@ class Pasto:
     al personaje) y no tiene colision."""
     def __init__(self, x, y, escala):
         self.centro = pygame.Vector2(x, y)
+        self.escala = escala          # se guarda en el mapa
         alto = random.randint(PASTO_ALTURA_MIN, PASTO_ALTURA_MAX) * escala
         self.briznas = []
         for _ in range(random.randint(3, 5)):
@@ -445,10 +436,16 @@ class Flor:
 # SISTEMA DE VEGETACIÓN
 # -----------------------------
 class SistemaVegetacion:
-    def __init__(self, centro_mundo, radio_mundo, zona_segura, zonas_ocupadas=()):
-        self.centro_mundo = pygame.Vector2(centro_mundo)
-        self.radio_mundo = radio_mundo
+    """Vegetacion del mundo. 'limite' es el cuadrado del mapa (limite_mundo.LimiteMundo) y
+    'diseno' las reglas del generador asistido (diseno_mapa; por defecto, todo al azar). Con
+    generar=False queda vacia: el mapa guardado la rellena (mapa.cargar)."""
+    def __init__(self, limite, zona_segura, zonas_ocupadas=(), diseno=None, generar=True):
+        self.limite = limite
+        self.centro_mundo = pygame.Vector2(limite.centro)
         self.zona_segura = zona_segura
+        self.diseno = diseno if diseno is not None else Diseno()
+        self.zonas_libres = self.diseno.zonas_libres_abs(limite)    # p. ej. la zona del guardian
+        self.densidad_bosques = []      # densidad de arboles de cada bosque (mismo orden que bosques)
         zonas_ocupadas = list(zonas_ocupadas)   # charcos u otros objetos con .rect
         # Lagos (objetos con .circulos): el pasto y las flores no crecen dentro
         self.charcos = [z for z in zonas_ocupadas if hasattr(z, "circulos")]
@@ -466,6 +463,8 @@ class SistemaVegetacion:
             self.rejilla.agregar(z.rect)
         self._idx_pasto = None      # indices de dibujo (se construyen perezosamente)
         self._idx_flores = None
+        if not generar:
+            return
 
         # Biomas: bosques (arboles) y praderas (pasto/flores), luego arbustos
         self._generar_bosques()
@@ -486,10 +485,15 @@ class SistemaVegetacion:
             for _ in range(random.randint(1, 3)):
                 self._crear_matorral()
 
-    def registrar_obstaculos(self, objetos):
+    def registrar_obstaculos(self, objetos, quitar_cobertura=True):
         """Añade a la rejilla obstáculos generados después (ej. rocas) para que los frutales
-        que reaparecen no caigan encima, y quita el pasto/flores que quedaron debajo."""
+        que reaparecen no caigan encima, y quita el pasto/flores que quedaron debajo (al cargar un
+        mapa guardado no hace falta: ya se guardo sin ellos)."""
         objetos = list(objetos)
+        if not quitar_cobertura:
+            for o in objetos:
+                self.rejilla.agregar(o.rect)
+            return
         tapados = RejillaEspacial(CELDA_REJILLA)
         for o in objetos:
             self.rejilla.agregar(o.rect)
@@ -546,12 +550,9 @@ class SistemaVegetacion:
         cantidad = random.randint(MATORRAL_MIN_ARBUSTOS, MATORRAL_MAX_ARBUSTOS)
         radio_cluster = random.randint(80, 160)
         for _ in range(intentos):
-            ang = random.uniform(0, math.tau)
-            dist = math.sqrt(random.random()) * (self.radio_mundo - radio_cluster - 20)
-            if dist - radio_cluster < self.zona_segura:
+            cx, cy = self.diseno.punto(self.limite, "arbusto", radio_cluster)
+            if not self._dentro_del_mapa(cx, cy, radio_cluster):
                 continue
-            cx = self.centro_mundo.x + math.cos(ang) * dist
-            cy = self.centro_mundo.y + math.sin(ang) * dist
 
             caja = pygame.Rect(0, 0, radio_cluster * 2 + 40, radio_cluster * 2 + 40)
             caja.center = (round(cx), round(cy))
@@ -573,19 +574,19 @@ class SistemaVegetacion:
 
     # ---- Biomas (bosques) y arboles --------------------------------------
     def _generar_bosques(self):
-        n = random.randint(NUM_BOSQUES_MIN, NUM_BOSQUES_MAX)
-        for _ in range(n):
-            ang = random.uniform(0, math.tau)
-            dist = math.sqrt(random.random()) * (self.radio_mundo * 0.9)
-            cx = self.centro_mundo.x + math.cos(ang) * dist
-            cy = self.centro_mundo.y + math.sin(ang) * dist
-            radio = random.randint(BOSQUE_RADIO_MIN, BOSQUE_RADIO_MAX)
-            self.bosques.append((pygame.Vector2(cx, cy), radio))
+        """Bosques fijos del diseno (p. ej. el gran bosque del sur) y bosques repartidos."""
+        d = self.diseno
+        for u, v, radio, densidad, _nombre in d.bosques_fijos:
+            self.bosques.append((d.absoluto(self.limite, u, v), radio))
+            self.densidad_bosques.append(densidad)
+        for _ in range(random.randint(*d.bosques)):
+            radio = random.randint(*d.bosque_radio)
+            self.bosques.append((d.punto(self.limite, "bosque", radio * 0.5), radio))
+            self.densidad_bosques.append(d.densidad_bosque)
 
-    def _punto_en_mundo(self, margen):
-        ang = random.uniform(0, math.tau)
-        dist = math.sqrt(random.random()) * max(0.0, self.radio_mundo - margen - 20)
-        return self.centro_mundo.x + math.cos(ang) * dist, self.centro_mundo.y + math.sin(ang) * dist
+    def _punto_en_mundo(self, margen, clave="arbusto"):
+        p = self.diseno.punto(self.limite, clave, margen + BORDE_LIBRE)
+        return p.x, p.y
 
     def _punto_en_bosque(self, bosque):
         centro, radio = bosque
@@ -594,16 +595,22 @@ class SistemaVegetacion:
         return centro.x + math.cos(ang) * dist, centro.y + math.sin(ang) * dist
 
     def _dentro_del_mapa(self, x, y, margen):
-        d = (pygame.Vector2(x, y) - self.centro_mundo).length()
-        return d - margen >= self.zona_segura and d + margen <= self.radio_mundo - 20
+        """Dentro del cuadrado (sin acercarse a menos de BORDE_LIBRE del borde), fuera del jardin
+        de la casa y fuera de las zonas despejadas del diseno (zona del guardian)."""
+        p = pygame.Vector2(x, y)
+        if (p - self.centro_mundo).length() - margen < self.zona_segura:
+            return False
+        if not self.limite.dentro(p, margen + BORDE_LIBRE):
+            return False
+        return all((p - c).length() - margen >= r for c, r in self.zonas_libres)
 
     def _generar_arboles(self):
         # Arboles densos dentro de cada bosque + algunos solitarios por el mundo
-        for centro, radio in self.bosques:
-            n = int(math.pi * radio * radio / (ARBOL_ESPACIADO ** 2) * DENSIDAD_BOSQUE)
+        for (centro, radio), densidad in zip(self.bosques, self.densidad_bosques):
+            n = int(math.pi * radio * radio / (ARBOL_ESPACIADO ** 2) * densidad)
             for _ in range(n):
                 self._crear_arbol(zona=(centro, radio))
-        for _ in range(int(self.radio_mundo / ARBOL_SOLITARIO_CADA)):
+        for _ in range(self.diseno.arboles_solitarios):
             self._crear_arbol()
 
     def _crear_arbol(self, zona=None, intentos=14):
@@ -615,7 +622,7 @@ class SistemaVegetacion:
             if zona is not None:
                 x, y = self._punto_en_bosque(zona)
             else:
-                x, y = self._punto_en_mundo(radio_copa)
+                x, y = self._punto_en_mundo(radio_copa, "arbol")
             if not self._dentro_del_mapa(x, y, radio_copa):
                 continue
             # Solo reservamos el TRONCO (solido): las copas pueden solaparse (bosque tupido)
@@ -645,14 +652,10 @@ class SistemaVegetacion:
 
     # ---- Praderas: pasto y flores (cobertura decorativa) -----------------
     def _generar_praderas(self):
-        n = random.randint(NUM_PRADERAS_MIN, NUM_PRADERAS_MAX)
-        for _ in range(n):
-            ang = random.uniform(0, math.tau)
-            dist = math.sqrt(random.random()) * (self.radio_mundo * 0.92)
-            cx = self.centro_mundo.x + math.cos(ang) * dist
-            cy = self.centro_mundo.y + math.sin(ang) * dist
-            radio = random.randint(PRADERA_RADIO_MIN, PRADERA_RADIO_MAX)
-            self.praderas.append((pygame.Vector2(cx, cy), radio))
+        d = self.diseno
+        for _ in range(random.randint(*d.praderas)):
+            radio = random.randint(*d.pradera_radio)
+            self.praderas.append((d.punto(self.limite, "pradera", radio * 0.4), radio))
 
     def _soltar_pasto(self, zona):
         x, y = self._punto_en_bosque(zona)   # punto aleatorio dentro de la zona
@@ -670,14 +673,10 @@ class SistemaVegetacion:
                 self._soltar_pasto((centro, radio))
 
     def _generar_pastizales(self):
-        n = random.randint(NUM_PASTIZALES_MIN, NUM_PASTIZALES_MAX)
-        for _ in range(n):
-            ang = random.uniform(0, math.tau)
-            dist = math.sqrt(random.random()) * (self.radio_mundo * 0.9)
-            cx = self.centro_mundo.x + math.cos(ang) * dist
-            cy = self.centro_mundo.y + math.sin(ang) * dist
+        d = self.diseno
+        for _ in range(random.randint(*d.pastizales)):
             radio = random.randint(PASTIZAL_RADIO_MIN, PASTIZAL_RADIO_MAX)
-            self.pastizales.append((pygame.Vector2(cx, cy), radio))
+            self.pastizales.append((d.punto(self.limite, "pastizal", radio), radio))
 
     def _generar_pasto_alto(self):
         for centro, radio in self.pastizales:

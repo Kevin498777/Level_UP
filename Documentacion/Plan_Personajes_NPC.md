@@ -1,6 +1,6 @@
 # Plan por fases — Personajes NPC (razas) en el mundo
 
-Documento de planificación (26/11/2026; añadida la Fase 2 del mundo fijo, cuadrado de 17 700 px y el personaje de inspección ShadowGOD). **Estado: Fase 0 terminada y comprobada (27/11/2026); Fase 1 hecha por Claude el 27/11/2026, pendiente de tu comprobación**; el resto aún no está implementado. Describe cómo añadir al mundo personajes controlados por la máquina (humanos, semihumanos, elfos, enanos y el guardián) que suben de nivel, usan armas y habilidades y pelean entre ellos, con la fauna y con el jugador, **sin romper lo que ya funciona y sin hundir el rendimiento**.
+Documento de planificación (26/11/2026; añadida la Fase 2 del mundo fijo, cuadrado de 17 700 px y el personaje de inspección ShadowGOD). **Estado: Fases 0 y 1 terminadas y comprobadas (27/11/2026); Fase 2 en curso: versión 1 del mapa y ShadowGOD hechos, pendientes de tus indicaciones**; el resto aún no está implementado. Describe cómo añadir al mundo personajes controlados por la máquina (humanos, semihumanos, elfos, enanos y el guardián) que suben de nivel, usan armas y habilidades y pelean entre ellos, con la fauna y con el jugador, **sin romper lo que ya funciona y sin hundir el rendimiento**.
 
 Cada fase se entrega por separado, con sus pruebas automáticas (las hace Claude), su lista de comprobación manual (la haces tú jugando), su medición de rendimiento y su commit. No se empieza una fase hasta que la anterior esté probada por los dos.
 
@@ -127,7 +127,8 @@ Sin NPC: **±0.5 ms** respecto a la línea base en todos los escenarios.
 - **Pruebas nuevas:** `test_combatientes.py` (un combatiente golpea al jugador con cada arma y le lanza las habilidades de daño; terreno; fauna; muerte), `humo_combatiente.py` (un bandido en el bucle real pelea con el jugador y muere), `test_veneno_no_mata.py`, y la del Autoapuntado completa pasa (`humo_autoapuntado_total.py`).
 - **Fallos encontrados por el camino y corregidos:** (1) volver al menú y empezar otra partida con Palabras Malditas cerraba el juego al abrir la ruleta (fuente caducada); (2) el combustible de Desmantelar pegado a un personaje habría borrado el suyo propio (ahora `combustible_pegado`).
 - **Rendimiento (sin NPC):** entre −3 % y +5 % respecto a la línea base en tres mediciones, lo mismo que el ruido entre ejecuciones de este equipo; el código nuevo por fotograma cuesta microsegundos.
-- **Pendiente para fases siguientes:** la XP y las monedas de lo que mata un NPC aún se las lleva el jugador (Anexo C, pregunta 6); un NPC con Cuerpo de niebla ya sale al hueco libre como el jugador, pero los NPC todavía no tienen inteligencia (Fase 4).
+- **Recompensas (tu respuesta del 27/11):** lo que remata un NPC (animales y vendedores) **no** te da XP ni monedas: cuenta quién dio el último golpe (`ultimo_golpe_npc`); lo prueba `test_combatientes.py`.
+- **Pendiente para fases siguientes:** un NPC con Cuerpo de niebla ya sale al hueco libre como el jugador, pero los NPC todavía no tienen inteligencia (Fase 4).
 
 ---
 
@@ -153,7 +154,7 @@ Sin NPC: **±0.5 ms** respecto a la línea base en todos los escenarios.
 1. Me das indicaciones (pueden ser generales o muy concretas, incluso un dibujo a mano alzada).
 2. Aplico los cambios, paso el validador y te envío la **vista previa** con lo que cambió.
 3. Lo pruebas jugando si hace falta (zona concreta, recorrido, sensación de tamaño).
-4. Repetimos hasta que te guste. Cada versión aprobada se guarda con su commit (`mapas/mundo.json` versionado), así siempre se puede volver a una anterior.
+4. Repetimos hasta que te guste. Cada versión aprobada se guarda con su commit (`mapas/principal.json` versionado), así siempre se puede volver a una anterior.
 
 ### Pruebas de Claude
 - **Equivalencia:** el mundo cargado del archivo es idéntico al que se guardó (posiciones, tamaños y tipos de todo).
@@ -170,6 +171,16 @@ Sin NPC: **±0.5 ms** respecto a la línea base en todos los escenarios.
 - [ ] Empezar dos partidas: el mundo es el mismo.
 
 **Terminada cuando:** apruebas un diseño, pasa el validador y el juego lo carga siempre.
+
+### Resultado (27/11/2026) — versión 1 del mapa, pendiente de tus indicaciones
+- **Mapa cuadrado de 17 700 px:** `limite_mundo.py` (`LIMITE`) es el único sitio que define la forma del mundo; movimiento, empuje, proyectiles, cuchillas, generación, fauna, vendedores, `sacar_a_hueco_libre` y el dibujo del suelo y del borde ya usan el cuadrado. Nada se genera a menos de 300 px del borde.
+- **Diseño por reglas** (`diseno_mapa.py`, `DisenoPrincipal`) con tus ideas: bosques pequeños por todas partes (34) y árboles casi por todo el mapa; un gran **bosque denso al sur** (elfos); **más praderas al este** (semihumanos); **más rocas, 7 montañas y 7 de las 12 cuevas al oeste** (enanos); **zona despejada del guardián al norte**, en el centro y junto al límite; **humanos en el norte**; lagos pequeños y **8 lagunas** (lagos grandes con zona profunda).
+- **Archivo** `mapas/principal.json` (formato v1, una línea por objeto, cada objeto con su semilla para que su forma sea siempre la misma), **cargador** en el juego (si falta o está roto, avisa y genera con la semilla fija), **rejilla de rutas** `mapas/principal_rutas.bin` y **vista previa** `mapas/principal_vista.png` con cuadrícula A–J / 1–10 para que me digas los cambios ("en C4 un lago").
+- **Validador:** pasa (12 cuevas separadas, 8 lagos profundos, 34 bosques, praderas, zona del guardián despejada, densidad máxima por pantalla 24 rocas / 75 árboles / 7 arbustos, 99,98 % de la tierra alcanzable con pasillos de 80 px desde la casa; solo quedan huecos pequeños aislados entre obstáculos, menores de 200 × 200 px). Falla con mensaje claro en mapas rotos (pocas cuevas, obstáculo junto al borde, guardián ocupado, zona encerrada, pasillo de 50 px).
+- **Herramienta:** `python -B herramientas_mapa/generar_mapa.py [nombre] [semilla]` genera, valida, guarda y dibuja la vista previa (sin ventana).
+- **ShadowGOD** (nombre `ShadowGOD` en la creación): no recibe daño, es invisible (nadie lo detecta), lo atraviesa todo, **se teletransporta al punto del clic**, acerca y aleja la vista con la **rueda del ratón**, las teclas **+ / −** o los **botones + / −** de la interfaz (8 niveles, de x1 al mapa entero), y muestra las **capas** (cuadrícula A–J / 1–10, zonas, puntos de aparición y cuevas) con **[V]** o el botón **Capas**. El zoom y las capas son solo vista (lo prueba `humo_inspector.py`). Coste de dibujo con la vista alejada: x1 ≈ 7 ms, x0.8 ≈ 13 ms, x0.6 ≈ 16 ms, x0.4 ≈ 24 ms (mundo real dibujado en un lienzo grande) y de x0.25 al mapa entero ≈ 8 ms (imagen del mapa).
+- **Pruebas nuevas:** `test_mapa.py` (equivalencia del archivo, carga más rápida que la generación, validador con mapas rotos, límite cuadrado en las cuatro esquinas, respaldo sin archivo) y `humo_inspector.py`. La huella de `humo_equivalencia.py` se volvió a guardar a propósito (el mapa es otro).
+- **Pendiente:** tus indicaciones sobre la vista previa (siguientes versiones); "lo que fijes a mano se respeta en las siguientes generaciones" aún no está hecho (hoy cada versión se genera entera con las reglas y la semilla).
 
 ---
 
@@ -389,14 +400,14 @@ Si una fase se pasa del presupuesto: primero se optimiza (rejillas, pensar menos
 3. **Humanos y enanos, potenciadas:** ¿los humanos pueden conseguir potenciadas (como el jugador, con el Gacha) o ninguna? ¿Y los enanos, que suben al 30?
 4. **Nivel máximo de los humanos:** ¿40 como el jugador?
 5. **Economía de los NPC:** ¿usan monedas, el Gacha o los vendedores? ¿Recogen cofres, frutales y orbes?
-6. **Recompensa por matar a un NPC:** ¿cuánta XP y monedas te dan (según su nivel)?
+6. **Recompensa por matar a un NPC:** ¿cuánta XP y monedas te dan (según su nivel)? *(Resuelto el 27/11: lo que mata un NPC no te da XP ni monedas. Sigue abierto cuánto te da matar a un NPC.)*
 7. **Tiempo de reaparición** de los NPC (los vendedores tardan 5 min).
 8. **¿Los NPC atacan a tus invocaciones y anillos de sombra?** ¿Y al maniquí, a los vendedores y a tu tumba?
 9. **Guardián "se defiende":** ¿cuánto tiempo te persigue después de un golpe? Con 999 de vida y escudos, ¿se puede matar (y qué da)?
 10. **Elfos ocultos:** dentro de un arbusto, ¿atacan desde ahí (emboscada) o solo se esconden para huir?
 11. **Semihumano cocodrilo:** ¿aparece cerca de lagos?
 12. **Odio "hacia semihumanos"** de elfos y enanos: ¿vale igual para los 4 tipos?
-13. **ShadowGOD:** características exactas (zoom máximo, desplazamiento rápido o teletransporte, ver zonas y puntos de aparición, ser invisible o invulnerable, mover la cámara sin el personaje…). Pendiente de que las describas (Fase 2).
+13. **ShadowGOD:** características exactas (zoom máximo, desplazamiento rápido o teletransporte, ver zonas y puntos de aparición, ser invisible o invulnerable, mover la cámara sin el personaje…). *(Resuelta el 27/11: sin daño, invisible, lo atraviesa todo, teletransporte al clic, zoom con rueda / + − / botones y capas con un botón. Hecho en la Fase 2.)*
 14. **Prueba de Autoapuntado pendiente** (`pruebas/pendientes/prueba_total_apuntado.py`), 3 casos que fallan y no sé si son fallos del juego: (a) con **Invocar Lobos**, tras soltar el autoapuntado, el clic derecho sobre el maniquí (a 280 px) no lo vuelve a fijar; (b) con **Sombra Araña**, mantener la tecla y dar la orden con clic derecho quita el autoapuntado; (c) **Arco + Golpe de Suerte** depende del azar (Golpe de Suerte puede envenenarte y matar al personaje). ¿(a) y (b) son el comportamiento que quieres? **Resuelta (27/11):** (a) los lobos habían matado al maniquí (no se puede apuntar a algo muerto); al revivir se vuelve a fijar, lo comprueba la prueba; (b) era un fallo: con la tecla de una invocación mantenida el clic derecho ya nunca cambia el Autoapuntado; (c) el veneno ya no mata a un personaje: lo deja a 1 de vida.
 
 ## Anexo D — Riesgos y cómo se controlan

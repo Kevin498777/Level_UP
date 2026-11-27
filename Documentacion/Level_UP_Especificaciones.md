@@ -8,7 +8,7 @@
 
 ## 1. Resumen general
 
-Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo circular. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
+Level_UP es un juego 2D de vista cenital en el que controlas a un personaje dentro de un mundo cuadrado. El personaje se mueve haciendo clic, explora el mapa, se enfrenta a terrenos con efectos (agua, lagos peligrosos), se esconde en la vegetación y mejora sus estadísticas, su arma y sus habilidades subiendo de nivel.
 
 Actualmente el juego cuenta con la generación completa del mundo, el sistema de movimiento y cámara, un sistema de progresión por niveles con puntos de mejora, seis armas (cinco cuerpo a cuerpo y un **Arco** a distancia) y quince habilidades, además de una interfaz con paneles de información a ambos lados de la pantalla. El **combate con armas** ya funciona: con **[Espacio]** el personaje golpea según la **cadencia** de su arma (con el Arco, mantener carga y soltar dispara una flecha). En el centro del mapa hay un **maniquí de pruebas** (versión beta de enemigo): lleva una espada, **ataca** al personaje y a sus invocaciones, y **recibe el daño de todas las habilidades con daño**, del arma y de los efectos (desangrado, quemadura, inmovilización). Además, el mundo tiene **fauna** (ver 10.2): animales ambientales, pasivos que huyen, neutrales que reaccionan si los provocas y **hostiles que te cazan** (lobos en manada, osos y cocodrilos), que son los primeros enemigos reales con IA propia. Cazar animales da **experiencia** para subir de nivel (hasta el **40**; en el 20 se habilita el Gacha mejorado) y, si mueres, **reapareces desde el nivel 1** en el mismo mundo (ver 7 y 7.1). El sistema de **puntos de empuje** (retroceso al dar o recibir daño) está activo.
 
@@ -16,8 +16,10 @@ Actualmente el juego cuenta con la generación completa del mundo, el sistema de
 
 ## 2. El mundo
 
-- **Forma y tamaño:** mapa circular de radio **10000**, rodeado por una franja oscura exterior que marca el límite.
-- **Escalado con el tamaño:** las cantidades de **rocas y lagos** se calculan a partir del área del mundo. Su densidad se define para un mundo de referencia de radio 5000 y se multiplica por (radio / 5000)²; con radio 10000 el factor es **×4**. Si el mundo vuelve a cambiar de tamaño, se ajustan solas.
+- **Forma y tamaño:** mapa **cuadrado de 17 700 × 17 700 px** (27/11/2026; la misma superficie que el antiguo círculo de radio 10 000), rodeado por una franja oscura exterior que marca el límite. Nada se genera a menos de 300 px del borde.
+- **Mapa fijo:** el mundo es siempre el mismo y se carga de `mapas/principal.json` (diseñado por reglas: bosque denso al sur, más praderas al este, montañas y cuevas al oeste, zona despejada del guardián al norte; bosques pequeños, árboles, praderas, rocas, lagos y lagunas por todo el mapa). La fauna, los cofres y el botín siguen siendo aleatorios en cada partida.
+- **ShadowGOD** (personaje de inspección, nombre clave `ShadowGOD`): no recibe daño, es invisible, lo atraviesa todo, se teletransporta al punto del clic, acerca y aleja la vista (rueda del ratón, teclas + / − o botones + / −) y muestra las capas del mapa (cuadrícula A–J / 1–10, zonas, puntos de aparición y cuevas) con [V] o el botón Capas.
+- **Escalado con el tamaño:** las cantidades de **rocas y lagos** se calculan a partir del área del mundo. Su densidad se define para un mundo de referencia (un círculo de radio 5000) y se multiplica por área del mundo / área de referencia; con el cuadrado de 17 700 px el factor es **×3,99**. Si el mundo vuelve a cambiar de tamaño, se ajustan solas.
 - **Biomas:** **bosques** (árboles densos, arbustos y pasto de sotobosque), **praderas** (pasto y flores) y **pastizales de pasto alto** (donde están las madrigueras de los conejos), repartidos por todo el mapa (ver 5).
 - **Aparición:** el personaje aparece en el centro del mapa, dentro de una zona segura de 140 px sin obstáculos.
 - **Cámara:** sigue al personaje con un movimiento suave, manteniéndolo centrado en el área de juego.
@@ -74,7 +76,7 @@ Un **40 % de probabilidad** por mundo genera entre **1 y 3 matorrales**: conjunt
 
 ### 5.4 Bosques y árboles
 
-Cada mundo tiene **10 – 16 bosques** (zonas circulares de radio 500 – 1600) donde los árboles crecen densos, más unos **20 árboles solitarios** repartidos por el mapa (en total, unos 750 – 1100 árboles).
+El mapa principal tiene **unos 34 bosques pequeños** (radio 300 – 800) más el **gran bosque del sur** (radio 2400, más denso), y **650 árboles solitarios** repartidos por casi todo el mapa (en total, unos 1800 árboles).
 
 | Tipo de árbol | Proporción | Aspecto |
 |---|---|---|

@@ -11,6 +11,8 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
                          animaciones_activas, set_animaciones_activas)
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
+from limite_mundo import LIMITE as LIMITE_MUNDO, BORDE_LIBRE
+from diseno_mapa import Diseno
 import fauna as FAUNA
 from fauna import SistemaFauna
 from spawn import Casa, RADIO_JARDIN
@@ -23,15 +25,16 @@ import gacha as GACHA
 # -----------------------------
 # CONFIGURACIÓN DEL MAPA
 # -----------------------------
-RADIO_MUNDO = 10000         # Límite circular del mapa
-MARGEN_MUNDO = 150          # Espacio extra alrededor del círculo (zona oscura fuera del mapa)
-TAMANO_MUNDO = (RADIO_MUNDO + MARGEN_MUNDO) * 2
-CENTRO_MUNDO = pygame.Vector2(RADIO_MUNDO + MARGEN_MUNDO, RADIO_MUNDO + MARGEN_MUNDO)
+# Mapa cuadrado (limite_mundo.LIMITE, Fase 2 del plan de NPC): lado 17 700 px, la misma
+# superficie que el circulo de radio 10 000 de antes, con la casa del spawn en el centro.
+LIMITE = LIMITE_MUNDO
+TAMANO_MUNDO = LIMITE.tamano
+CENTRO_MUNDO = pygame.Vector2(LIMITE.centro)
 
 # Rocas y lagos escalan con el AREA del mundo: la densidad se define para un mundo de
-# referencia (radio 5000) y se multiplica por (RADIO_MUNDO / referencia)^2.
+# referencia (un circulo de radio 5000) y se multiplica por area / area de referencia.
 RADIO_MUNDO_REFERENCIA = 5000
-ESCALA_AREA_MUNDO = (RADIO_MUNDO / RADIO_MUNDO_REFERENCIA) ** 2
+ESCALA_AREA_MUNDO = LIMITE.area / (math.pi * RADIO_MUNDO_REFERENCIA ** 2)
 ROCAS_POR_AREA_REFERENCIA = (150, 300)
 CHARCOS_POR_AREA_REFERENCIA = (6, 10)
 MIN_ROCAS = round(ROCAS_POR_AREA_REFERENCIA[0] * ESCALA_AREA_MUNDO)       # 600 en radio 10000
@@ -44,11 +47,13 @@ RADIO_CHARCO_MIN = 150
 RADIO_CHARCO_MAX = 750
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
 ZONA_SEGURA_SPAWN = RADIO_JARDIN + 50   # Sin rocas, lagos ni plantas: la casa del spawn y su jardin
+SEPARACION_ROCAS = 15       # px minimos entre una roca y cualquier otro obstaculo al generarla
 SUAVIZADO_CAMARA = 8.0      # Más alto = la cámara sigue más pegada al personaje
 # Semilla fija del terreno: lagos, vegetacion y rocas salen identicos en cada partida (mapa
 # principal fijo). Paso intermedio hasta el mundo guardado en archivo (Fase 2 del plan de NPC).
 # Solo fija el terreno: la fauna, los cofres y el botin siguen siendo aleatorios.
 SEMILLA_MUNDO = 1
+MAPA_POR_DEFECTO = "principal"   # mapas/principal.json (Fase 2); habra 4 mapas extra
 # Interruptor general de los personajes NPC (plan de NPC). Todavia sin efecto: no hay NPC.
 NPC_ACTIVOS = False
 TAMANO_CUADRICULA = 60
@@ -180,25 +185,34 @@ class Charco:
         pantalla.blit(self.superficie, (self.rect.x - desplazamiento[0], self.rect.y - desplazamiento[1]))
 
 
-def generar_charcos():
-    """Genera MIN_CHARCOS a MAX_CHARCOS lagos (escalan con el area del mundo) con radio
-    RADIO_CHARCO_MIN a RADIO_CHARCO_MAX dentro del círculo, sin solaparse."""
+def fuera_de_zonas_libres(p, extension, diseno):
+    """True si un objeto de 'extension' px en 'p' no pisa el jardin de la casa ni las zonas
+    despejadas del diseno (p. ej. la del guardian)."""
+    if (p - CENTRO_MUNDO).length() - extension < ZONA_SEGURA_SPAWN:
+        return False
+    return all((p - c).length() - extension >= r for c, r in diseno.zonas_libres_abs(LIMITE))
+
+
+def generar_charcos(diseno=None):
+    """Genera los lagos (por defecto MIN_CHARCOS a MAX_CHARCOS, que escalan con el area del
+    mundo) dentro del cuadrado y sin solaparse. Las 'lagunas' del diseno (lagos grandes, con
+    zona profunda) se colocan primero."""
+    d = diseno if diseno is not None else Diseno()
     charcos = []
-    objetivo = random.randint(MIN_CHARCOS, MAX_CHARCOS)
+    objetivo = random.randint(*(d.lagos or (MIN_CHARCOS, MAX_CHARCOS)))
+    radios_lagunas = [random.randint(*d.laguna_radio) for _ in range(d.lagunas)]
     intentos = 0
     while len(charcos) < objetivo and intentos < objetivo * INTENTOS_POR_CHARCO:
         intentos += 1
-        radio = random.randint(RADIO_CHARCO_MIN, RADIO_CHARCO_MAX)
+        if len(charcos) < len(radios_lagunas):
+            radio = radios_lagunas[len(charcos)]
+        else:
+            radio = random.randint(*(d.lago_radio or (RADIO_CHARCO_MIN, RADIO_CHARCO_MAX)))
         extension = radio + ANCHO_BARRO + 10
-
-        angulo = random.uniform(0, math.tau)
-        distancia = math.sqrt(random.random()) * (RADIO_MUNDO - extension)
-        if distancia - extension < ZONA_SEGURA_SPAWN:
+        p = d.punto(LIMITE, "lago", extension + BORDE_LIBRE)
+        if not fuera_de_zonas_libres(p, extension, d):
             continue
-
-        x = CENTRO_MUNDO.x + math.cos(angulo) * distancia
-        y = CENTRO_MUNDO.y + math.sin(angulo) * distancia
-        nuevo = Charco(x, y, radio)
+        nuevo = Charco(p.x, p.y, radio)
 
         if any(nuevo.rect.inflate(40, 40).colliderect(c.rect) for c in charcos):
             continue
@@ -232,66 +246,78 @@ class Roca:
         pygame.draw.rect(superficie, self.color_borde, rect, width=2, border_radius=radio_borde)
 
 
-def generar_rocas(zonas_ocupadas=()):
+def _lado_roca(prob_gigante=0.05):
+    """60 % pequeñas (22-45), el resto grandes (70-130) salvo 'prob_gigante' gigantes (150-300)."""
+    r = random.random()
+    if r < prob_gigante:
+        return random.randint(LADO_ROCA_GIGANTE, 300)
+    if r < prob_gigante + 0.35:
+        return random.randint(70, 130)
+    return random.randint(22, 45)
+
+
+def generar_rocas(zonas_ocupadas=(), diseno=None):
     """
-    Genera MIN_ROCAS a MAX_ROCAS rocas (escalan con el area del mundo; pequeñas, grandes y
-    gigantes) dentro del círculo, sin solaparse ni caer sobre zonas ocupadas (charcos,
-    arbustos, arboles: cualquier objeto con .rect).
+    Genera las rocas (por defecto MIN_ROCAS a MAX_ROCAS, que escalan con el area del mundo;
+    pequeñas, grandes y gigantes) dentro del cuadrado, sin solaparse ni caer sobre zonas
+    ocupadas (charcos, arbustos, arboles: cualquier objeto con .rect). Primero las montañas del
+    diseno (grupos de rocas grandes y gigantes) y despues las sueltas.
     """
-    cantidad = random.randint(MIN_ROCAS, MAX_ROCAS)
+    d = diseno if diseno is not None else Diseno()
     rocas = []
-    intentos = 0
     rejilla = RejillaEspacial(CELDA_REJILLA)
     for z in zonas_ocupadas:
         rejilla.agregar(z.rect)
 
-    while len(rocas) < cantidad and intentos < cantidad * INTENTOS_POR_ROCA:
-        intentos += 1
-
-        # 60% pequeñas (22-45), 35% grandes (70-130), 5% gigantes (150-300)
-        r = random.random()
-        if r < 0.60:
-            lado = random.randint(22, 45)
-        elif r < 0.95:
-            lado = random.randint(70, 130)
-        else:
-            lado = random.randint(LADO_ROCA_GIGANTE, 300)
+    def colocar(x, y, lado):
         media_diagonal = lado * 0.75
-
-        # Posición aleatoria uniforme dentro del círculo (dejando la roca completa dentro)
-        angulo = random.uniform(0, math.tau)
-        distancia = math.sqrt(random.random()) * (RADIO_MUNDO - media_diagonal - 10)
-        x = CENTRO_MUNDO.x + math.cos(angulo) * distancia
-        y = CENTRO_MUNDO.y + math.sin(angulo) * distancia
-
-        # Respetar la zona segura del centro donde aparece el personaje
-        if distancia - media_diagonal < ZONA_SEGURA_SPAWN:
-            continue
-
+        p = pygame.Vector2(x, y)
+        if not LIMITE.dentro(p, media_diagonal + BORDE_LIBRE) or not fuera_de_zonas_libres(p, media_diagonal, d):
+            return False
         nueva = Roca(x, y, lado)
-
-        # Evitar solapamiento con rocas/charcos/vegetacion (rejilla espacial = rapido)
-        if rejilla.hay_colision(nueva.rect.inflate(30, 30)):
-            continue
+        # Separacion minima con rocas/charcos/vegetacion (rejilla espacial = rapido)
+        if rejilla.hay_colision(nueva.rect.inflate(SEPARACION_ROCAS * 2, SEPARACION_ROCAS * 2)):
+            return False
         rejilla.agregar(nueva.rect)
         rocas.append(nueva)
+        return True
 
+    # Montañas: grupos de rocas alrededor de un punto (u, v) del diseno
+    for u, v, radio, n, prob_gigante in d.montanas:
+        centro = d.absoluto(LIMITE, u, v)
+        puestas = intentos = 0
+        while puestas < n and intentos < n * INTENTOS_POR_ROCA:
+            intentos += 1
+            ang = random.uniform(0, math.tau)
+            dist = math.sqrt(random.random()) * radio
+            lado = _lado_roca(prob_gigante) if random.random() < 0.85 else random.randint(70, 130)
+            puestas += colocar(centro.x + math.cos(ang) * dist, centro.y + math.sin(ang) * dist, lado)
+
+    # Rocas sueltas, repartidas segun los factores del diseno
+    cantidad = len(rocas) + random.randint(*(d.rocas or (MIN_ROCAS, MAX_ROCAS)))
+    intentos = 0
+    while len(rocas) < cantidad and intentos < cantidad * INTENTOS_POR_ROCA:
+        intentos += 1
+        lado = _lado_roca()
+        p = d.punto(LIMITE, "roca", lado * 0.75 + BORDE_LIBRE)
+        colocar(p.x, p.y, lado)
     return rocas
 
 
-def generar_terreno(semilla=SEMILLA_MUNDO):
-    """Genera el terreno (lagos, vegetacion, rocas y cuevas de oso) con una semilla fija: el mismo
-    mapa en cada partida. Usa el generador global durante la generacion y despues lo devuelve a
-    su estado anterior, asi lo que se sortea luego (fauna, cofres, botin...) sigue siendo
-    imprevisible."""
+def generar_terreno(semilla=SEMILLA_MUNDO, diseno=None):
+    """Genera el terreno (lagos, vegetacion, rocas y cuevas de oso) con una semilla fija y las
+    reglas de un diseno (diseno_mapa; por defecto todo al azar). Es lo que usa el generador del
+    mapa (mapa.py) y el respaldo si falta el archivo del mapa. Usa el generador global durante
+    la generacion y despues lo devuelve a su estado anterior, asi lo que se sortea luego (fauna,
+    cofres, botin...) sigue siendo imprevisible."""
     estado_azar = random.getstate()
     random.seed(semilla)
     try:
-        charcos = generar_charcos()
-        vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
-        rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles)
+        charcos = generar_charcos(diseno)
+        vegetacion = SistemaVegetacion(LIMITE, ZONA_SEGURA_SPAWN, charcos, diseno)
+        rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles, diseno)
         vegetacion.registrar_obstaculos(rocas)
-        FAUNA.marcar_cuevas(rocas)
+        FAUNA.marcar_cuevas(rocas, diseno, LIMITE)
     finally:
         random.setstate(estado_azar)
     return charcos, vegetacion, rocas
@@ -299,44 +325,29 @@ def generar_terreno(semilla=SEMILLA_MUNDO):
 
 def dibujar_suelo(pantalla, vista, desplazamiento):
     """
-    Dibuja solo la parte visible del suelo: zona exterior, círculo del mapa,
-    cuadrícula recortada al círculo, borde y marca del centro.
+    Dibuja solo la parte visible del suelo: zona exterior, cuadrado del mapa, cuadrícula
+    recortada al cuadrado, borde y marca del centro.
     """
     ox, oy = desplazamiento
-    cx = CENTRO_MUNDO.x
-    cy = CENTRO_MUNDO.y
-    centro_pantalla = (round(cx - ox), round(cy - oy))
-    r2 = RADIO_MUNDO * RADIO_MUNDO
+    mapa = LIMITE.rect
+    visible = mapa.clip(vista)
+    if visible.width <= 0 or visible.height <= 0:
+        return
+    pygame.draw.rect(pantalla, COLOR_SUELO, visible.move(-ox, -oy))
 
-    pygame.draw.circle(pantalla, COLOR_SUELO, centro_pantalla, RADIO_MUNDO)
-
-    # Líneas verticales visibles, cortadas a la cuerda del círculo
-    inicio_x = (vista.left // TAMANO_CUADRICULA) * TAMANO_CUADRICULA
-    for gx in range(inicio_x, vista.right + 1, TAMANO_CUADRICULA):
-        dx = gx - cx
-        if dx * dx >= r2:
-            continue
-        media = math.sqrt(r2 - dx * dx)
-        y1 = max(vista.top, cy - media)
-        y2 = min(vista.bottom, cy + media)
-        if y1 < y2:
-            pygame.draw.line(pantalla, COLOR_CUADRICULA, (gx - ox, y1 - oy), (gx - ox, y2 - oy), 1)
-
-    # Líneas horizontales visibles
-    inicio_y = (vista.top // TAMANO_CUADRICULA) * TAMANO_CUADRICULA
-    for gy in range(inicio_y, vista.bottom + 1, TAMANO_CUADRICULA):
-        dy = gy - cy
-        if dy * dy >= r2:
-            continue
-        media = math.sqrt(r2 - dy * dy)
-        x1 = max(vista.left, cx - media)
-        x2 = min(vista.right, cx + media)
-        if x1 < x2:
-            pygame.draw.line(pantalla, COLOR_CUADRICULA, (x1 - ox, gy - oy), (x2 - ox, gy - oy), 1)
+    # Cuadrícula: solo las líneas visibles, recortadas al cuadrado
+    inicio_x = (visible.left // TAMANO_CUADRICULA) * TAMANO_CUADRICULA
+    for gx in range(inicio_x, visible.right + 1, TAMANO_CUADRICULA):
+        if gx >= visible.left:
+            pygame.draw.line(pantalla, COLOR_CUADRICULA, (gx - ox, visible.top - oy), (gx - ox, visible.bottom - oy), 1)
+    inicio_y = (visible.top // TAMANO_CUADRICULA) * TAMANO_CUADRICULA
+    for gy in range(inicio_y, visible.bottom + 1, TAMANO_CUADRICULA):
+        if gy >= visible.top:
+            pygame.draw.line(pantalla, COLOR_CUADRICULA, (visible.left - ox, gy - oy), (visible.right - ox, gy - oy), 1)
 
     # Borde del mapa y marca del centro (spawn)
-    pygame.draw.circle(pantalla, COLOR_BORDE_MAPA, centro_pantalla, RADIO_MUNDO, 3)
-    pygame.draw.circle(pantalla, (45, 52, 66), centro_pantalla, 30, 1)
+    pygame.draw.rect(pantalla, COLOR_BORDE_MAPA, mapa.move(-ox, -oy), 3)
+    pygame.draw.circle(pantalla, (45, 52, 66), (round(CENTRO_MUNDO.x - ox), round(CENTRO_MUNDO.y - oy)), 30, 1)
 
 # -----------------------------
 # DIBUJAR PANEL LATERAL IZQUIERDO (ESTADÍSTICAS Y HERRAMIENTA)
@@ -625,10 +636,10 @@ def rect_circulo_colisionan(rect, centro, radio):
     return (dx * dx + dy * dy) <= radio * radio
 
 
-def punto_libre(punto, radio, rocas, circulares, cuerpos, centro_mundo, radio_mundo):
+def punto_libre(punto, radio, rocas, circulares, cuerpos, limite=LIMITE):
     """True si un circulo en 'punto' no toca rocas, obstaculos circulares (centro, radio),
     cuerpos solidos ni sale del mapa."""
-    if (punto - centro_mundo).length() > radio_mundo - radio:
+    if not limite.dentro(punto, radio):
         return False
     if any(rect_circulo_colisionan(r.rect, punto, radio) for r in rocas):
         return False
@@ -637,7 +648,7 @@ def punto_libre(punto, radio, rocas, circulares, cuerpos, centro_mundo, radio_mu
     return not any((punto - c.posicion).length() < c.radio + radio for c in cuerpos)
 
 
-def sacar_a_hueco_libre(entidad, rocas, circulares, cuerpos, centro_mundo, radio_mundo):
+def sacar_a_hueco_libre(entidad, rocas, circulares, cuerpos, limite=LIMITE):
     """Cuerpo de niebla al terminar: si la entidad quedo dentro de algo, la mueve al punto libre
     mas cercano (anillos cada PASO_BUSQUEDA_HUECO px). Devuelve True si la movio."""
     radio = entidad.radio
@@ -648,7 +659,7 @@ def sacar_a_hueco_libre(entidad, rocas, circulares, cuerpos, centro_mundo, radio
     rocas = [r for r in rocas if zona.colliderect(r.rect)]
     circulares = [(c, r) for c, r in circulares if (c - origen).length() <= alcance + r]
     cuerpos = [c for c in cuerpos if c is not entidad and (c.posicion - origen).length() <= alcance + c.radio]
-    libre = lambda p: punto_libre(p, radio, rocas, circulares, cuerpos, centro_mundo, radio_mundo)
+    libre = lambda p: punto_libre(p, radio, rocas, circulares, cuerpos, limite)
     if libre(origen):
         return False
     for d in range(PASO_BUSQUEDA_HUECO, ALCANCE_BUSQUEDA_HUECO + 1, PASO_BUSQUEDA_HUECO):
@@ -905,11 +916,8 @@ def combatiente_habilidades(c, ctx, dt, enemigos):
     cuchillas, explosiones y combustible del combatiente."""
     # Proyectiles (Disparo Veloz, Carga de Fuego, Disparo Venenoso, flechas): chocan con las rocas
     c.actualizar_proyectiles(dt, ctx.limites_mundo, ctx.rocas)
-    # Los proyectiles desaparecen al salir del círculo del mapa
-    c.proyectiles = [
-        p for p in c.proyectiles
-        if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
-    ]
+    # Los proyectiles desaparecen al salir del mapa
+    c.proyectiles = [p for p in c.proyectiles if LIMITE.dentro(p.posicion, -p.radio)]
     for p in c.proyectiles:
         if not p.activo or getattr(p, "clavada", False):
             continue
@@ -956,7 +964,7 @@ def combatiente_habilidades(c, ctx, dt, enemigos):
     for hab in c.habilidades:
         if hasattr(hab, "actualizar_cuchillas"):
             destruidas = hab.actualizar_cuchillas(ctx.rocas, ctx.vegetacion.arbustos, ctx.vegetacion.arboles,
-                                                  enemigos, CENTRO_MUNDO, RADIO_MUNDO)
+                                                  enemigos, LIMITE)
             ctx.vegetacion.liberar_obstaculos(destruidas)
     # Estrella Ignea: choques con troncos/arbustos, explosiones y suelo en llamas
     for hab in c.habilidades:
@@ -1014,25 +1022,44 @@ def combatiente_estado(c, ctx, dt, enemigos, enemigos_sin_tumba):
     c.actualizar_autoapuntado(dt)
     # Velocidad acumulando debuffs y buffs
     c.actualizar_velocidad()
-    # Mover respetando el círculo del mapa y las rocas. Con Cuerpo de niebla (Espectro) solo lo
+    # Mover respetando el cuadrado del mapa y las rocas. Con Cuerpo de niebla (Espectro) solo lo
     # frenan las cuevas de oso y los arbustos en los que no cabe.
-    if c.cuerpo_de_niebla:
-        c.mover(ctx.limites_mundo, CENTRO_MUNDO, RADIO_MUNDO,
+    if c.inspector:                             # ShadowGOD: lo atraviesa todo
+        c.mover(ctx.limites_mundo, LIMITE, [], [])
+    elif c.cuerpo_de_niebla:
+        c.mover(ctx.limites_mundo, LIMITE,
                 [r for r in ctx.rocas if getattr(r, "es_cueva", False)],
                 ctx.vegetacion.obstaculos_para(c, con_troncos=False))
     else:
-        c.mover(ctx.limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, ctx.rocas, ctx.vegetacion.obstaculos_para(c))
+        c.mover(ctx.limites_mundo, LIMITE, ctx.rocas, ctx.vegetacion.obstaculos_para(c))
     # Retroceso acumulado por empuje
-    c.actualizar_empuje(dt, CENTRO_MUNDO, RADIO_MUNDO)
+    c.actualizar_empuje(dt, LIMITE)
+    if c.inspector:
+        c.vida = c.vida_max                     # ShadowGOD no pierde vida (lagos, hierba, quemadura...)
+
+
+def salud_de(objetivos):
+    """Vida de cada objetivo que no es un personaje (animales, vendedores...) antes de un turno."""
+    return [(o, o.vida) for o in objetivos if not isinstance(o, Personaje)]
+
+
+def marcar_autor(salud_antes, de_npc):
+    """Quien hirio por ultima vez a cada objetivo: si lo remata un NPC (o sus efectos y sombras
+    despues de su golpe), la XP y las monedas no son para el jugador (respuesta del 27/11)."""
+    for o, vida in salud_antes:
+        if o.vida < vida:
+            o.ultimo_golpe_npc = de_npc
 
 
 def actualizar_combatiente(c, ctx, dt, jugador):
     """Un fotograma completo de un combatiente que no es el jugador (sus intenciones ya puestas)."""
     enemigos = enemigos_de(c, ctx, jugador)
+    antes = salud_de(enemigos)
     combatiente_golpes(c, dt, enemigos)
     combatiente_habilidades(c, ctx, dt, enemigos)
     combatiente_estado(c, ctx, dt, enemigos, enemigos)
     ctx.vegetacion.actualizar_personaje(dt, c)
+    marcar_autor(antes, True)
 
 
 def retirar_combatientes_muertos(ctx):
@@ -1051,10 +1078,92 @@ def retirar_combatientes_muertos(ctx):
 
 def cuerpos_de_combatiente(c):
     """Cuerpos solidos de un combatiente: el suyo (salvo con Cuerpo de niebla) y sus sombras."""
-    cuerpos = [] if c.cuerpo_de_niebla else [c]
+    cuerpos = [] if c.cuerpo_de_niebla or c.inspector else [c]
     for hab in c.fuentes_criaturas():
         cuerpos.extend(getattr(hab, "criaturas", ()))
     return cuerpos
+
+
+# -----------------------------
+# SHADOWGOD (personaje de inspeccion del mapa, Fase 2 del plan de NPC)
+# -----------------------------
+NIVELES_ZOOM = (1.0, 0.8, 0.6, 0.4, 0.25, 0.15, 0.1, 0.06)   # 0.06: el mapa entero en pantalla
+ZOOM_LIENZO_MIN = 0.4         # hasta aqui se dibuja el mundo real; mas lejos, el mapa (imagen fija)
+ESCALA_MAPA_LEJANO = 0.1      # resolucion de la imagen del mapa entero (1770 px)
+TECLAS_ACERCAR = (pygame.K_PLUS, pygame.K_EQUALS, pygame.K_KP_PLUS)
+TECLAS_ALEJAR = (pygame.K_MINUS, pygame.K_KP_MINUS)
+COLOR_BOTON_INSPECTOR = (40, 44, 56)
+COLOR_BORDE_INSPECTOR = (150, 120, 230)
+CUADROS_REFERENCIA = 10       # misma cuadricula A-J / 1-10 que la vista previa del mapa
+
+
+def dibujar_mapa_lejano(pantalla, area, imagen, vista, z):
+    """Vista lejana de ShadowGOD: el trozo visible de la imagen del mapa entero, escalado."""
+    e = ESCALA_MAPA_LEJANO
+    origen = pygame.Vector2(LIMITE.rect.topleft)
+    fuente = pygame.Rect(round((vista.x - origen.x) * e), round((vista.y - origen.y) * e),
+                         max(1, round(vista.width * e)), max(1, round(vista.height * e)))
+    recorte = fuente.clip(imagen.get_rect())
+    if recorte.width <= 0 or recorte.height <= 0:
+        return
+    destino = pygame.Rect(area.x + round((recorte.x - fuente.x) * z / e), area.y + round((recorte.y - fuente.y) * z / e),
+                          max(1, round(recorte.width * z / e)), max(1, round(recorte.height * z / e)))
+    pantalla.blit(pygame.transform.scale(imagen.subsurface(recorte), destino.size), destino.topleft)
+    pygame.draw.rect(pantalla, COLOR_BORDE_MAPA, pygame.Rect(
+        area.x + round((LIMITE.rect.x - vista.x) * z), area.y + round((LIMITE.rect.y - vista.y) * z),
+        round(LIMITE.lado * z), round(LIMITE.lado * z)), 2)
+
+
+def dibujar_capas(pantalla, area, datos_mapa, rocas, vista, z, fuente):
+    """Capas del mapa (ShadowGOD, tecla [V] o boton): cuadricula de referencia, zonas con nombre,
+    puntos de aparicion por raza y cuevas de oso."""
+    import mapa as MAPA
+    a_pantalla = lambda p: (round(area.x + (p[0] - vista.x) * z), round(area.y + (p[1] - vista.y) * z))
+    paso = LIMITE.lado / CUADROS_REFERENCIA
+    for k in range(CUADROS_REFERENCIA + 1):
+        x = LIMITE.rect.x + k * paso
+        y = LIMITE.rect.y + k * paso
+        pygame.draw.line(pantalla, (235, 235, 235), a_pantalla((x, LIMITE.rect.top)), a_pantalla((x, LIMITE.rect.bottom)), 1)
+        pygame.draw.line(pantalla, (235, 235, 235), a_pantalla((LIMITE.rect.left, y)), a_pantalla((LIMITE.rect.right, y)), 1)
+    for k in range(CUADROS_REFERENCIA):
+        for i in range(CUADROS_REFERENCIA):
+            centro = a_pantalla((LIMITE.rect.x + (i + 0.08) * paso, LIMITE.rect.y + (k + 0.08) * paso))
+            if area.collidepoint(centro):
+                txt = fuente.render("%s%d" % ("ABCDEFGHIJ"[i], k + 1), True, (240, 240, 240))
+                pantalla.blit(txt, centro)
+    for z_ in datos_mapa.get("zonas", []):
+        color = MAPA.COLORES_RAZA.get(z_["nombre"], (255, 255, 255))
+        c = a_pantalla((z_["x"], z_["y"]))
+        pygame.draw.circle(pantalla, color, c, max(3, round(z_["radio"] * z)), 2)
+        txt = fuente.render(z_["nombre"], True, color)
+        pantalla.blit(txt, txt.get_rect(center=c))
+    for raza, puntos in datos_mapa.get("aparicion", {}).items():
+        color = MAPA.COLORES_RAZA.get(raza, (255, 255, 255))
+        for p in puntos:
+            pygame.draw.circle(pantalla, (0, 0, 0), a_pantalla(p), 7)
+            pygame.draw.circle(pantalla, color, a_pantalla(p), 5)
+    for r in rocas:
+        if hasattr(r, "angulo_entrada"):        # cuevas de oso (las paredes de la casa no)
+            pygame.draw.circle(pantalla, (255, 255, 255), a_pantalla(r.rect.center), max(6, round(r.rect.width * z)), 2)
+
+
+def dibujar_botones_inspector(pantalla, area, zoom, capas, fuente):
+    """Botones de ShadowGOD arriba a la derecha del mundo: acercar, alejar y capas."""
+    botones = {}
+    x = area.right - 12
+    for clave, texto in (("__capas__", "Capas [V]" + (" *" if capas else "")),
+                         ("__zoom_menos__", "-"), ("__zoom_mas__", "+")):
+        sup = fuente.render(texto, True, (235, 235, 245))
+        rect = pygame.Rect(0, 0, max(34, sup.get_width() + 16), 30)
+        rect.topright = (x, area.y + 12)
+        pygame.draw.rect(pantalla, COLOR_BOTON_INSPECTOR, rect, border_radius=6)
+        pygame.draw.rect(pantalla, COLOR_BORDE_INSPECTOR, rect, 2, border_radius=6)
+        pantalla.blit(sup, sup.get_rect(center=rect.center))
+        botones[clave] = rect
+        x = rect.left - 8
+    txt = fuente.render("ShadowGOD  zoom x%.2f  (rueda, + / -)" % zoom, True, COLOR_BORDE_INSPECTOR)
+    pantalla.blit(txt, (x - txt.get_width() - 8, area.y + 18))
+    return botones
 
 
 class Maniqui:
@@ -1341,8 +1450,17 @@ def iniciar_mundo(config):
     limites_mundo = (0, 0, TAMANO_MUNDO, TAMANO_MUNDO)
     area_mundo_pantalla = pygame.Rect(mundo_x, mundo_y, mundo_w, mundo_h)
 
-    charcos, vegetacion, rocas = generar_terreno()
-    fauna = SistemaFauna(CENTRO_MUNDO, RADIO_MUNDO, vegetacion, charcos, rocas)
+    # Mapa fijo guardado (mapas/<nombre>.json). Si falta o esta roto: aviso y generador con la
+    # semilla fija, asi el juego nunca se queda sin mundo. config['mapa'] elige otro mapa.
+    import mapa as MAPA                    # aqui: mapa.py importa este modulo
+    cargado, motivo = MAPA.cargar_terreno(config.get("mapa", MAPA_POR_DEFECTO))
+    if cargado is not None:
+        charcos, vegetacion, rocas, datos_mapa = cargado
+    else:
+        print("Aviso: no se pudo cargar el mapa (%s); se genera con la semilla fija." % motivo)
+        charcos, vegetacion, rocas = generar_terreno()
+        datos_mapa = {"zonas": [], "aparicion": {}}
+    fauna = SistemaFauna(LIMITE, vegetacion, charcos, rocas)
 
     # Casa del spawn: paredes solidas e indestructibles (van con las rocas, despues de la fauna
     # para que ningun oso las elija de cueva) y jardin sin fauna
@@ -1403,6 +1521,7 @@ def iniciar_mundo(config):
           panel existente (botones + o la tecla [L]).
         - 'dar_todo': todas las armas, todas las habilidades y todos los objetos (anillos al
           máximo + tótems) en el inventario."""
+        j.inspector = bool(config.get("inspector"))     # ShadowGOD (ver Personaje.inspector)
         if config.get("puntos_extra"):
             j.puntos_mejora += PUNTOS_PRUEBA_SHADOW
         if config.get("dar_todo"):
@@ -1458,13 +1577,36 @@ def iniciar_mundo(config):
     camara = pygame.Vector2(jugador.posicion)
 
     def vista_camara():
-        """Rectángulo (en coordenadas del mundo) que la cámara está mostrando."""
+        """Rectángulo (en coordenadas del mundo) que la cámara está mostrando con la vista normal.
+        Es la que usa la logica (fauna, enemigos cercanos) aunque ShadowGOD aleje la vista."""
         return pygame.Rect(
             round(camara.x - mundo_w / 2),
             round(camara.y - mundo_h / 2),
             mundo_w,
             mundo_h
         )
+
+    # ShadowGOD: nivel de zoom (indice en NIVELES_ZOOM), capas y la imagen del mapa entero
+    zoom_inspector = [0]
+    mostrar_capas = False
+    imagen_lejana = [None]
+
+    def zoom_actual():
+        return NIVELES_ZOOM[zoom_inspector[0]] if jugador.inspector else 1.0
+
+    def vista_dibujo():
+        """Rectángulo del mundo que se dibuja (más grande con la vista alejada de ShadowGOD)."""
+        z = zoom_actual()
+        ancho, alto = round(mundo_w / z), round(mundo_h / z)
+        return pygame.Rect(round(camara.x - ancho / 2), round(camara.y - alto / 2), ancho, alto)
+
+    def raton_a_mundo(mx, my):
+        """Punto del mundo bajo el ratón (tiene en cuenta el zoom de ShadowGOD)."""
+        v, z = vista_dibujo(), zoom_actual()
+        return pygame.Vector2(v.x + (mx - mundo_x) / z, v.y + (my - mundo_y) / z)
+
+    def cambiar_zoom(paso):
+        zoom_inspector[0] = max(0, min(len(NIVELES_ZOOM) - 1, zoom_inspector[0] + paso))
 
     def salvar_con_totem():
         """Un Tótem de vida equipado evita la muerte: vuelves al centro con la vida, la energía
@@ -1588,7 +1730,7 @@ def iniciar_mundo(config):
         camara.update(jugador.posicion)
         textos_flotantes.clear()
 
-    vendedores = SistemaVendedores(CENTRO_MUNDO, RADIO_MUNDO, casa, charcos, jugador)
+    vendedores = SistemaVendedores(LIMITE, casa, charcos, jugador)
 
     while ejecutando:
         dt = reloj.tick(60) / 1000.0  # Delta time en segundos
@@ -1702,6 +1844,14 @@ def iniciar_mundo(config):
                 elif es_pruebas and evento.key == pygame.K_f:
                     regenerar_stats()
 
+                # ShadowGOD: [+] / [-] acercan y alejan la vista, [V] muestra las capas del mapa
+                elif jugador.inspector and evento.key in TECLAS_ACERCAR:
+                    cambiar_zoom(-1)
+                elif jugador.inspector and evento.key in TECLAS_ALEJAR:
+                    cambiar_zoom(1)
+                elif jugador.inspector and evento.key == pygame.K_v:
+                    mostrar_capas = not mostrar_capas
+
                 # [Espacio] Golpe cuerpo a cuerpo con el arma (manual); con el Arco empieza a cargar
                 elif evento.key == pygame.K_SPACE:
                     jugador.pulsar_ataque()
@@ -1730,6 +1880,10 @@ def iniciar_mundo(config):
                 for hab in jugador.habilidades:
                     if evento.key == hab.tecla:
                         jugador.soltar_habilidad(hab)
+
+            elif evento.type == pygame.MOUSEWHEEL:
+                if jugador.inspector:                 # rueda arriba = acercar, abajo = alejar
+                    cambiar_zoom(-1 if evento.y > 0 else 1)
 
             elif evento.type == pygame.MOUSEBUTTONDOWN:
                 if evento.button == 1:
@@ -1765,6 +1919,12 @@ def iniciar_mundo(config):
                         indice = int(click_btn.split("_")[-1])
                         if 0 <= indice < len(jugador.habilidades):
                             jugador.habilidades[indice].cambiar_modo(jugador)
+                    elif click_btn == "__zoom_mas__":
+                        cambiar_zoom(-1)
+                    elif click_btn == "__zoom_menos__":
+                        cambiar_zoom(1)
+                    elif click_btn == "__capas__":
+                        mostrar_capas = not mostrar_capas
                     elif click_btn == "__toggle_anim__":
                         info_abierta = None
                         set_animaciones_activas(not animaciones_activas())
@@ -1795,8 +1955,7 @@ def iniciar_mundo(config):
                     elif mundo_x <= mouse_x <= (mundo_x + mundo_w):
                         info_abierta = None
                         # Convertir clic de pantalla a coordenadas del mundo según la cámara
-                        vista = vista_camara()
-                        jugador.mover_a((vista.x + (mouse_x - mundo_x), vista.y + (mouse_y - mundo_y)))
+                        jugador.mover_a(raton_a_mundo(mouse_x, mouse_y), LIMITE)
 
                 elif evento.button == 3:
                     # Clic derecho: dirige a las sombras en modo combate (mantener su tecla).
@@ -1809,11 +1968,7 @@ def iniciar_mundo(config):
                     sobre_inventario = ((inventario_abierto and rect_inventario(area_mundo_pantalla).collidepoint(mouse_x, mouse_y))
                                         or (tienda_abierta is not None and rect_tienda(area_mundo_pantalla).collidepoint(mouse_x, mouse_y)))
                     if mundo_x <= mouse_x <= (mundo_x + mundo_w) and not sobre_inventario:
-                        vista = vista_camara()
-                        punto = pygame.Vector2(
-                            vista.x + (mouse_x - mundo_x),
-                            vista.y + (mouse_y - mundo_y)
-                        )
+                        punto = raton_a_mundo(mouse_x, mouse_y)
                         en_combate = jugador.ordenar_sombras(punto, enemigos_sin_tumba)
                         # Con la tecla de una invocacion mantenida el clic derecho es una orden aunque
                         # esa invocacion no pueda recibirla ahora (Sombra Arana en recarga): nunca
@@ -1829,6 +1984,7 @@ def iniciar_mundo(config):
             # funciones que los NPC, en el orden de siempre, con los pasos del mundo entre medias.
             # Mantener [Espacio] = intencion de mantener el ataque (golpes segun la cadencia).
             jugador.mantiene_ataque = bool(teclas_estado[pygame.K_SPACE])
+            salud_antes = salud_de(enemigos)        # lo que hiera el jugador vuelve a ser suyo
             combatiente_golpes(jugador, dt, enemigos)
 
             # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
@@ -1886,6 +2042,7 @@ def iniciar_mundo(config):
 
             maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
             combatiente_estado(jugador, ctx, dt, enemigos, enemigos_sin_tumba)
+            marcar_autor(salud_antes, False)
 
             # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
             vegetacion.actualizar(dt, jugador)
@@ -1901,7 +2058,7 @@ def iniciar_mundo(config):
             # Cuerpos solidos: combatientes, maniqui e invocaciones no se solapan entre si
             # (con Cuerpo de niebla el combatiente no entra: atraviesa a todos)
             todos = [jugador] + ctx.combatientes
-            cuerpos = ([] if jugador.cuerpo_de_niebla else [jugador]) + ([maniqui] if maniqui.vivo else [])
+            cuerpos = ([] if jugador.cuerpo_de_niebla or jugador.inspector else [jugador]) + ([maniqui] if maniqui.vivo else [])
             for hab in jugador.fuentes_criaturas():
                 cuerpos.extend(getattr(hab, "criaturas", ()))
             for otro in ctx.combatientes:
@@ -1916,7 +2073,7 @@ def iniciar_mundo(config):
                     propias = {id(cr) for hab in c.fuentes_criaturas() for cr in getattr(hab, "criaturas", ())}
                     ajenos = [o for o in cuerpos if id(o) not in propias]   # sus sombras se apartan solas
                     sacar_a_hueco_libre(c, rocas, vegetacion.obstaculos_para(c), ajenos,
-                                        CENTRO_MUNDO, RADIO_MUNDO)
+                                        LIMITE)
                 c.niebla_previa = niebla
             resolver_solapamientos(cuerpos)
             for c in todos:
@@ -1926,6 +2083,8 @@ def iniciar_mundo(config):
         # Cámara que sigue suavemente al personaje
         factor = min(1.0, SUAVIZADO_CAMARA * dt)
         camara += (jugador.posicion - camara) * factor
+        if jugador.inspector:
+            camara.update(jugador.posicion)
 
         # -----------------------------
         # RENDERIZADO
@@ -1969,115 +2128,147 @@ def iniciar_mundo(config):
                 # Sin totem: el progreso queda en una tumba donde caiste (sustituye a la anterior)
                 tumba = Tumba(jugador.posicion, guardar_estado(jugador))
                 inventario_abierto = False   # la pantalla de muerte manda
-        pantalla.set_clip(area_mundo_pantalla)
+        # ShadowGOD con la vista alejada: hasta ZOOM_LIENZO_MIN el mundo se dibuja de verdad en un
+        # lienzo mas grande que se reduce a la pantalla; mas lejos se ve el mapa entero (imagen fija
+        # del terreno). Con zoom 1 (siempre, salvo ShadowGOD) todo es exactamente como antes.
+        z = zoom_actual()
+        pantalla_real = pantalla
+        lejana = z < ZOOM_LIENZO_MIN
+        if z < 1.0:
+            vista = vista_dibujo()
+            if not lejana:
+                pantalla = pygame.Surface(vista.size)
+                pantalla.fill(COLOR_FUERA_MAPA)
+                desplazamiento = (vista.x, vista.y)
+        if not lejana:
+            pantalla.set_clip(area_mundo_pantalla if pantalla is pantalla_real else None)
 
-        dibujar_suelo(pantalla, vista, desplazamiento)
-        casa.dibujar_suelo(pantalla, vista, desplazamiento)
+            dibujar_suelo(pantalla, vista, desplazamiento)
+            casa.dibujar_suelo(pantalla, vista, desplazamiento)
 
-        for charco in charcos:
-            if charco.rect.colliderect(vista):
-                charco.dibujar(pantalla, desplazamiento)
+            for charco in charcos:
+                if charco.rect.colliderect(vista):
+                    charco.dibujar(pantalla, desplazamiento)
 
-        # Peces y ranas (ambiental): se omiten con las animaciones pausadas (rendimiento)
-        if animaciones_activas():
-            fauna.dibujar_peces(pantalla, vista, desplazamiento)
-            fauna.dibujar_ranas(pantalla, vista, desplazamiento)
+            # Peces y ranas (ambiental): se omiten con las animaciones pausadas (rendimiento)
+            if animaciones_activas():
+                fauna.dibujar_peces(pantalla, vista, desplazamiento)
+                fauna.dibujar_ranas(pantalla, vista, desplazamiento)
 
-        for roca in rocas:
-            if roca.rect.colliderect(vista):
-                roca.dibujar(pantalla, desplazamiento)
-        fauna.dibujar_entradas_cueva(pantalla, vista, desplazamiento)
+            for roca in rocas:
+                if roca.rect.colliderect(vista):
+                    roca.dibujar(pantalla, desplazamiento)
+            fauna.dibujar_entradas_cueva(pantalla, vista, desplazamiento)
 
-        # Pasto y flores (cobertura de suelo, bajo las entidades)
-        vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
-        fauna.dibujar_madrigueras(pantalla, vista, desplazamiento)
-        # Cofres escondidos (a ras de suelo; arboles y arbustos los tapan)
-        fauna.dibujar_cofres(pantalla, vista, desplazamiento)
-        # Arboles (bosques): sombra + tronco solido bajo las entidades; la copa va al final
-        vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
-        # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
-        for c in [jugador] + ctx.combatientes:
-            for hab in c.habilidades:
-                if hasattr(hab, "dibujar_telaranas"):
-                    hab.dibujar_telaranas(pantalla, desplazamiento)
-                if hasattr(hab, "dibujar_suelo"):
-                    hab.dibujar_suelo(pantalla, desplazamiento)
-            c.combustible.dibujar_suelo(pantalla, desplazamiento)
-        if tumba is not None and tumba.vivo:
-            tumba.dibujar(pantalla, desplazamiento, fuentes["mini"])
-        # Maniqui de pruebas en el centro
-        maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
+            # Pasto y flores (cobertura de suelo, bajo las entidades)
+            vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)
+            fauna.dibujar_madrigueras(pantalla, vista, desplazamiento)
+            # Cofres escondidos (a ras de suelo; arboles y arbustos los tapan)
+            fauna.dibujar_cofres(pantalla, vista, desplazamiento)
+            # Arboles (bosques): sombra + tronco solido bajo las entidades; la copa va al final
+            vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
+            # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
+            for c in [jugador] + ctx.combatientes:
+                for hab in c.habilidades:
+                    if hasattr(hab, "dibujar_telaranas"):
+                        hab.dibujar_telaranas(pantalla, desplazamiento)
+                    if hasattr(hab, "dibujar_suelo"):
+                        hab.dibujar_suelo(pantalla, desplazamiento)
+                c.combustible.dibujar_suelo(pantalla, desplazamiento)
+            if tumba is not None and tumba.vivo:
+                tumba.dibujar(pantalla, desplazamiento, fuentes["mini"])
+            # Maniqui de pruebas en el centro
+            maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
 
-        # Dibujar personaje, auras interiores, herramienta rotada y proyectiles (y los demas
-        # combatientes, con el mismo dibujo; solo el jugador tiene paneles, inventario y textos)
-        jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
-        for otro in ctx.combatientes:
-            otro.dibujar(pantalla, fuentes["nombre"], desplazamiento)
-        fauna.dibujar_conejos(pantalla, vista, desplazamiento)
-        fauna.dibujar_venados(pantalla, vista, desplazamiento)
-        fauna.dibujar_jabalies(pantalla, vista, desplazamiento)
-        fauna.dibujar_zorros(pantalla, vista, desplazamiento)
-        fauna.dibujar_lobos(pantalla, vista, desplazamiento)
-        fauna.dibujar_osos(pantalla, vista, desplazamiento)
-        fauna.dibujar_cocodrilos(pantalla, vista, desplazamiento)
-        vendedores.dibujar(pantalla, vista, desplazamiento, fuentes["mini"], jugador)
+            # Dibujar personaje, auras interiores, herramienta rotada y proyectiles (y los demas
+            # combatientes, con el mismo dibujo; solo el jugador tiene paneles, inventario y textos)
+            jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
+            for otro in ctx.combatientes:
+                otro.dibujar(pantalla, fuentes["nombre"], desplazamiento)
+            fauna.dibujar_conejos(pantalla, vista, desplazamiento)
+            fauna.dibujar_venados(pantalla, vista, desplazamiento)
+            fauna.dibujar_jabalies(pantalla, vista, desplazamiento)
+            fauna.dibujar_zorros(pantalla, vista, desplazamiento)
+            fauna.dibujar_lobos(pantalla, vista, desplazamiento)
+            fauna.dibujar_osos(pantalla, vista, desplazamiento)
+            fauna.dibujar_cocodrilos(pantalla, vista, desplazamiento)
+            vendedores.dibujar(pantalla, vista, desplazamiento, fuentes["mini"], jugador)
 
-        # Mira roja sobre el enemigo autoapuntado
-        if jugador.objetivo_apuntado is not None:
-            dibujar_mira(pantalla, jugador.objetivo_apuntado, desplazamiento)
+            # Mira roja sobre el enemigo autoapuntado
+            if jugador.objetivo_apuntado is not None:
+                dibujar_mira(pantalla, jugador.objetivo_apuntado, desplazamiento)
 
-        # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
-        for c in [jugador] + ctx.combatientes:
-            for hab in c.habilidades:
-                if hasattr(hab, "dibujar_invocaciones"):
-                    hab.dibujar_invocaciones(pantalla, desplazamiento)
-                if hasattr(hab, "dibujar_cuchillas"):
-                    hab.dibujar_cuchillas(pantalla, desplazamiento)
-                if hasattr(hab, "dibujar_ondas"):
-                    hab.dibujar_ondas(pantalla, desplazamiento)
-                if hasattr(hab, "dibujar_explosiones"):
-                    hab.dibujar_explosiones(pantalla, desplazamiento)
-            c.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
-            c.combustible.dibujar(pantalla, desplazamiento)
+            # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
+            for c in [jugador] + ctx.combatientes:
+                for hab in c.habilidades:
+                    if hasattr(hab, "dibujar_invocaciones"):
+                        hab.dibujar_invocaciones(pantalla, desplazamiento)
+                    if hasattr(hab, "dibujar_cuchillas"):
+                        hab.dibujar_cuchillas(pantalla, desplazamiento)
+                    if hasattr(hab, "dibujar_ondas"):
+                        hab.dibujar_ondas(pantalla, desplazamiento)
+                    if hasattr(hab, "dibujar_explosiones"):
+                        hab.dibujar_explosiones(pantalla, desplazamiento)
+                c.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
+                c.combustible.dibujar(pantalla, desplazamiento)
 
-        # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)
-        vivos_parpadeo = ([jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
-                          + vendedores.objetivos())
-        for c in [jugador] + ctx.combatientes:
-            if c is not jugador:
-                vivos_parpadeo.append(c)
-            for hab in c.fuentes_criaturas():
-                vivos_parpadeo.extend(getattr(hab, "criaturas", ()))
-        actualizar_parpadeos(vivos_parpadeo, 0.0 if muerto else dt)
-        if animaciones_activas():
-            dibujar_parpadeos(pantalla, vivos_parpadeo, desplazamiento)
+            # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)
+            vivos_parpadeo = ([jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
+                              + vendedores.objetivos())
+            for c in [jugador] + ctx.combatientes:
+                if c is not jugador:
+                    vivos_parpadeo.append(c)
+                for hab in c.fuentes_criaturas():
+                    vivos_parpadeo.extend(getattr(hab, "criaturas", ()))
+            actualizar_parpadeos(vivos_parpadeo, 0.0 if muerto else dt)
+            if animaciones_activas():
+                dibujar_parpadeos(pantalla, vivos_parpadeo, desplazamiento)
 
-        # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
-        vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
-        if animaciones_activas():
-            fauna.dibujar_mariposas(pantalla, vista, desplazamiento)
-        # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
-        # semitransparentes si hay una entidad debajo: jugador, maniqui, invocaciones o fauna.
-        entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
-        for c in [jugador] + ctx.combatientes:
-            if c is not jugador:
-                entidades.append(c)
-            for hab in c.fuentes_criaturas():
-                entidades.extend(getattr(hab, "criaturas", ()))
-        entidades.extend(fauna.cuerpos_solidos(vista))
-        vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
-        # Techo de la casa (casi transparente con el jugador dentro)
-        casa.dibujar_techo(pantalla, vista, desplazamiento, casa.contiene(jugador.posicion))
-        # Pajaros (ambiental): se omiten con las animaciones pausadas (rendimiento)
-        if animaciones_activas():
-            fauna.dibujar_pajaros(pantalla, vista, desplazamiento)
+            # Arbustos por encima de los personajes (el que te oculta se ve semitransparente)
+            vegetacion.dibujar(pantalla, vista, desplazamiento, jugador)
+            if animaciones_activas():
+                fauna.dibujar_mariposas(pantalla, vista, desplazamiento)
+            # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
+            # semitransparentes si hay una entidad debajo: jugador, maniqui, invocaciones o fauna.
+            entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
+            for c in [jugador] + ctx.combatientes:
+                if c is not jugador:
+                    entidades.append(c)
+                for hab in c.fuentes_criaturas():
+                    entidades.extend(getattr(hab, "criaturas", ()))
+            entidades.extend(fauna.cuerpos_solidos(vista))
+            vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
+            # Techo de la casa (casi transparente con el jugador dentro)
+            casa.dibujar_techo(pantalla, vista, desplazamiento, casa.contiene(jugador.posicion))
+            # Pajaros (ambiental): se omiten con las animaciones pausadas (rendimiento)
+            if animaciones_activas():
+                fauna.dibujar_pajaros(pantalla, vista, desplazamiento)
 
-        # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
-        # se den ambos) y en el arbusto solo tú ves sus orbes
-        if jugador.oculto or jugador.invisible or fauna.jugador_en_cueva(jugador):
-            pantalla.blit(capa_oscura, (mundo_x, mundo_y))
-            vegetacion.dibujar_interior(pantalla, desplazamiento, jugador)
-        fauna.dibujar_orbes_cueva(pantalla, vista, desplazamiento)
+            # Dentro de un arbusto o invisible (Paso 0): el mapa se oscurece una sola vez (aunque
+            # se den ambos) y en el arbusto solo tú ves sus orbes
+            if (jugador.oculto or jugador.invisible or fauna.jugador_en_cueva(jugador)) and not jugador.inspector:
+                pantalla.blit(capa_oscura, (mundo_x, mundo_y))
+                vegetacion.dibujar_interior(pantalla, desplazamiento, jugador)
+            fauna.dibujar_orbes_cueva(pantalla, vista, desplazamiento)
+        if z < 1.0:
+            lienzo = pantalla
+            pantalla = pantalla_real
+            pantalla.set_clip(area_mundo_pantalla)
+            if not lejana:
+                pantalla.blit(pygame.transform.scale(lienzo, area_mundo_pantalla.size), area_mundo_pantalla.topleft)
+            else:
+                if imagen_lejana[0] is None:
+                    imagen_lejana[0] = MAPA.imagen_terreno(charcos, vegetacion, rocas, ESCALA_MAPA_LEJANO)
+                dibujar_mapa_lejano(pantalla, area_mundo_pantalla, imagen_lejana[0], vista, z)
+        if mostrar_capas and jugador.inspector:
+            dibujar_capas(pantalla, area_mundo_pantalla, datos_mapa, rocas, vista, z, fuentes["mini"])
+        if jugador.inspector and z < 1.0:
+            # el propio ShadowGOD, siempre visible aunque la vista este muy lejos
+            px = area_mundo_pantalla.x + (jugador.posicion.x - vista.x) * z
+            py = area_mundo_pantalla.y + (jugador.posicion.y - vista.y) * z
+            pygame.draw.circle(pantalla, (0, 0, 0), (round(px), round(py)), 8)
+            pygame.draw.circle(pantalla, jugador.color, (round(px), round(py)), 6)
+            desplazamiento = (vista.x - mundo_x, vista.y - mundo_y)
 
         # Aviso del Tótem de vida (arriba, en el centro del mundo)
         if aviso_totem is not None:
@@ -2094,8 +2285,8 @@ def iniciar_mundo(config):
                 fondo_t.set_alpha(alfa_t)
                 pantalla.blit(fondo_t, fondo_t.get_rect(center=(area_mundo_pantalla.centerx, area_mundo_pantalla.y + 70)))
 
-        # Textos flotantes de XP y subida de nivel
-        for tf in textos_flotantes:
+        # Textos flotantes de XP y subida de nivel (con la vista normal)
+        for tf in (textos_flotantes if z == 1.0 else ()):
             tf[3] += dt
             prog = tf[3] / DURACION_TEXTO_FLOTANTE
             sup = fuentes["sub"].render(tf[0], True, tf[1])
@@ -2110,7 +2301,7 @@ def iniciar_mundo(config):
             tumba.dibujar_indicador(pantalla, area_mundo_pantalla, jugador, fuentes["mini"])
 
         # Brujula [C]: flechas hacia el conejo, lobo, oso y maniqui mas cercanos
-        if mostrar_brujula:
+        if mostrar_brujula and z == 1.0:
             ox, oy = desplazamiento
             cx = round(jugador.posicion.x - ox); cy = round(jugador.posicion.y - oy)
             objetivos_b = fauna.brujula(jugador.posicion)
@@ -2136,7 +2327,7 @@ def iniciar_mundo(config):
             pantalla.blit(leyenda, (mundo_x + 12, mundo_y + 12))
 
         # Dibujar Hitboxes si está activada la visualización [H]
-        if mostrar_hitboxes:
+        if mostrar_hitboxes and z == 1.0:
             ox, oy = desplazamiento
             # Arbustos con su tipo revelado (solo en modo depuración)
             vegetacion.dibujar_hitboxes(pantalla, vista, desplazamiento, fuentes["mini"])
@@ -2186,7 +2377,7 @@ def iniciar_mundo(config):
 
         # Coordenadas del jugador respecto al centro (para ver cuánto avanzas)
         rel = jugador.posicion - CENTRO_MUNDO
-        dist_centro = rel.length()
+        al_borde = LIMITE.distancia_al_borde(jugador.posicion)
         if jugador.en_agua_profunda:
             txt_agua = "  |  LAGO PROFUNDO: -80% Vel, -10 Vida/s"
         elif jugador.en_agua:
@@ -2204,7 +2395,7 @@ def iniciar_mundo(config):
         else:
             color_info = (150, 160, 180)
         txt_coord = fuentes["mini"].render(
-            f"Posición: ({rel.x:.0f}, {rel.y:.0f})  |  Distancia al centro: {dist_centro:.0f} / {RADIO_MUNDO}  |  Rocas: {len(rocas)}  |  Charcos: {len(charcos)}{txt_agua}{txt_oculto}",
+            f"Posición: ({rel.x:.0f}, {rel.y:.0f})  |  Al borde: {al_borde:.0f}  |  Rocas: {len(rocas)}  |  Charcos: {len(charcos)}{txt_agua}{txt_oculto}",
             True, color_info
         )
         pantalla.blit(txt_coord, (mundo_x + 12, mundo_h - 22))
@@ -2240,6 +2431,9 @@ def iniciar_mundo(config):
                 GACHA.dibujar_ruleta_mundo(pantalla, area_mundo_pantalla, ruleta_mundo, t_ruleta, fuentes)
 
         botones_muerte = dibujar_pantalla_muerte(pantalla, area_mundo_pantalla, fuentes) if muerto else {}
+        if jugador.inspector:
+            botones_stats.update(dibujar_botones_inspector(pantalla, area_mundo_pantalla, zoom_actual(),
+                                                           mostrar_capas, fuentes["sub"]))
 
         pygame.display.flip()
 

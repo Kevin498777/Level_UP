@@ -402,12 +402,30 @@ class Cofre:
         pygame.draw.circle(pantalla, (255, 230, 130), (px, py - 3), 1)
 
 
-def marcar_cuevas(rocas):
-    """Elige las cuevas de oso entre las rocas gigantes (OSO_MIN a OSO_MAX por mundo), las marca
-    con es_cueva (nada puede destruirlas) y les da la direccion de su entrada. Devuelve la lista."""
+def marcar_cuevas(rocas, diseno=None, limite=None):
+    """Elige las cuevas de oso entre las rocas gigantes, las marca con es_cueva (nada puede
+    destruirlas) y les da la direccion de su entrada. Devuelve la lista. Sin diseno (o si no fija
+    cuevas): OSO_MIN a OSO_MAX al azar. Con diseno: 'cuevas' en total, con un minimo por region
+    ('cuevas_por_region') y separadas al menos 'separacion_cuevas' px."""
     gigantes = [r for r in rocas if getattr(r, "gigante", False)]
     random.shuffle(gigantes)
-    cuevas = gigantes[:min(len(gigantes), random.randint(OSO_MIN, OSO_MAX))]
+    if diseno is None or diseno.cuevas is None:
+        cuevas = gigantes[:min(len(gigantes), random.randint(OSO_MIN, OSO_MAX))]
+    else:
+        cuevas = []
+        centro = lambda r: pygame.Vector2(r.rect.center)
+        separada = lambda r: all((centro(r) - centro(c)).length() >= diseno.separacion_cuevas for c in cuevas)
+        for region, minimo in diseno.cuevas_por_region.items():
+            for r in gigantes:
+                if sum(diseno.region_de(*limite.relativo(c.rect.center)) == region for c in cuevas) >= minimo:
+                    break
+                if r not in cuevas and diseno.region_de(*limite.relativo(r.rect.center)) == region and separada(r):
+                    cuevas.append(r)
+        for r in gigantes:
+            if len(cuevas) >= diseno.cuevas:
+                break
+            if r not in cuevas and separada(r):
+                cuevas.append(r)
     for r in cuevas:
         r.es_cueva = True
         r.angulo_entrada = random.uniform(0, math.tau)
@@ -415,9 +433,9 @@ def marcar_cuevas(rocas):
 
 
 class SistemaFauna:
-    def __init__(self, centro_mundo, radio_mundo, vegetacion, charcos, rocas=()):
-        self.centro_mundo = pygame.Vector2(centro_mundo)
-        self.radio_mundo = radio_mundo
+    def __init__(self, limite, vegetacion, charcos, rocas=()):
+        self.limite = limite                 # cuadrado del mapa (limite_mundo.LimiteMundo)
+        self.centro_mundo = pygame.Vector2(limite.centro)
         self.vegetacion = vegetacion
         self.charcos = charcos
         self.rocas = list(rocas)
@@ -510,7 +528,7 @@ class SistemaFauna:
         for _ in range(6):
             p = pygame.Vector2(random.uniform(zona.left, zona.right),
                                random.uniform(zona.top, zona.bottom))
-            if (p - self.centro_mundo).length() > self.radio_mundo:
+            if not self.limite.dentro(p):
                 continue
             if any(c.contiene(p) for c in self.charcos):
                 continue
@@ -733,7 +751,7 @@ class SistemaFauna:
     def _punto_venado(self, zona, jugador):
         for _ in range(8):
             p = pygame.Vector2(random.uniform(zona.left, zona.right), random.uniform(zona.top, zona.bottom))
-            if (p - self.centro_mundo).length() > self.radio_mundo:
+            if not self.limite.dentro(p):
                 continue
             if any(c.contiene(p) for c in self.charcos):
                 continue
@@ -746,9 +764,7 @@ class SistemaFauna:
         """Punto al azar dentro del mundo y fuera del agua (y fuera del rect 'evitar', p. ej.
         la vista de la camara, para que lo nuevo no aparezca delante del jugador)."""
         for _ in range(20):
-            ang = random.uniform(0, math.tau)
-            d = math.sqrt(random.random()) * self.radio_mundo * 0.95
-            p = self.centro_mundo + pygame.Vector2(math.cos(ang), math.sin(ang)) * d
+            p = self.limite.punto_al_azar(self.limite.mitad * 0.05)
             if any(c.contiene(p) for c in self.charcos):
                 continue
             if evitar is not None and evitar.collidepoint(p.x, p.y):
@@ -823,7 +839,8 @@ class SistemaFauna:
         if animal.vivo or animal._xp_contada:
             return False
         animal._xp_contada = True
-        if animal.muerto_por_fauna:
+        # Cazado por un depredador o rematado por un NPC: no da XP ni monedas al jugador
+        if animal.muerto_por_fauna or getattr(animal, "ultimo_golpe_npc", False):
             return False
         self.xp_pendiente += animal.xp
         self.monedas_pendientes += animal.tirar_monedas()

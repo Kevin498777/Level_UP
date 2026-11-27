@@ -10,6 +10,7 @@ import os, sys, random
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 sys.path.insert(0, sys.argv[1])
 import pygame
+from limite_mundo import LimiteMundo
 pygame.init(); pygame.display.set_mode((1, 1))
 import habilidades as H, gacha as G, herramientas, fauna as F, mundo, vegetacion as V
 from personaje import Personaje
@@ -126,7 +127,7 @@ cort = H.crear_habilidad("Cortar")
 while cort.subir_nivel(): pass
 cu = H.CuchillaCortante(0, 0, 1, 0, 10, 5, True)
 rs = [Roca(30, 0, 40, gigante=True, cueva=True)]
-for _ in range(10): cu.avanzar(rs, [], [], [], pygame.Vector2(0, 0), 10 ** 6)
+for _ in range(10): cu.avanzar(rs, [], [], [], LimiteMundo(10 ** 7, centro=(0, 0)))
 check(len(rs) == 1 and not cu.activo, "Cortar a nivel 20 se rompe contra la cueva sin destruirla")
 
 print("--- la esfera choca con troncos y arbustos")

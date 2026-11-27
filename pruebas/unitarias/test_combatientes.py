@@ -36,7 +36,7 @@ def comprobar(cond, texto):
 
 random.seed(4)
 charcos, vegetacion, rocas = mundo.generar_terreno()
-fauna = F.SistemaFauna(mundo.CENTRO_MUNDO, mundo.RADIO_MUNDO, vegetacion, charcos, rocas)
+fauna = F.SistemaFauna(mundo.LIMITE, vegetacion, charcos, rocas)
 LIMITES = (0, 0, mundo.TAMANO_MUNDO, mundo.TAMANO_MUNDO)
 
 
@@ -279,7 +279,47 @@ comprobar(npc.vida == npc.vida_max and (lobo.posicion - npc.posicion).length() >
           "al combatiente oculto en un arbusto el lobo no lo persigue")
 fauna.lobos_solitarios.remove(lobo)
 
-# ------------------------------------------------------------ 5. Muerte de un combatiente
+# ------------------------------------------------------------ 5. Recompensas
+print("--- Lo que mata un NPC no da XP ni monedas al jugador")
+
+
+def cazar(quien_remata):
+    """Un venado de 1 de vida junto a los dos; lo golpea quien_remata ('npc' o 'jugador')."""
+    ctx, j, npc = escena("Espada Larga")
+    fauna.tomar_xp(); fauna.tomar_monedas()
+    atacante = npc if quien_remata == "npc" else j
+    venado = F.Venado(atacante.posicion.x, atacante.posicion.y + 20)     # justo al sur del atacante
+    venado.vida = 1
+    fauna.venados.append(venado)
+    atacante.alternar_arma()
+    atacante.angulo = 180.0                                     # mira al sur (al venado)
+    atacante.mantiene_ataque = True
+    for _ in range(40):
+        if quien_remata == "npc":
+            mundo.actualizar_combatiente(npc, ctx, DT, j)
+        else:
+            enemigos = fauna.animales_con_vida(mundo.vista_de(j))
+            antes = mundo.salud_de(enemigos)
+            mundo.combatiente_golpes(j, DT, enemigos)
+            mundo.marcar_autor(antes, False)
+    fauna.actualizar(DT, j, mundo.vista_de(j))                 # cuenta las muertes
+    if venado in fauna.venados:
+        fauna.venados.remove(venado)
+    return venado.vivo, fauna.tomar_xp()
+
+
+vivo, xp = cazar("npc")
+comprobar(not vivo and xp == 0, "venado muerto por un NPC: el jugador no gana XP (%g)" % xp)
+vivo, xp = cazar("jugador")
+comprobar(not vivo and xp > 0, "venado muerto por el jugador: si gana XP (%g)" % xp)
+import vendedores as VEND
+sv = VEND.SistemaVendedores.__new__(VEND.SistemaVendedores)
+falso = lambda npc_: type("V", (), {"muerto_por_fauna": False, "ultimo_golpe_npc": npc_})()
+sv._muertos = [falso(True), falso(False)]
+comprobar(sv.tomar_recompensa() == (VEND.XP_VENDEDOR, VEND.MONEDAS_VENDEDOR),
+          "vendedor rematado por un NPC: sin recompensa (solo cuenta el que mato el jugador)")
+
+# ------------------------------------------------------------ 6. Muerte de un combatiente
 print("--- Muerte")
 ctx, j, npc = escena()
 npc.vida = 0

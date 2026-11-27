@@ -71,7 +71,7 @@ local, cuenta = huella(*terreno)
 cuevas = [r for r in terreno[2] if getattr(r, "es_cueva", False)]
 comprobar(mundo.FAUNA.OSO_MIN <= len(cuevas) <= mundo.FAUNA.OSO_MAX and all(r.gigante for r in cuevas),
           "el terreno trae sus cuevas de oso (%d, en rocas gigantes)" % len(cuevas))
-sf = mundo.FAUNA.SistemaFauna(mundo.CENTRO_MUNDO, mundo.RADIO_MUNDO, terreno[1], terreno[0], terreno[2])
+sf = mundo.FAUNA.SistemaFauna(mundo.LIMITE, terreno[1], terreno[0], terreno[2])
 comprobar(sorted(tuple(o.cueva) for o in sf.osos) == sorted(tuple(r.rect.center) for r in cuevas), "la fauna pone un oso en cada cueva del terreno")
 comprobar(sorted(round(o.entrada_dir.angle_to((1, 0)), 3) for o in sf.osos) ==
           sorted(round(pygame.Vector2(1, 0).rotate_rad(r.angulo_entrada).angle_to((1, 0)), 3) for r in cuevas),

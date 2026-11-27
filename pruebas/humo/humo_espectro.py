@@ -15,8 +15,10 @@ import mundo
 from habilidades import Paso0
 
 capt = {}
-_gen = mundo.generar_rocas
-mundo.generar_rocas = lambda *a, **k: capt.setdefault("rocas", _gen(*a, **k))
+# Las rocas del mapa cargado (mapa.construir devuelve charcos, vegetacion, rocas)
+import mapa
+_construir = mapa.construir
+mapa.construir = lambda *a, **k: capt.setdefault("terreno", _construir(*a, **k)) and capt.setdefault("rocas", capt["terreno"][2]) and capt["terreno"]
 _Pers = mundo.Personaje
 
 
