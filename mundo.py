@@ -48,6 +48,7 @@ RADIO_CHARCO_MAX = 750
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
 ZONA_SEGURA_SPAWN = RADIO_JARDIN + 50   # Sin rocas, lagos ni plantas: la casa del spawn y su jardin
 SEPARACION_ROCAS = 15       # px minimos entre una roca y cualquier otro obstaculo al generarla
+SEPARACION_MONTANA = 4      # entre piedras de montaña: pegadas, para que la montaña sea maciza
 SUAVIZADO_CAMARA = 8.0      # Más alto = la cámara sigue más pegada al personaje
 # Semilla fija del terreno: lagos, vegetacion y rocas salen identicos en cada partida (mapa
 # principal fijo). Paso intermedio hasta el mundo guardado en archivo (Fase 2 del plan de NPC).
@@ -187,10 +188,10 @@ class Charco:
 
 def fuera_de_zonas_libres(p, extension, diseno):
     """True si un objeto de 'extension' px en 'p' no pisa el jardin de la casa ni las zonas
-    despejadas del diseno (p. ej. la del guardian)."""
+    despejadas del diseno (puertas, caminos, guardianes)."""
     if (p - CENTRO_MUNDO).length() - extension < ZONA_SEGURA_SPAWN:
         return False
-    return all((p - c).length() - extension >= r for c, r in diseno.zonas_libres_abs(LIMITE))
+    return not any(f.contiene(p, extension) for f in diseno.zonas_libres_abs(LIMITE))
 
 
 def generar_charcos(diseno=None):
@@ -198,14 +199,15 @@ def generar_charcos(diseno=None):
     mundo) dentro del cuadrado y sin solaparse. Las 'lagunas' del diseno (lagos grandes, con
     zona profunda) se colocan primero."""
     d = diseno if diseno is not None else Diseno()
-    charcos = []
-    objetivo = random.randint(*(d.lagos or (MIN_CHARCOS, MAX_CHARCOS)))
+    # Lagos fijos del diseno (p. ej. el gran lago del este, que llega al borde)
+    charcos = [Charco(*d.absoluto(LIMITE, u, v), radio) for u, v, radio, _nombre in d.lagos_fijos]
+    objetivo = len(charcos) + random.randint(*(d.lagos or (MIN_CHARCOS, MAX_CHARCOS)))
     radios_lagunas = [random.randint(*d.laguna_radio) for _ in range(d.lagunas)]
     intentos = 0
     while len(charcos) < objetivo and intentos < objetivo * INTENTOS_POR_CHARCO:
         intentos += 1
-        if len(charcos) < len(radios_lagunas):
-            radio = radios_lagunas[len(charcos)]
+        if len(charcos) - len(d.lagos_fijos) < len(radios_lagunas):
+            radio = radios_lagunas[len(charcos) - len(d.lagos_fijos)]
         else:
             radio = random.randint(*(d.lago_radio or (RADIO_CHARCO_MIN, RADIO_CHARCO_MAX)))
         extension = radio + ANCHO_BARRO + 10
@@ -246,6 +248,69 @@ class Roca:
         pygame.draw.rect(superficie, self.color_borde, rect, width=2, border_radius=radio_borde)
 
 
+class PiedraMontana(Roca):
+    """Piedra especial de montaña (p. ej. la Gran Montaña Antigua): mucho mas grande que una roca
+    normal, gris azulada e indestructible (nada la rompe y el Cuerpo de niebla no la atraviesa).
+    No puede ser cueva de oso."""
+    indestructible = True
+
+    def __init__(self, x, y, lado):
+        super().__init__(x, y, lado)
+        v = random.randint(-10, 10)
+        self.color = (128 + v, 132 + v, 140 + v)
+        self.color_borde = (84 + v, 88 + v, 98 + v)
+        self.color_brillo = (156 + v, 160 + v, 170 + v)
+
+
+# -----------------------------
+# PUERTAS A OTROS MAPAS (aun no funcionan)
+# -----------------------------
+ANCHO_PUERTA_MAPA = 180         # px a lo largo del borde
+FONDO_PUERTA_MAPA = 70          # px hacia dentro del mapa
+DISTANCIA_AVISO_PUERTA = 400    # px a los que se ve su nombre
+COLOR_PUERTA_PIEDRA = (120, 112, 100)
+COLOR_PUERTA_BORDE = (70, 64, 58)
+COLOR_PUERTA_HUECO = (20, 16, 14)
+COLOR_PUERTA_TEXTO = (240, 220, 160)
+
+
+def rect_puerta(puerta):
+    """Rectangulo del arco de piedra de una puerta, pegado al borde de su lado."""
+    x, y, lado = puerta["x"], puerta["y"], puerta["lado"]
+    if lado in ("norte", "sur"):
+        r = pygame.Rect(0, 0, ANCHO_PUERTA_MAPA, FONDO_PUERTA_MAPA)
+        if lado == "norte":
+            r.midtop = (round(x), round(y))
+        else:
+            r.midbottom = (round(x), round(y))
+    else:
+        r = pygame.Rect(0, 0, FONDO_PUERTA_MAPA, ANCHO_PUERTA_MAPA)
+        if lado == "oeste":
+            r.midleft = (round(x), round(y))
+        else:
+            r.midright = (round(x), round(y))
+    return r
+
+
+def dibujar_puertas(pantalla, vista, desplazamiento, puertas, jugador, fuente):
+    """Arcos de piedra de las puertas a otros mapas. Al acercarse se ve su nombre (aun no se
+    pueden cruzar: 'Proximamente')."""
+    ox, oy = desplazamiento
+    for p in puertas:
+        r = rect_puerta(p)
+        if not r.colliderect(vista):
+            continue
+        rp = r.move(-ox, -oy)
+        pygame.draw.rect(pantalla, COLOR_PUERTA_PIEDRA, rp, border_radius=6)
+        pygame.draw.rect(pantalla, COLOR_PUERTA_BORDE, rp, 3, border_radius=6)
+        hueco = rp.inflate(-rp.width * 0.45, -16) if p["lado"] in ("norte", "sur") else rp.inflate(-16, -rp.height * 0.45)
+        pygame.draw.rect(pantalla, COLOR_PUERTA_HUECO, hueco, border_radius=4)
+        if (pygame.Vector2(r.center) - jugador.posicion).length() < DISTANCIA_AVISO_PUERTA:
+            txt = fuente.render("%s  (Próximamente)" % p["nombre"], True, COLOR_PUERTA_TEXTO)
+            pos = (rp.centerx - txt.get_width() // 2, rp.bottom + 6 if p["lado"] == "norte" else rp.top - 22)
+            pantalla.blit(txt, pos)
+
+
 def _lado_roca(prob_gigante=0.05):
     """60 % pequeñas (22-45), el resto grandes (70-130) salvo 'prob_gigante' gigantes (150-300)."""
     r = random.random()
@@ -281,6 +346,24 @@ def generar_rocas(zonas_ocupadas=(), diseno=None):
         rejilla.agregar(nueva.rect)
         rocas.append(nueva)
         return True
+
+    # Montañas de piedras especiales (indestructibles) que llenan una region y pueden llegar al
+    # borde del mapa: primero las grandes y luego otras mas pequeñas para tapar los huecos
+    for _nombre, rect_rel, (lado_min, lado_max) in d.montanas_region:
+        region = d.rect_absoluto(LIMITE, rect_rel)
+        for minimo, maximo, intentos in ((lado_min, lado_max, 900), (160, lado_min, 1500), (80, 160, 2500), (40, 80, 4000)):
+            for _ in range(intentos):
+                lado = random.randint(minimo, maximo)
+                x = random.uniform(region.left, region.right)
+                y = random.uniform(region.top, region.bottom)
+                p = pygame.Vector2(x, y)
+                if not LIMITE.dentro(p, lado / 2) or not fuera_de_zonas_libres(p, lado * 0.75, d):
+                    continue
+                piedra = PiedraMontana(x, y, lado)
+                if rejilla.hay_colision(piedra.rect.inflate(SEPARACION_MONTANA * 2, SEPARACION_MONTANA * 2)):
+                    continue
+                rejilla.agregar(piedra.rect)
+                rocas.append(piedra)
 
     # Montañas: grupos de rocas alrededor de un punto (u, v) del diseno
     for u, v, radio, n, prob_gigante in d.montanas:
@@ -811,6 +894,7 @@ def resolver_solapamientos(entidades):
 # "intenciones" del Personaje (mover_a, pulsar_ataque, pulsar_habilidad...): el jugador las genera
 # con el teclado y el raton; un bot las generara con su inteligencia (Fase 4).
 VISTA_COMBATIENTE = (1800, 1200)    # px alrededor de un combatiente no jugador en los que ve enemigos
+ZONA_OBSTACULOS_MOVER = 400         # px alrededor de un combatiente cuyos obstaculos mira mover()
 
 
 class Contexto:
@@ -1024,14 +1108,19 @@ def combatiente_estado(c, ctx, dt, enemigos, enemigos_sin_tumba):
     c.actualizar_velocidad()
     # Mover respetando el cuadrado del mapa y las rocas. Con Cuerpo de niebla (Espectro) solo lo
     # frenan las cuevas de oso y los arbustos en los que no cabe.
+    # Solo los obstaculos cercanos (en un fotograma nadie se mueve ni la mitad de esto): el
+    # resultado es el mismo y mover() no recorre todas las rocas del mapa en cada sub-paso
+    zona = pygame.Rect(0, 0, ZONA_OBSTACULOS_MOVER * 2, ZONA_OBSTACULOS_MOVER * 2)
+    zona.center = (round(c.posicion.x), round(c.posicion.y))
+    rocas_cerca = [r for r in ctx.rocas if r.rect.colliderect(zona)]
     if c.inspector:                             # ShadowGOD: lo atraviesa todo
         c.mover(ctx.limites_mundo, LIMITE, [], [])
     elif c.cuerpo_de_niebla:
         c.mover(ctx.limites_mundo, LIMITE,
-                [r for r in ctx.rocas if getattr(r, "es_cueva", False)],
-                ctx.vegetacion.obstaculos_para(c, con_troncos=False))
+                [r for r in rocas_cerca if getattr(r, "es_cueva", False) or getattr(r, "indestructible", False)],
+                ctx.vegetacion.obstaculos_cerca(c, zona, con_troncos=False))
     else:
-        c.mover(ctx.limites_mundo, LIMITE, ctx.rocas, ctx.vegetacion.obstaculos_para(c))
+        c.mover(ctx.limites_mundo, LIMITE, rocas_cerca, ctx.vegetacion.obstaculos_cerca(c, zona))
     # Retroceso acumulado por empuje
     c.actualizar_empuje(dt, LIMITE)
     if c.inspector:
@@ -1134,9 +1223,21 @@ def dibujar_capas(pantalla, area, datos_mapa, rocas, vista, z, fuente):
     for z_ in datos_mapa.get("zonas", []):
         color = MAPA.COLORES_RAZA.get(z_["nombre"], (255, 255, 255))
         c = a_pantalla((z_["x"], z_["y"]))
-        pygame.draw.circle(pantalla, color, c, max(3, round(z_["radio"] * z)), 2)
+        if z_.get("rects"):                     # zona con forma de casillas (bosque de los elfos)
+            for r in z_["rects"]:
+                esquina = a_pantalla((r[0], r[1]))
+                pygame.draw.rect(pantalla, color, (esquina, (max(2, round(r[2] * z)), max(2, round(r[3] * z)))), 2)
+        else:
+            pygame.draw.circle(pantalla, color, c, max(3, round(z_["radio"] * z)), 2)
         txt = fuente.render(z_["nombre"], True, color)
         pantalla.blit(txt, txt.get_rect(center=c))
+    for p in datos_mapa.get("puertas", []):
+        txt = fuente.render("Puerta: %s" % p["nombre"], True, COLOR_PUERTA_TEXTO)
+        destino = pygame.Vector2(a_pantalla(rect_puerta(p).center))
+        hacia_dentro = pygame.Vector2(a_pantalla(LIMITE.centro)) - destino
+        if hacia_dentro.length_squared() > 0:
+            destino += hacia_dentro.normalize() * 40
+        pantalla.blit(txt, txt.get_rect(center=(round(destino.x), round(destino.y))))
     for raza, puntos in datos_mapa.get("aparicion", {}).items():
         color = MAPA.COLORES_RAZA.get(raza, (255, 255, 255))
         for p in puntos:
@@ -2159,6 +2260,7 @@ def iniciar_mundo(config):
                 if roca.rect.colliderect(vista):
                     roca.dibujar(pantalla, desplazamiento)
             fauna.dibujar_entradas_cueva(pantalla, vista, desplazamiento)
+            dibujar_puertas(pantalla, vista, desplazamiento, datos_mapa.get("puertas", []), jugador, fuentes["sub"])
 
             # Pasto y flores (cobertura de suelo, bajo las entidades)
             vegetacion.dibujar_cobertura(pantalla, vista, desplazamiento)

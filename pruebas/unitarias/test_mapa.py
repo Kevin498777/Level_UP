@@ -65,7 +65,7 @@ comprobar(len(charcos) == len(datos["lagos"]) and len(rocas) == len(datos["rocas
           and len(veg.arbustos) == len(datos["arbustos"]) and len(veg.pasto) == len(datos["pasto"]),
           "se carga todo lo guardado (%d lagos, %d rocas, %d arboles, %d arbustos)" % (len(charcos), len(rocas), len(veg.arboles), len(veg.arbustos)))
 iguales = all(r.rect.topleft == (round(x - lado / 2), round(y - lado / 2)) and r.rect.width == lado and bool(getattr(r, "es_cueva", False)) == bool(cueva)
-              for r, (x, y, lado, _s, cueva, _a) in zip(rocas, datos["rocas"]))
+              for r, (x, y, lado, _s, cueva, _a, _m) in zip(rocas, datos["rocas"]))
 iguales &= all((round(a.centro.x, 1), round(a.centro.y, 1), a.tipo, a.radio_copa) == (x, y, t, rc)
                for a, (x, y, t, _e, _rt, rc, _s) in zip(veg.arboles, datos["arboles"]))
 comprobar(iguales, "posiciones, tamanos y tipos identicos a los del archivo")
@@ -101,12 +101,12 @@ def pocas_cuevas(d):
 
 
 def cerca_del_borde(d):
-    d["rocas"].append([LIMITE.rect.left + 100, LIMITE.centro.y, 40, 1, 0, 0.0])
+    d["rocas"].append([LIMITE.centro.x + 3000, LIMITE.rect.top + 100, 40, 1, 0, 0.0, 0])
 
 
 def guardian_ocupado(d):
     g = next(z for z in d["zonas"] if z["nombre"] == "Guardian")
-    d["rocas"].append([g["x"] + 100, g["y"], 60, 1, 0, 0.0])
+    d["rocas"].append([g["x"] + 100, g["y"], 60, 1, 0, 0.0, 0])
 
 
 def zona_aislada(d):
@@ -115,7 +115,7 @@ def zona_aislada(d):
     for k in range(-6, 7):
         for x, y in ((zona.x + k * 100, zona.y - 600), (zona.x + k * 100, zona.y + 600),
                      (zona.x - 600, zona.y + k * 100), (zona.x + 600, zona.y + k * 100)):
-            d["rocas"].append([round(x), round(y), 110, 1, 0, 0.0])
+            d["rocas"].append([round(x), round(y), 110, 1, 0, 0.0, 0])
 
 
 def pasillo_estrecho(d):
@@ -123,7 +123,7 @@ def pasillo_estrecho(d):
     zona_aislada(d)
     zona = (LIMITE.centro.x + 2200, LIMITE.centro.y + 2200 + 600)
     d["rocas"][:] = [r for r in d["rocas"] if not (r[1] == round(zona[1]) and abs(r[0] - zona[0]) < 60)]
-    d["rocas"].append([round(zona[0]) - 80, round(zona[1]), 110, 1, 0, 0.0])
+    d["rocas"].append([round(zona[0]) - 80, round(zona[1]), 110, 1, 0, 0.0, 0])
 
 
 roto(pocas_cuevas, "cuevas de oso")
@@ -132,7 +132,48 @@ roto(guardian_ocupado, "guardian no esta despejada")
 roto(zona_aislada, "zonas grandes aisladas")
 roto(pasillo_estrecho, "zonas grandes aisladas")
 
-# ------------------------------------------------------------ 3. Limite cuadrado
+
+def puerta_tapada(d):
+    p = next(x for x in d["puertas"] if x["lado"] == "este")
+    d["rocas"].append([p["x"] - 150, p["y"], 120, 1, 0, 0.0, 0])
+
+
+roto(puerta_tapada, "no se llega andando a la puerta")
+
+# ------------------------------------------------------------ 3. Tus indicaciones (version 2)
+print("--- Version 2 del diseno (27/11/2026)")
+from diseno_mapa import celdas, DISENOS
+dis = DISENOS["principal"]
+puertas = {p["lado"]: p for p in datos["puertas"]}
+comprobar(set(puertas) == {"norte", "sur", "este", "oeste"} and all(not p["activa"] for p in puertas.values()),
+          "4 puertas (aun sin funcionar): %s" % ", ".join(p["nombre"] for p in datos["puertas"]))
+pegadas = all(LIMITE.distancia_al_borde((p["x"], p["y"])) < 1 for p in datos["puertas"])
+celda_de = lambda p: "ABCDEFGHIJ"[min(9, int((p[0] - LIMITE.rect.left) // (LIMITE.lado / 10)))] + str(min(10, int((p[1] - LIMITE.rect.top) // (LIMITE.lado / 10)) + 1))
+comprobar(pegadas, "todas las puertas estan pegadas al limite del mapa")
+comprobar(abs(puertas["norte"]["x"] - LIMITE.centro.x) < 1 and abs(puertas["sur"]["x"] - LIMITE.centro.x) < 1
+          and abs(puertas["oeste"]["y"] - LIMITE.centro.y) < 1 and abs(puertas["este"]["y"] - LIMITE.centro.y) < 1,
+          "norte entre E1 y F1, sur entre E10 y F10, oeste entre A5 y A6, este entre J5 y J6")
+g = datos["aparicion"]["Guardian"]
+comprobar(len(g) == 2 and g[0][0] < puertas["norte"]["x"] < g[1][0] and all(abs(p[1] - puertas["norte"]["y"]) < 300 for p in g),
+          "2 guardianes, uno a cada lado de la puerta de la Ciudad Humana")
+lago = max(charcos, key=lambda c: c.radio)
+comprobar(lago.es_lago_profundo and celda_de(lago.centro) in ("I8", "I9", "J8", "J9") and LIMITE.distancia_al_borde(lago.centro) <= lago.radio + 10,
+          "gran lago en I8-J9 (radio %d) que llega al borde, con zona profunda" % lago.radio)
+montana = [r for r in rocas if getattr(r, "indestructible", False)]
+reg = dis.rect_absoluto(LIMITE, celdas("A4", "A7"))
+comprobar(len(montana) > 30 and all(reg.inflate(20, 20).collidepoint(r.rect.center) for r in montana)
+          and max(r.rect.width for r in montana) >= 300, "Gran Montaña Antigua: %d piedras especiales indestructibles en A4-A7" % len(montana))
+comprobar(not any(getattr(r, "es_cueva", False) for r in montana), "las piedras de la montaña no son cuevas de oso")
+bosque = [dis.rect_absoluto(LIMITE, r) for r in dis.BOSQUE_SUR]
+en_bosque = sum(1 for a in veg.arboles if any(r.collidepoint(a.centro) for r in bosque))
+comprobar(en_bosque > 500, "gran bosque de los elfos en C10-H10 y la mitad de D9-G9 (%d arboles)" % en_bosque)
+pradera = dis.rect_absoluto(LIMITE, celdas("J5", "J6"))
+cubierta = sum(1 for k in range(200) if any((pygame.Vector2(pradera.left + (k % 10 + 0.5) * pradera.width / 10,
+                                                             pradera.top + (k // 10 + 0.5) * pradera.height / 20) - c).length() <= r
+                                            for c, r in veg.praderas)) / 200
+comprobar(cubierta > 0.95, "J5 y J6 son pradera (%.0f %% cubierto)" % (cubierta * 100))
+
+# ------------------------------------------------------------ 4. Limite cuadrado
 print("--- Limite cuadrado")
 dentro = all(LIMITE.dentro(r.rect.center, r.rect.width / 2) for r in rocas) and \
     all(LIMITE.dentro(a.centro, BORDE_LIBRE - 1) for a in veg.arboles + veg.arbustos) and \
@@ -168,7 +209,7 @@ comprobar(all(alcanzado[rejilla.celda_de(p)[1] * rejilla.ancho + rejilla.celda_d
           "las cuatro esquinas del mapa se alcanzan andando desde la casa")
 comprobar(os.path.exists(mapa.ruta_rutas("principal")), "la rejilla de rutas esta guardada (mapas/principal_rutas.bin)")
 
-# ------------------------------------------------------------ 4. Respaldo
+# ------------------------------------------------------------ 5. Respaldo
 print("--- Respaldo")
 resultado, motivo = mapa.cargar_terreno("no_existe")
 comprobar(resultado is None and motivo, "sin archivo: aviso (%s) y el juego genera con la semilla fija" % motivo[:40])

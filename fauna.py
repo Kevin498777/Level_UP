@@ -407,7 +407,8 @@ def marcar_cuevas(rocas, diseno=None, limite=None):
     destruirlas) y les da la direccion de su entrada. Devuelve la lista. Sin diseno (o si no fija
     cuevas): OSO_MIN a OSO_MAX al azar. Con diseno: 'cuevas' en total, con un minimo por region
     ('cuevas_por_region') y separadas al menos 'separacion_cuevas' px."""
-    gigantes = [r for r in rocas if getattr(r, "gigante", False)]
+    # las piedras especiales de montaña (indestructibles) no son cuevas
+    gigantes = [r for r in rocas if getattr(r, "gigante", False) and not getattr(r, "indestructible", False)]
     random.shuffle(gigantes)
     if diseno is None or diseno.cuevas is None:
         cuevas = gigantes[:min(len(gigantes), random.randint(OSO_MIN, OSO_MAX))]
@@ -482,7 +483,7 @@ class SistemaFauna:
 
         # Manadas de lobos (7 por mundo), en los bosques.
         self.manadas = []
-        self._bosques = list(getattr(vegetacion, "bosques", []))
+        self._bosques = list(getattr(vegetacion, "bosques_fauna", None) or getattr(vegetacion, "bosques", []))
         for _ in range(LOBO_MANADAS):
             self.manadas.append(Manada(self._centro_manada()))
 

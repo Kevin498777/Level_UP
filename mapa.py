@@ -29,11 +29,12 @@ from diseno_mapa import DISENOS
 from limite_mundo import LIMITE, BORDE_LIBRE
 from spawn import Casa
 
-VERSION_FORMATO = 1
+VERSION_FORMATO = 2             # v2: piedras de montaña, zonas con rects, puertas, sin_borde
 CARPETA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapas")
 SEMILLA_OBJETOS = 7919          # semilla para las semillas propias de cada objeto
 # Puntos de aparicion
 SEPARACION_APARICION = 400      # px minimos entre dos puntos de aparicion de la misma raza
+SEPARACION_GUARDIANES = 160     # px de la puerta del norte a cada guardian
 HOLGURA_APARICION = 40          # px libres alrededor de un punto de aparicion
 # Rejilla de rutas y conectividad
 CELDA_RUTAS = 20                # px por celda
@@ -67,18 +68,28 @@ def generar(nombre="principal", semilla=mundo.SEMILLA_MUNDO):
         "lado": LIMITE.lado,
         "lagos": [[r1(c.centro.x), r1(c.centro.y), c.radio, s()] for c in charcos],
         "rocas": [[r.rect.x + r.rect.width / 2, r.rect.y + r.rect.height / 2, r.rect.width, s(), int(getattr(r, "es_cueva", False)),
-                   round(getattr(r, "angulo_entrada", 0.0), 4)] for r in rocas],
+                   round(getattr(r, "angulo_entrada", 0.0), 4), int(getattr(r, "indestructible", False))] for r in rocas],
         "arboles": [[r1(a.centro.x), r1(a.centro.y), a.tipo, round(a.escala, 3), a.radio_tronco, a.radio_copa, s()]
                     for a in veg.arboles],
         "arbustos": [[r1(a.centro.x), r1(a.centro.y), a.radio, a.tipo, s()] for a in veg.arbustos],
-        "bosques": [[r1(c.x), r1(c.y), r, d] for (c, r), d in zip(veg.bosques, veg.densidad_bosques)],
+        "bosques": [[r1(c.x), r1(c.y), r, d, int(reg)] for (c, r), d, reg in zip(veg.bosques, veg.densidad_bosques, veg.de_region)],
         "praderas": [[r1(c.x), r1(c.y), r] for c, r in veg.praderas],
         "pastizales": [[r1(c.x), r1(c.y), r] for c, r in veg.pastizales],
         "pasto": [[r1(p.centro.x), r1(p.centro.y), round(p.escala, 3), s()] for p in veg.pasto],
         "flores": [[r1(f.centro.x), r1(f.centro.y), V.COLORES_FLOR.index(f.color), s()] for f in veg.flores],
     }
-    datos["zonas"] = [{"nombre": n, "x": r1(diseno.absoluto(LIMITE, u, v).x), "y": r1(diseno.absoluto(LIMITE, u, v).y),
-                       "radio": radio, "descripcion": desc} for n, u, v, radio, desc in diseno.zonas]
+    datos["zonas"] = []
+    for z in diseno.zonas:
+        c = diseno.absoluto(LIMITE, z["u"], z["v"])
+        zona = {"nombre": z["nombre"], "x": r1(c.x), "y": r1(c.y), "radio": z["radio"], "descripcion": z["descripcion"]}
+        if "rects" in z:
+            zona["rects"] = [list(diseno.rect_absoluto(LIMITE, r)) for r in z["rects"]]
+        datos["zonas"].append(zona)
+    datos["puertas"] = [{"nombre": n, "destino": dest, "lado": lado, "x": r1(diseno.absoluto(LIMITE, u, v).x),
+                         "y": r1(diseno.absoluto(LIMITE, u, v).y), "activa": False}
+                        for n, dest, lado, u, v in diseno.puertas]
+    # regiones donde los obstaculos pueden llegar al borde (la montaña, el gran lago)
+    datos["sin_borde"] = [list(diseno.rect_absoluto(LIMITE, r)) for r in diseno.sin_borde]
     charcos2, veg2, rocas2 = construir(datos)
     datos["aparicion"] = puntos_de_aparicion(datos, diseno, charcos2, veg2, rocas2, random.Random(semilla + 1))
     return datos
@@ -122,9 +133,11 @@ def construir(datos):
             charcos.append(mundo.Charco(x, y, radio))
         veg = V.SistemaVegetacion(LIMITE, mundo.ZONA_SEGURA_SPAWN, charcos, DISENOS.get(datos.get("diseno")),
                                   generar=False)
-        for x, y, r, d in datos["bosques"]:
+        for x, y, r, d, de_region in datos["bosques"]:
             veg.bosques.append((pygame.Vector2(x, y), r))
             veg.densidad_bosques.append(d)
+            veg.regiones_bosques.append(None)
+            veg.de_region.append(bool(de_region))
         veg.praderas = [(pygame.Vector2(x, y), r) for x, y, r in datos["praderas"]]
         veg.pastizales = [(pygame.Vector2(x, y), r) for x, y, r in datos["pastizales"]]
         for x, y, tipo, escala, rt, rc, s in datos["arboles"]:
@@ -148,9 +161,9 @@ def construir(datos):
             random.seed(s)
             veg.flores.append(V.Flor(x, y, V.COLORES_FLOR[color]))
         rocas = []
-        for x, y, lado, s, cueva, angulo in datos["rocas"]:
+        for x, y, lado, s, cueva, angulo, montana in datos["rocas"]:
             random.seed(s)
-            roca = mundo.Roca(x, y, lado)
+            roca = (mundo.PiedraMontana if montana else mundo.Roca)(x, y, lado)
             if cueva:
                 roca.es_cueva = True
                 roca.angulo_entrada = angulo
@@ -194,7 +207,15 @@ def puntos_de_aparicion(datos, diseno, charcos, veg, rocas, rng):
         centro = pygame.Vector2(z["x"], z["y"])
         puntos = []
         if raza == "Guardian":
-            puntos.append(centro)
+            # uno a cada lado de la puerta del norte (o en el centro de su zona si no hay puerta)
+            norte = next((p for p in datos.get("puertas", []) if p["lado"] == "norte"), None)
+            if norte is None:
+                puntos.append(centro)
+            else:
+                for k in range(cantidad):
+                    lado = -1 if k % 2 == 0 else 1
+                    puntos.append(pygame.Vector2(norte["x"] + lado * SEPARACION_GUARDIANES * (k // 2 + 1),
+                                                 norte["y"] + mundo.FONDO_PUERTA_MAPA + 60))
         elif raza == "Enanos":
             cuevas = sorted((r for r in rocas if getattr(r, "es_cueva", False)),
                             key=lambda r: (pygame.Vector2(r.rect.center) - centro).length())
@@ -202,11 +223,16 @@ def puntos_de_aparicion(datos, diseno, charcos, veg, rocas, rng):
                 oso = FAUNA.Oso(r)
                 puntos.append(oso.entrada + oso.entrada_dir * 40)
         else:
+            rects = [pygame.Rect(r) for r in z.get("rects", [])]
             for _ in range(4000):
                 if len(puntos) >= cantidad:
                     break
-                ang, dist = rng.uniform(0, math.tau), math.sqrt(rng.random()) * z["radio"]
-                p = centro + pygame.Vector2(math.cos(ang), math.sin(ang)) * dist
+                if rects:                       # zona con forma de casillas (el bosque de los elfos)
+                    r = rng.choice(rects)
+                    p = pygame.Vector2(rng.uniform(r.left, r.right), rng.uniform(r.top, r.bottom))
+                else:
+                    ang, dist = rng.uniform(0, math.tau), math.sqrt(rng.random()) * z["radio"]
+                    p = centro + pygame.Vector2(math.cos(ang), math.sin(ang)) * dist
                 if (punto_transitable(p, charcos, rocas_obs, circulares)
                         and all((p - q).length() >= SEPARACION_APARICION for q in puntos)):
                     puntos.append(p)
@@ -328,9 +354,12 @@ def validar(datos, charcos=None, veg=None, rocas=None):
     centro = mundo.CENTRO_MUNDO
 
     # Forma, borde y jardin
-    fuera = [r for r in rocas if not LIMITE.dentro(r.rect.center, r.rect.width / 2 + BORDE_LIBRE - 1)]
-    fuera += [a for a in veg.arboles + veg.arbustos if not LIMITE.dentro(a.centro, BORDE_LIBRE - 1)]
-    fuera += [c for c in charcos if not LIMITE.dentro(c.centro, c.radio + BORDE_LIBRE - 1)]
+    sin_borde = [pygame.Rect(r) for r in datos.get("sin_borde", [])]
+    exento = lambda p: any(r.collidepoint(p) for r in sin_borde)      # montaña, gran lago
+    fuera = [r for r in rocas if not exento(r.rect.center) and not LIMITE.dentro(r.rect.center, r.rect.width / 2 + BORDE_LIBRE - 1)]
+    fuera += [a for a in veg.arboles + veg.arbustos if not exento(a.centro) and not LIMITE.dentro(a.centro, BORDE_LIBRE - 1)]
+    fuera += [c for c in charcos if not exento(c.centro) and not LIMITE.dentro(c.centro, c.radio + BORDE_LIBRE - 1)]
+    fuera += [r for r in rocas if not LIMITE.dentro(r.rect.center, r.rect.width / 2 - 1)]      # nada sale del mapa
     if fuera:
         errores.append("%d obstaculos a menos de %d px del borde del mapa" % (len(fuera), BORDE_LIBRE))
     en_jardin = [r for r in rocas if (pygame.Vector2(r.rect.center) - centro).length() < mundo.ZONA_SEGURA_SPAWN]
@@ -369,8 +398,8 @@ def validar(datos, charcos=None, veg=None, rocas=None):
     info["praderas"], info["pastizales"] = len(veg.praderas), len(veg.pastizales)
     if len(veg.praderas) < 8 and len(veg.pastizales) < 8:
         errores.append("faltan praderas para las madrigueras (minimo 8)")
-    lejos = [b for b in veg.bosques if (b[0] - centro).length() > 1500]
-    info["bosques"] = len(veg.bosques)
+    lejos = [b for b in veg.bosques_fauna if (b[0] - centro).length() > 1500]
+    info["bosques"] = len(veg.bosques_fauna)
     if len(lejos) < 8:
         errores.append("hay %d bosques a mas de 1500 px del centro (minimo 8, para las manadas)" % len(lejos))
     con_escondite = sum(1 for c, r in veg.bosques
@@ -404,6 +433,13 @@ def validar(datos, charcos=None, veg=None, rocas=None):
     info["tierra_alcanzable_%"] = round(100.0 * sum(alcanzado) / max(1, libres), 2)
     if grandes:
         errores.append("%d zonas grandes aisladas (no se llega con pasillos de %d px)" % (len(grandes), PASILLO_MINIMO))
+    # Cada puerta se alcanza andando desde la casa (por su camino o su paso)
+    for p in datos.get("puertas", []):
+        dentro = {"norte": (0, 1), "sur": (0, -1), "oeste": (1, 0), "este": (-1, 0)}[p["lado"]]
+        frente = pygame.Vector2(p["x"], p["y"]) + pygame.Vector2(dentro) * (PASILLO_MINIMO // 2 + mundo.FONDO_PUERTA_MAPA)
+        i, j = rejilla.celda_de(frente)
+        if not (0 <= i < rejilla.ancho and 0 <= j < rejilla.alto) or not alcanzado[j * rejilla.ancho + i]:
+            errores.append("no se llega andando a la puerta '%s'" % p["nombre"])
     if bolsas and not grandes:
         avisos.append("%d huecos pequenos aislados entre obstaculos (menores de 200 x 200 px)" % len(bolsas))
     info["_bolsas"] = bolsas
@@ -457,7 +493,8 @@ def dibujar_terreno(img, a_img, r_img, charcos, veg, rocas):
         pygame.draw.circle(img, COLORES_ARBUSTO[a.tipo], a_img(a.centro), max(2, r_img(a.radio)))
     for r in rocas:
         rect = pygame.Rect(a_img(r.rect.topleft), (max(2, r_img(r.rect.width)), max(2, r_img(r.rect.height))))
-        pygame.draw.rect(img, (175, 160, 135) if not getattr(r, "es_cueva", False) else (90, 60, 40), rect)
+        color = (90, 60, 40) if getattr(r, "es_cueva", False) else (125, 130, 145) if getattr(r, "indestructible", False) else (175, 160, 135)
+        pygame.draw.rect(img, color, rect)
         if getattr(r, "es_cueva", False):
             pygame.draw.circle(img, (255, 255, 255), rect.center, max(6, rect.width), 2)
 
@@ -511,11 +548,31 @@ def vista_previa(datos, ruta_png, charcos=None, veg=None, rocas=None, bolsas=())
         num = fuente.render(str(k + 1), True, (230, 230, 230))
         img.blit(num, num.get_rect(center=(margen // 2, margen + (k + 0.5) * paso)))
     # Zonas y puntos de aparicion
+    for p in datos.get("puertas", []):
+        rp = mundo.rect_puerta(p)
+        rect = pygame.Rect(a_img(rp.topleft), (max(8, r_img(rp.width) * 3), max(8, r_img(rp.height) * 3)))
+        rect.center = a_img(rp.center)
+        pygame.draw.rect(img, (240, 220, 160), rect)
+        pygame.draw.rect(img, (40, 30, 20), rect, 2)
+        txt = fuente.render(p["nombre"], True, (240, 220, 160))
+        sitio = {"norte": (0, 22), "sur": (0, -22), "oeste": (txt.get_width() // 2 + 14, 0),
+                 "este": (-txt.get_width() // 2 - 14, 0)}[p["lado"]]
+        img.blit(txt, txt.get_rect(center=(rect.centerx + sitio[0], rect.centery + sitio[1])))
     for z in datos.get("zonas", []):
+        for r in z.get("rects", []):
+            rr = pygame.Rect(a_img((r[0], r[1])), (r_img(r[2]), r_img(r[3])))
+            pygame.draw.rect(img, COLORES_RAZA.get(z["nombre"], (255, 255, 255)), rr, 2)
         color = COLORES_RAZA.get(z["nombre"], (255, 255, 255))
+        if z.get("rects"):                      # zona con forma de casillas: solo sus rects
+            txt = fuente.render(z["nombre"], True, color)
+            r = z["rects"][-1]
+            img.blit(txt, txt.get_rect(center=a_img((r[0] + r[2] / 2, r[1] - 120))))
+            continue
         pygame.draw.circle(img, color, a_img((z["x"], z["y"])), r_img(z["radio"]), 2)
         txt = fuente.render(z["nombre"], True, color)
-        img.blit(txt, txt.get_rect(center=a_img((z["x"], z["y"] - z["radio"] * 0.8))))
+        # el nombre arriba del circulo, o abajo si el circulo toca el borde norte
+        arriba = z["y"] - z["radio"] > LIMITE.rect.top
+        img.blit(txt, txt.get_rect(center=a_img((z["x"], z["y"] + (-0.8 if arriba else 0.8) * z["radio"]))))
     for raza, puntos in datos.get("aparicion", {}).items():
         color = COLORES_RAZA.get(raza, (255, 255, 255))
         for p in puntos:

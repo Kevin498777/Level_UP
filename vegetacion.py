@@ -164,6 +164,8 @@ class Arbusto:
 
     def contiene(self, punto):
         """True si el punto (centro del personaje) está dentro de la forma del arbusto."""
+        if not self.rect.collidepoint(punto):      # descarte rapido: fuera de su caja
+            return False
         return any((punto - c).length() <= r for c, r in self.circulos)
 
     @property
@@ -193,6 +195,9 @@ class Arbusto:
 CELDA_REJILLA = 256            # Tamanio de celda para la rejilla espacial de colocacion
 
 PROB_ARBUSTO_EN_BOSQUE = 0.70  # sesgo de los arbustos hacia los bosques
+BOSQUE_REGION_RADIO = 700      # circulos que cubren un bosque con forma de casillas
+BOSQUE_REGION_PASO = 800       # separacion entre esos circulos
+BOSQUES_FAUNA_POR_REGION = 2   # cuantas veces cuenta un bosque de casillas para las manadas
 
 TIPOS_ARBOL = ["frondoso", "pino", "seco"]
 PESOS_ARBOL = [0.55, 0.35, 0.10]
@@ -444,8 +449,12 @@ class SistemaVegetacion:
         self.centro_mundo = pygame.Vector2(limite.centro)
         self.zona_segura = zona_segura
         self.diseno = diseno if diseno is not None else Diseno()
-        self.zonas_libres = self.diseno.zonas_libres_abs(limite)    # p. ej. la zona del guardian
+        # Zonas sin vegetacion: las despejadas del diseno (puertas, caminos, guardianes) y las
+        # reservadas para otra cosa (la montana)
+        self.zonas_libres = self.diseno.zonas_libres_abs(limite) + self.diseno.formas_sin_vegetacion(limite)
         self.densidad_bosques = []      # densidad de arboles de cada bosque (mismo orden que bosques)
+        self.regiones_bosques = []      # rects a los que se limita cada bosque (None = todo su circulo)
+        self.de_region = []             # True = circulo que cubre parte de un bosque con forma de casillas
         zonas_ocupadas = list(zonas_ocupadas)   # charcos u otros objetos con .rect
         # Lagos (objetos con .circulos): el pasto y las flores no crecen dentro
         self.charcos = [z for z in zonas_ocupadas if hasattr(z, "circulos")]
@@ -577,12 +586,33 @@ class SistemaVegetacion:
         """Bosques fijos del diseno (p. ej. el gran bosque del sur) y bosques repartidos."""
         d = self.diseno
         for u, v, radio, densidad, _nombre in d.bosques_fijos:
-            self.bosques.append((d.absoluto(self.limite, u, v), radio))
-            self.densidad_bosques.append(densidad)
+            self._agregar_bosque(d.absoluto(self.limite, u, v), radio, densidad)
+        # Bosques con forma de casillas: circulos que cubren sus rectangulos (la fauna y los
+        # arbustos usan circulos); los arboles no salen de los rectangulos
+        for _nombre, rects_rel, densidad in d.bosques_region:
+            rects = [d.rect_absoluto(self.limite, r) for r in rects_rel]
+            for rect in rects:
+                for cx in range(rect.left + BOSQUE_REGION_RADIO // 2, rect.right, BOSQUE_REGION_PASO):
+                    for cy in range(rect.top + BOSQUE_REGION_RADIO // 2, rect.bottom, BOSQUE_REGION_PASO):
+                        self._agregar_bosque(pygame.Vector2(cx, cy), BOSQUE_REGION_RADIO, densidad, rects)
         for _ in range(random.randint(*d.bosques)):
             radio = random.randint(*d.bosque_radio)
-            self.bosques.append((d.punto(self.limite, "bosque", radio * 0.5), radio))
-            self.densidad_bosques.append(d.densidad_bosque)
+            self._agregar_bosque(d.punto(self.limite, "bosque", radio * 0.5), radio, d.densidad_bosque)
+
+    def _agregar_bosque(self, centro, radio, densidad, region=None):
+        self.bosques.append((pygame.Vector2(centro), radio))
+        self.densidad_bosques.append(densidad)
+        self.regiones_bosques.append(region)
+        self.de_region.append(region is not None)
+
+    @property
+    def bosques_fauna(self):
+        """Bosques para situar las manadas de lobos: un bosque con forma de casillas (cubierto por
+        muchos circulos) cuenta como BOSQUES_FAUNA_POR_REGION bosques, no como todos sus circulos."""
+        normales = [b for b, reg in zip(self.bosques, self.de_region) if not reg]
+        cubiertos = [b for b, reg in zip(self.bosques, self.de_region) if reg]
+        paso = max(1, len(cubiertos) // BOSQUES_FAUNA_POR_REGION)
+        return normales + cubiertos[paso // 2::paso][:BOSQUES_FAUNA_POR_REGION]
 
     def _punto_en_mundo(self, margen, clave="arbusto"):
         p = self.diseno.punto(self.limite, clave, margen + BORDE_LIBRE)
@@ -602,18 +632,18 @@ class SistemaVegetacion:
             return False
         if not self.limite.dentro(p, margen + BORDE_LIBRE):
             return False
-        return all((p - c).length() - margen >= r for c, r in self.zonas_libres)
+        return not any(f.contiene(p, margen) for f in self.zonas_libres)
 
     def _generar_arboles(self):
         # Arboles densos dentro de cada bosque + algunos solitarios por el mundo
-        for (centro, radio), densidad in zip(self.bosques, self.densidad_bosques):
+        for (centro, radio), densidad, region in zip(self.bosques, self.densidad_bosques, self.regiones_bosques):
             n = int(math.pi * radio * radio / (ARBOL_ESPACIADO ** 2) * densidad)
             for _ in range(n):
-                self._crear_arbol(zona=(centro, radio))
+                self._crear_arbol(zona=(centro, radio), region=region)
         for _ in range(self.diseno.arboles_solitarios):
             self._crear_arbol()
 
-    def _crear_arbol(self, zona=None, intentos=14):
+    def _crear_arbol(self, zona=None, intentos=14, region=None):
         for _ in range(intentos):
             tipo = random.choices(TIPOS_ARBOL, weights=PESOS_ARBOL)[0]
             escala = random.uniform(ARBOL_ESCALA_MIN, ARBOL_ESCALA_MAX)
@@ -623,6 +653,8 @@ class SistemaVegetacion:
                 x, y = self._punto_en_bosque(zona)
             else:
                 x, y = self._punto_en_mundo(radio_copa, "arbol")
+            if region is not None and not any(r.collidepoint(x, y) for r in region):
+                continue
             if not self._dentro_del_mapa(x, y, radio_copa):
                 continue
             # Solo reservamos el TRONCO (solido): las copas pueden solaparse (bosque tupido)
@@ -653,6 +685,8 @@ class SistemaVegetacion:
     # ---- Praderas: pasto y flores (cobertura decorativa) -----------------
     def _generar_praderas(self):
         d = self.diseno
+        for u, v, radio in d.praderas_fijas:
+            self.praderas.append((d.absoluto(self.limite, u, v), radio))
         for _ in range(random.randint(*d.praderas)):
             radio = random.randint(*d.pradera_radio)
             self.praderas.append((d.punto(self.limite, "pradera", radio * 0.4), radio))
@@ -710,6 +744,18 @@ class SistemaVegetacion:
         solidos = [(a.centro, a.radio) for a in self.arbustos if not a.puede_entrar(personaje)]
         if con_troncos:
             solidos.extend((t.centro, t.radio_tronco) for t in self.arboles)
+        return solidos
+
+    def obstaculos_cerca(self, personaje, zona, con_troncos=True):
+        """Como obstaculos_para, pero solo los que tocan el rect 'zona' (en una sola pasada)."""
+        x0, y0, x1, y1 = zona.left, zona.top, zona.right, zona.bottom
+        solidos = [(a.centro, a.radio) for a in self.arbustos
+                   if x0 - a.radio <= a.centro.x <= x1 + a.radio and y0 - a.radio <= a.centro.y <= y1 + a.radio
+                   and not a.puede_entrar(personaje)]
+        if con_troncos:
+            solidos.extend((t.centro, t.radio_tronco) for t in self.arboles
+                           if x0 - t.radio_tronco <= t.centro.x <= x1 + t.radio_tronco
+                           and y0 - t.radio_tronco <= t.centro.y <= y1 + t.radio_tronco)
         return solidos
 
     def actualizar(self, dt, jugador):

@@ -180,7 +180,19 @@ Sin NPC: **±0.5 ms** respecto a la línea base en todos los escenarios.
 - **Herramienta:** `python -B herramientas_mapa/generar_mapa.py [nombre] [semilla]` genera, valida, guarda y dibuja la vista previa (sin ventana).
 - **ShadowGOD** (nombre `ShadowGOD` en la creación): no recibe daño, es invisible (nadie lo detecta), lo atraviesa todo, **se teletransporta al punto del clic**, acerca y aleja la vista con la **rueda del ratón**, las teclas **+ / −** o los **botones + / −** de la interfaz (8 niveles, de x1 al mapa entero), y muestra las **capas** (cuadrícula A–J / 1–10, zonas, puntos de aparición y cuevas) con **[V]** o el botón **Capas**. El zoom y las capas son solo vista (lo prueba `humo_inspector.py`). Coste de dibujo con la vista alejada: x1 ≈ 7 ms, x0.8 ≈ 13 ms, x0.6 ≈ 16 ms, x0.4 ≈ 24 ms (mundo real dibujado en un lienzo grande) y de x0.25 al mapa entero ≈ 8 ms (imagen del mapa).
 - **Pruebas nuevas:** `test_mapa.py` (equivalencia del archivo, carga más rápida que la generación, validador con mapas rotos, límite cuadrado en las cuatro esquinas, respaldo sin archivo) y `humo_inspector.py`. La huella de `humo_equivalencia.py` se volvió a guardar a propósito (el mapa es otro).
-- **Pendiente:** tus indicaciones sobre la vista previa (siguientes versiones); "lo que fijes a mano se respeta en las siguientes generaciones" aún no está hecho (hoy cada versión se genera entera con las reglas y la semilla).
+- **Pendiente:** "lo que fijes a mano se respeta en las siguientes generaciones" aún no está hecho (hoy cada versión se genera entera con las reglas y la semilla).
+
+### Versión 2 del mapa (27/11/2026, tus indicaciones sobre la vista previa)
+- **Gran bosque de los elfos** en C10–H10 y la mitad de abajo de D9–G9 (unos 1100 árboles), con un **camino de 200 px** hasta la puerta **Entrada a la Aldea Élfica** (borde sur, entre E10 y F10).
+- **Gran lago del este** en I8–J9: un solo lago de radio 1770 px, con zona profunda y sus cocodrilos, que **llega al borde** (sin la franja de 300 px).
+- **Gran Montaña Antigua** en A4–A7: piedras especiales grises de 40 a 500 px, **indestructibles** (nada las rompe, el Cuerpo de niebla no las cruza y no pueden ser cuevas), que llegan al borde; un **paso de 250 px** lleva a su puerta (borde oeste, entre A5 y A6). Será el mapa de los enanos.
+- **J5–J6 todo pradera**, con la puerta **Aldea Semihumana** (borde este, entre J5 y J6).
+- **Puerta de la Ciudad Humana** en el borde norte, entre E1 y F1, con **2 guardianes con Mandoble**, uno a cada lado (puntos de aparición); el guardián pasa de 1 a 2 (Anexo A).
+- Las **4 puertas** son arcos de piedra pegados al límite; al acercarse se ve su nombre con "(Próximamente)". Aún no funcionan: los mapas siguientes se harán cuando termine el desarrollo de este plan.
+- El validador comprueba además que **se llega andando a cada puerta**, y la franja libre del borde no se exige en la montaña ni en el gran lago. Densidad máxima por pantalla: 46 rocas, 88 árboles, 8 arbustos. Formato del mapa v2 (piedras de montaña, zonas con casillas, puertas).
+- El gran bosque cuenta como **2 bosques** para situar las manadas de lobos (si no, la mitad de las manadas acabarían en él).
+- **Rendimiento:** la v2 tiene más objetos (2112 árboles, 1364 rocas con las piedras de la montaña). Dos arreglos sin cambiar nada del juego (la huella de equivalencia es idéntica): los arbustos descartan primero por su caja y el movimiento solo mira los obstáculos a menos de 400 px. Resultado frente a la línea base de la Fase 0: centro −3 %, lago +6 %, bosque +22 % y caos +24 % (16,2 y 23,8 ms; los escenarios caen en otros sitios del mapa nuevo). El resto lo resuelve la **Fase 3** (rejilla espacial, fondo pre-dibujado y nivel de detalle), que conviene hacer a continuación.
+
 
 ---
 
@@ -371,9 +383,9 @@ Si muere cualquier NPC, **reaparece en un punto al azar** (según su raza: bosqu
 | Semihumano cocodrilo | 1 | 20 | Larga o Dagas | Al azar, fijas | 1 al azar en el 20 | Al azar (¿cerca de lagos?) |
 | Elfos | 4 | 30 | Arco | Al azar, fijas | 1 al azar en el 20 | 80 % en bosques |
 | Enanos | 4 | 30 | Larga o Mandoble | Al azar, fijas | (ver Anexo C) | Cuevas de oso |
-| Guardián | 1 | No sube | Mandoble al máximo | Ninguna | — | Norte |
+| Guardián | 2 | No sube | Mandoble al máximo | Ninguna | — | Norte: uno a cada lado de la puerta de la Ciudad Humana (27/11) |
 
-Total: **19 NPC** (+ 3 vendedores + la fauna).
+Total: **20 NPC** (+ 3 vendedores + la fauna).
 
 ## Anexo B — Presupuesto de rendimiento
 
@@ -437,12 +449,13 @@ El diseño lo decides tú; estas condiciones son las que el **validador** exige 
 - **Conectividad:** desde la puerta de la casa se puede llegar andando a **todo** punto de tierra del mapa (sin zonas encerradas por rocas o lagos).
 - **Pasillos de al menos 80 px** de ancho entre obstáculos sólidos (rocas, troncos, paredes, arbustos en los que no se cabe), para que pase un personaje (40 px) y otro en sentido contrario.
 - **Lagos:** la zona profunda nunca corta el único camino entre dos partes del mapa; siempre hay orilla transitable alrededor.
-- Sin obstáculos a menos de 300 px del borde del mapa (los vendedores y bots se mantienen dentro).
+- Sin obstáculos a menos de 300 px del borde del mapa (los vendedores y bots se mantienen dentro), salvo en las regiones del diseño que llegan al borde a propósito (la Gran Montaña Antigua y el gran lago del este).
+- **Puertas** a otros mapas pegadas al límite, y se llega andando a cada una.
 
 ### Zonas por raza y por sistema
 | Para | Requisito mínimo |
 |---|---|
-| Guardián | Una zona "norte" marcada (por encima del centro) con espacio abierto de al menos 600 px de radio. |
+| Guardián | Una zona "norte" marcada (por encima del centro) con espacio abierto de al menos 600 px de radio: la puerta de la Ciudad Humana con sus 2 guardianes. |
 | Elfos | Al menos **4 bosques** densos con arbustos de escondite (el 80 % de los elfos aparece en bosques). |
 | Enanos y osos | Al menos **12 cuevas de oso** (rocas gigantes), separadas entre sí más de 1500 px; los enanos aparecen en ellas. |
 | Semihumano cocodrilo y cocodrilos | Al menos **6 lagos con zona profunda** (radio > 300). |

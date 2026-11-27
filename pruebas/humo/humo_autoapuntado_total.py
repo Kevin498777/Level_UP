@@ -11,6 +11,7 @@ _os.makedirs(_sys.argv[2], exist_ok=True); _os.chdir(_PROY); _sys.path.insert(0,
 import os
 import sys
 import math
+import random
 import traceback
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -100,6 +101,7 @@ mundo.pygame.display.Info = lambda: InfoPantalla
 
 
 def correr(nombre_herr, nombre_hab):
+    random.seed(5)                      # repetible: la fauna cercana no cambia entre ejecuciones
     ESTADO_MANIQUI.update(t=0.0, fija=None, obj=None)
     teclas = Teclas()
     mundo.pygame.key.get_pressed = lambda: teclas

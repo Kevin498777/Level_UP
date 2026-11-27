@@ -992,7 +992,8 @@ class CuchillaCortante:
 
             roca = next((r for r in rocas if r.rect.clipline(a, b)), None)
             if roca is not None:
-                if getattr(roca, "es_cueva", False) or (getattr(roca, "gigante", False) and not self.corta_grandes):
+                if (getattr(roca, "es_cueva", False) or getattr(roca, "indestructible", False)
+                        or (getattr(roca, "gigante", False) and not self.corta_grandes)):
                     self._romper()              # la cueva de un oso no se destruye nunca
                     return destruidos
                 self._cortar(rocas, roca, destruidos)
@@ -2988,7 +2989,7 @@ class CargaDeFuego(HabilidadBase):
         destruidos = []
         # Rocas: nunca las gigantes (ni las cuevas de oso)
         for roca in list(rocas):
-            if getattr(roca, "gigante", False) or getattr(roca, "es_cueva", False):
+            if getattr(roca, "gigante", False) or getattr(roca, "es_cueva", False) or getattr(roca, "indestructible", False):
                 continue
             cx = max(roca.rect.left, min(centro.x, roca.rect.right))
             cy = max(roca.rect.top, min(centro.y, roca.rect.bottom))
