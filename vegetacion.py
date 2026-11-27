@@ -714,6 +714,14 @@ class SistemaVegetacion:
         return solidos
 
     def actualizar(self, dt, jugador):
+        """Un fotograma de la vegetacion: lo que le pasa al jugador en los arbustos y el ciclo de
+        los frutales (crecimiento y reaparicion, una sola vez por fotograma)."""
+        self.actualizar_personaje(dt, jugador)
+        self.actualizar_frutales(dt, evitar=jugador.posicion)
+
+    def actualizar_personaje(self, dt, jugador):
+        """Arbustos para un personaje (jugador o no): ocultarse, hierba venenosa y orbes de los
+        frutales. Se llama una vez por personaje y fotograma."""
         # ¿En qué arbusto está metido?
         jugador.arbusto_actual = None
         for a in self.arbustos:
@@ -728,7 +736,9 @@ class SistemaVegetacion:
             jugador.tiempo_veneno += dt
             while jugador.tiempo_veneno >= INTERVALO_VENENO:
                 jugador.tiempo_veneno -= INTERVALO_VENENO
-                jugador.vida = max(0, jugador.vida - DANO_VENENO)
+                # como todo veneno, no mata a un personaje: lo deja en su vida_minima_veneno (1)
+                minimo = min(jugador.vida, getattr(jugador, "vida_minima_veneno", 0))
+                jugador.vida = max(minimo, jugador.vida - DANO_VENENO)
         else:
             jugador.tiempo_veneno = 0.0
 
@@ -750,6 +760,8 @@ class SistemaVegetacion:
                 jugador.arbusto_actual = None
                 jugador.oculto = False
 
+    def actualizar_frutales(self, dt, evitar):
+        """Crecimiento y reaparicion de los frutales (lejos del punto 'evitar')."""
         # Crecimiento de los frutales reaparecidos (brote -> joven -> maduro)
         for a in self.arbustos:
             a.actualizar_crecimiento(dt)
@@ -759,7 +771,7 @@ class SistemaVegetacion:
         for t in self.reapariciones_frutal:
             t -= dt
             if t <= 0:
-                nuevo = self._crear_en_lugar_libre(TIPO_FRUTAL, evitar=jugador.posicion, fase="brote")
+                nuevo = self._crear_en_lugar_libre(TIPO_FRUTAL, evitar=evitar, fase="brote")
                 if nuevo:
                     self.arbustos.append(nuevo)
                 else:

@@ -1,6 +1,6 @@
 # Plan por fases — Personajes NPC (razas) en el mundo
 
-Documento de planificación (26/11/2026; añadida la Fase 2 del mundo fijo, cuadrado de 17 700 px y el personaje de inspección ShadowGOD). **Aún no hay nada implementado.** Describe cómo añadir al mundo personajes controlados por la máquina (humanos, semihumanos, elfos, enanos y el guardián) que suben de nivel, usan armas y habilidades y pelean entre ellos, con la fauna y con el jugador, **sin romper lo que ya funciona y sin hundir el rendimiento**.
+Documento de planificación (26/11/2026; añadida la Fase 2 del mundo fijo, cuadrado de 17 700 px y el personaje de inspección ShadowGOD). **Estado: Fase 0 terminada y comprobada (27/11/2026); Fase 1 hecha por Claude el 27/11/2026, pendiente de tu comprobación**; el resto aún no está implementado. Describe cómo añadir al mundo personajes controlados por la máquina (humanos, semihumanos, elfos, enanos y el guardián) que suben de nivel, usan armas y habilidades y pelean entre ellos, con la fauna y con el jugador, **sin romper lo que ya funciona y sin hundir el rendimiento**.
 
 Cada fase se entrega por separado, con sus pruebas automáticas (las hace Claude), su lista de comprobación manual (la haces tú jugando), su medición de rendimiento y su commit. No se empieza una fase hasta que la anterior esté probada por los dos.
 
@@ -63,6 +63,16 @@ Anexos: A) resumen de razas · B) presupuesto de rendimiento · C) preguntas abi
 
 **Terminada cuando:** las pruebas están en el proyecto, pasan en tu equipo y hay línea base.
 
+### Resultado (27/11/2026)
+- **Decisiones tuyas:** el mapa queda fijo también en las partidas normales (más adelante habrá un mapa principal y 4 extras, ver Fase 2); la semilla fija **solo el terreno** (lagos, rocas, árboles, arbustos, praderas, bosques y cuevas de oso con su entrada), y la fauna, los cofres y el botín siguen siendo aleatorios; las pruebas viejas se actualizan si lo que prueban sigue existiendo y se descartan si no; todas las pruebas y mediciones se hacen sin ventana.
+- **Pruebas:** `pruebas/unitarias/` (29) y `pruebas/humo/` (22) recuperadas de las sesiones anteriores y puestas al día con los valores actuales (nivel máximo 40, 4 puntos por nivel, devolución del Gacha 10, todas las habilidades con potenciada, Paso 0 lineal 6→15 s, Disparo Veloz 8→25, la casa del spawn en el centro…). `python -B pruebas/ejecutar_todo.py` → **51/51 OK** (≈3 min). Cada archivo se puede ejecutar solo y nunca abre ventana.
+- **Descartadas:** `test_gacha.py` y `test_gacha_cap.py` (el Gacha antiguo, sustituido; lo prueba el nuevo `test_gacha.py`) y `test_fase2_cap.py` (copia de `humo_coleccion.py`).
+- **Pendiente (resuelto el 27/11):** la prueba del Autoapuntado con cada arma y habilidad fallaba en 3 casos; con tus respuestas se corrigieron y ahora es `pruebas/humo/humo_autoapuntado_total.py` (ver Anexo C, pregunta 14).
+- **Semilla:** `SEMILLA_MUNDO` y `generar_terreno()` en `mundo.py`; las cuevas de oso las elige ahora el terreno (`fauna.marcar_cuevas`). Prueba nueva `test_semilla_mundo.py`.
+- **Fallo encontrado y corregido:** en las cuevas con la entrada en diagonal, la boca, la salida del oso y el orbe de vida quedaban **dentro de la roca** (la roca es cuadrada), y el orbe de vida no se podía recoger. Ahora se calcula el borde real del cuadrado (`Oso.cueva_borde`). Prueba nueva `test_cuevas.py`.
+- **Interruptor** `NPC_ACTIVOS = False` en `mundo.py` (sin efecto todavía).
+- **Medidor:** `python -B pruebas/rendimiento.py` (≈2 min, sin ventana; `--base` guarda la línea base en `pruebas/rendimiento_base.json`). Dos ejecuciones seguidas difieren entre −6 % y +2 %. Además de los tiempos, muestra la actividad de cada escenario (enemigos heridos, proyectiles, invocaciones y habilidades) para comprobar que cada uno hace lo que dice. Línea base en el Anexo B.
+
 ---
 
 ## Fase 1 — Combate general ("combatiente")
@@ -109,6 +119,16 @@ Sin NPC: **±0.5 ms** respecto a la línea base en todos los escenarios.
 
 **Terminada cuando:** el juego es idéntico para el jugador y un combatiente de prueba puede pelear contra él.
 
+### Resultado (27/11/2026)
+> **Nota:** los bugs que señalaste ya están corregidos y probados: con **Invocar Lobos** se vuelve a poder apuntar (el maniquí estaba muerto; al revivir se fija bien), con **Sombra Araña** la orden con clic derecho ya no quita el Autoapuntado y **el veneno siempre te deja a 1 de vida** (también la hierba venenosa). Todas las pruebas se ejecutaron sin ventana: **56/56 OK**.
+
+- **Hecho:** `Contexto`, `combatiente_golpes` / `combatiente_habilidades` / `combatiente_estado` (el jugador ya pasa por ellas), `actualizar_combatiente`, `enemigos_de`, `golpear_personaje`, `retirar_combatientes_muertos`; intenciones en `Personaje` (`mover_a`, `pulsar_ataque`, `mantiene_ataque`, `pulsar_habilidad`, `soltar_habilidad`, `ordenar_sombras`, `apuntar`, `elegir_palabra`); estados en `Personaje` (quemadura, corrosión, inmovilizado, dormido, huida); `vegetacion.actualizar_personaje`; la fauna ve a los demás combatientes; dibujo, parpadeo y cuerpos sólidos de todos.
+- **Equivalencia:** `humo_equivalencia.py` (10 partidas con guion, las 6 armas y las 15 habilidades con sus potenciadas) da la **misma huella** que antes de la extracción: el juego hace exactamente lo mismo para el jugador.
+- **Pruebas nuevas:** `test_combatientes.py` (un combatiente golpea al jugador con cada arma y le lanza las habilidades de daño; terreno; fauna; muerte), `humo_combatiente.py` (un bandido en el bucle real pelea con el jugador y muere), `test_veneno_no_mata.py`, y la del Autoapuntado completa pasa (`humo_autoapuntado_total.py`).
+- **Fallos encontrados por el camino y corregidos:** (1) volver al menú y empezar otra partida con Palabras Malditas cerraba el juego al abrir la ruleta (fuente caducada); (2) el combustible de Desmantelar pegado a un personaje habría borrado el suyo propio (ahora `combustible_pegado`).
+- **Rendimiento (sin NPC):** entre −3 % y +5 % respecto a la línea base en tres mediciones, lo mismo que el ruido entre ejecuciones de este equipo; el código nuevo por fotograma cuesta microsegundos.
+- **Pendiente para fases siguientes:** la XP y las monedas de lo que mata un NPC aún se las lleva el jugador (Anexo C, pregunta 6); un NPC con Cuerpo de niebla ya sale al hueco libre como el jugador, pero los NPC todavía no tienen inteligencia (Fase 4).
+
 ---
 
 ## Fase 2 — Mundo fijo: mapa guardado y diseñado contigo
@@ -117,7 +137,7 @@ Sin NPC: **±0.5 ms** respecto a la línea base en todos los escenarios.
 
 ### Qué se hace
 0. **Mapa cuadrado de 17 700 × 17 700 px** (decisión del 26/11): la misma superficie que el círculo actual de radio 10 000, así la cantidad de fauna, los tiempos de viaje y las tablas del simulador no cambian. Un cuadrado no mejora los fps por sí mismo, pero encaja exacto en las rejillas, en la rejilla de rutas y en el fondo pre-dibujado por trozos (el círculo desperdicia ~21 % en las esquinas) y facilita describir el diseño (cuadrantes, bordes, esquinas). Hay que sustituir el límite circular (unas 55 referencias en `mundo.py`, `personaje.py`, `fauna.py`, `vegetacion.py`, `vendedores.py` y `habilidades.py`: movimiento, empuje, proyectiles, fauna, generación, vendedores, `sacar_a_hueco_libre`, dibujo del borde y la escala por área) por un límite cuadrado en un único sitio (`limite_mundo`), con la casa del spawn en el centro del cuadrado.
-1. **Formato del mapa:** `mapas/mundo.json` con todo lo que hoy se genera al azar:
+1. **Formato del mapa:** un archivo por mapa en `mapas/` (`mapas/principal.json`; más adelante **4 mapas extra** fijos, decisión del 27/11) con todo lo que hoy se genera al azar. El cargador, el validador, la vista previa y la rejilla de rutas trabajan con cualquier mapa, no solo con el principal:
    - Lagos (forma de nube, radio, zona profunda), rocas (posición, tamaño, si es cueva de oso), árboles (tipo y tamaño), arbustos (tipo: escondite, venenoso o frutal), praderas, bosques, madrigueras, cofres.
    - **Zonas con nombre** (polígonos o círculos): bosques élficos, norte del guardián, cuevas de enanos, zona de vendedores, zonas de caza por dificultad…
    - **Puntos de aparición** por raza y para la fauna (manadas, osos, cocodrilos, venados…).
@@ -126,7 +146,7 @@ Sin NPC: **±0.5 ms** respecto a la línea base en todos los escenarios.
 3. **Generador asistido** (`herramientas_mapa/generar_mapa.py`): parte del generador actual y aplica tus indicaciones como **reglas** ("bosque grande al noreste", "lago en el centro-oeste con isla", "cordillera de rocas al sur con dos pasos"…). Así no hay que colocar a mano 800 rocas y 1000 árboles: describes, se genera, y se retoca lo que haga falta. Lo que fijes a mano se respeta en las siguientes generaciones.
 4. **Validador** (`herramientas_mapa/validar_mapa.py`): comprueba que el mapa cumple las **características obligatorias del Anexo E** (conectividad, pasillos, zonas de cada raza, densidades para el rendimiento…). Un mapa que no pasa el validador no se usa.
 5. **Vista previa:** `herramientas_mapa/vista_previa.py` dibuja el mapa entero en una imagen (PNG) con las zonas, cuevas, lagos, puntos de aparición y la rejilla de rutas encima. Te paso la imagen en cada iteración para que no tengas que recorrer el mapa jugando para ver el diseño.
-6. **Rejilla de rutas guardada:** `mapas/mundo_rutas.bin` con las celdas transitables (la usará la navegación de la Fase 4). Se recalcula solo cuando cambia el mapa.
+6. **Rejilla de rutas guardada:** una por mapa (`mapas/principal_rutas.bin`) con las celdas transitables (la usará la navegación de la Fase 4). Se recalcula solo cuando cambia el mapa.
 7. **Personaje de inspección `ShadowGOD`** (personaje de pruebas, como `shadow498`): para revisar el mundo sin recorrerlo andando. Como mínimo, **ver el mapa desde más distancia** (alejar la cámara con zoom) y desplazarse rápido por él. Las características exactas las describirás tú más adelante (ver Anexo C); se implementa al principio de esta fase porque es la herramienta con la que revisarás cada versión del diseño. Solo existe con el nombre clave de pruebas y no afecta a las partidas normales.
 
 ### Cómo trabajamos el diseño (bucle de iteración)
@@ -346,15 +366,19 @@ Total: **19 NPC** (+ 3 vendedores + la fauna).
 
 ## Anexo B — Presupuesto de rendimiento
 
-Objetivo: **60 fps** (16.7 ms por fotograma) con margen. Línea base a rellenar en la Fase 0 (referencia actual: 9–14 ms por fotograma).
+Objetivo: **60 fps** (16.7 ms por fotograma) con margen. Línea base de la Fase 0 (27/11/2026, `pruebas/rendimiento.py`, sin ventana, 1920×1080, en el equipo de las pruebas de Claude; media / percentil 95 en ms por fotograma):
 
 | Escenario | Línea base (Fase 0) | Máximo permitido al final |
 |---|---|---|
-| Centro, sin NPC cerca | (medir) | base + 1 ms |
-| Bosque con manada, sin NPC cerca | (medir) | base + 1 ms |
+| Centro, sin NPC cerca | 11.6 / 13.5 | base + 1 ms |
+| Bosque con manada, sin NPC cerca | 13.3 / 15.1 | base + 1 ms |
+| Lago con cocodrilo | 10.4 / 12.0 | base + 1 ms |
+| Caos de habilidades (Estrella Ígnea, Palabras Malditas, lobos) | **19.2 / 26.3** | base + 1 ms |
 | 4 NPC en pantalla peleando | — | p95 ≤ 16 ms |
 | 8 NPC en pantalla peleando (caso extremo) | — | p95 ≤ 16.7 ms |
 | 19 NPC lejos (simulación resumida) | — | base + 1 ms |
+
+**Lectura de la línea base:** sin NPC, el juego ya usa ~70 % del fotograma en el centro y el caos de habilidades **ya baja de 60 fps** (19 ms de media) en este equipo. Por eso la Fase 3 (rendimiento) va antes que los NPC, y los NPC tendrán poco margen hasta entonces.
 
 Si una fase se pasa del presupuesto: primero se optimiza (rejillas, pensar menos a menudo, menos detalle lejos), después se baja `MAX_NPC_ACTIVOS`.
 
@@ -373,6 +397,7 @@ Si una fase se pasa del presupuesto: primero se optimiza (rejillas, pensar menos
 11. **Semihumano cocodrilo:** ¿aparece cerca de lagos?
 12. **Odio "hacia semihumanos"** de elfos y enanos: ¿vale igual para los 4 tipos?
 13. **ShadowGOD:** características exactas (zoom máximo, desplazamiento rápido o teletransporte, ver zonas y puntos de aparición, ser invisible o invulnerable, mover la cámara sin el personaje…). Pendiente de que las describas (Fase 2).
+14. **Prueba de Autoapuntado pendiente** (`pruebas/pendientes/prueba_total_apuntado.py`), 3 casos que fallan y no sé si son fallos del juego: (a) con **Invocar Lobos**, tras soltar el autoapuntado, el clic derecho sobre el maniquí (a 280 px) no lo vuelve a fijar; (b) con **Sombra Araña**, mantener la tecla y dar la orden con clic derecho quita el autoapuntado; (c) **Arco + Golpe de Suerte** depende del azar (Golpe de Suerte puede envenenarte y matar al personaje). ¿(a) y (b) son el comportamiento que quieres? **Resuelta (27/11):** (a) los lobos habían matado al maniquí (no se puede apuntar a algo muerto); al revivir se vuelve a fijar, lo comprueba la prueba; (b) era un fallo: con la tecla de una invocación mantenida el clic derecho ya nunca cambia el Autoapuntado; (c) el veneno ya no mata a un personaje: lo deja a 1 de vida.
 
 ## Anexo D — Riesgos y cómo se controlan
 

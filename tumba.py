@@ -23,7 +23,7 @@ CAMPOS_TRANSITORIOS = (
     "posicion", "destino", "angulo", "proyectiles", "combustible", "empuje", "hitbox",
     "objetivo_apuntado", "mensaje_apuntado", "tiempo_mensaje_apuntado", "efectos_extra",
     "arbusto_actual", "oculto", "en_agua", "en_agua_profunda", "tiempo_dano_lago",
-    "ultimo_agresor", "t_agresor", "visibilidad",
+    "ultimo_agresor", "t_agresor", "visibilidad", "mantiene_ataque", "niebla_previa",
 )
 
 

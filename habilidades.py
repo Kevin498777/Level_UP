@@ -1421,6 +1421,16 @@ class OndaSonora(HabilidadBase):
         self.intentar_activar(jugador)
         self.palabra_pendiente = None
 
+    def pronunciar(self, lanzador, clave):
+        """Pronuncia una palabra sin la ruleta (intencion de un bot). Devuelve True si se lanzo."""
+        palabra = next((p for p in self.palabras_disponibles() if p["clave"] == clave), None)
+        if palabra is None or self.cargando:
+            return False
+        self.palabra_pendiente = palabra
+        lanzada = self.intentar_activar(lanzador)
+        self.palabra_pendiente = None
+        return bool(lanzada)
+
     def _indice_ruleta(self, punto_pantalla):
         """Indice de la casilla de la ruleta bajo un punto de la pantalla (None en el centro)."""
         if self._pos_jugador is None:
@@ -2068,8 +2078,15 @@ def dibujar_panel_habilidades(pantalla, x, y, ancho, alto, habilidades, jugador,
 _FUENTE_CARA = None
 
 def _fuente_cara():
-    """Fuente pequeña cacheada para dibujar la cara ':3' de los conejos."""
+    """Fuente pequeña cacheada (cara ':3' de los conejos, ruleta de Palabras Malditas). Se vuelve
+    a crear si pygame se cerro y reinicio (volver al menu y empezar otra partida): la vieja ya
+    no sirve y dibujar con ella cerraba el juego."""
     global _FUENTE_CARA
+    if _FUENTE_CARA is not None:
+        try:
+            _FUENTE_CARA.size("a")
+        except pygame.error:
+            _FUENTE_CARA = None
     if _FUENTE_CARA is None:
         _FUENTE_CARA = pygame.font.SysFont("Consolas", 11, bold=True)
     return _FUENTE_CARA
@@ -2370,7 +2387,12 @@ class EfectoVeneno:
         # A 2 decimales (como la vida), para que la suma de golpes sea exactamente el total
         cantidad = round(cantidad, 2)
         self.aplicado = round(self.aplicado + cantidad, 2)
+        vida_antes = getattr(objetivo, "vida", None)
         objetivo.recibir_dano(cantidad, self.TIPO_DANO)
+        # El veneno no mata a quien tenga 'vida_minima_veneno' (los personajes): lo deja a ese valor
+        minimo = getattr(objetivo, "vida_minima_veneno", 0)
+        if minimo > 0 and vida_antes is not None and vida_antes >= minimo and objetivo.vida < minimo:
+            objetivo.vida = minimo
 
 
 # Corrosion (potenciada de Disparo Venenoso): cada segundo sube CORROSION_PASO hasta su tope.
@@ -3029,11 +3051,11 @@ def encender_combustible(objetivo, dano_golpe=None):
     Carga de Fuego / Estrella Ignea ('dano_golpe') hace +50 % de ese golpe por carga; con
     cualquier otra quemadura (tick, suelo en llamas, explosion de combustible) hace el dano
     fijo. La explosion de area se resuelve en el SistemaCombustible. Devuelve el dano."""
-    cargas = getattr(objetivo, "combustible", None)
+    cargas = getattr(objetivo, "combustible_pegado", None)
     if not cargas:
         return 0.0
     n = len(cargas)
-    objetivo.combustible = []
+    objetivo.combustible_pegado = []
     if dano_golpe:
         dano = round(dano_golpe * COMBUSTIBLE_BONO_CARGA * n, 1)
     else:
@@ -3049,7 +3071,9 @@ def encender_combustible(objetivo, dano_golpe=None):
 
 
 class SistemaCombustible:
-    """Combustible que dejan las cuchillas de Desmantelar (uno por jugador, Personaje.combustible).
+    """Combustible que dejan las cuchillas de Desmantelar (uno por jugador, Personaje.combustible;
+    las cargas pegadas a un enemigo van en su 'combustible_pegado', que no choca con el sistema
+    de un personaje cuando el enemigo es otro personaje).
     - Suelto en el suelo: dura su tiempo; si lo alcanza fuego (esfera de Carga de Fuego, una
       explosion o un suelo en llamas) se prende y explota COMBUSTIBLE_RETRASO s despues. Si un
       enemigo lo pisa, se le pega (su tiempo empieza de cero).
@@ -3070,7 +3094,7 @@ class SistemaCombustible:
     def limpiar(self):
         """Quita todo el combustible (al reaparecer el jugador)."""
         for e in self.portadores:
-            e.combustible = []
+            e.combustible_pegado = []
         self.__init__()
 
     # ---- Crear combustible
@@ -3083,9 +3107,9 @@ class SistemaCombustible:
         if getattr(enemigo, "es_tumba", False):
             self.soltar(enemigo.posicion, duracion)
             return
-        cargas = getattr(enemigo, "combustible", None)
+        cargas = getattr(enemigo, "combustible_pegado", None)
         if cargas is None:
-            cargas = enemigo.combustible = []
+            cargas = enemigo.combustible_pegado = []
         if len(cargas) >= COMBUSTIBLE_MAX_PEGADAS:
             cargas.remove(min(cargas))
         cargas.append(duracion)
@@ -3128,10 +3152,10 @@ class SistemaCombustible:
         self.sueltos = restantes
         # 3) Cargas pegadas: tiempo propio, el agua las quita y desaparecen con su portador
         for e in list(self.portadores):
-            cargas = [t - dt for t in getattr(e, "combustible", []) if t - dt > 0]
+            cargas = [t - dt for t in getattr(e, "combustible_pegado", []) if t - dt > 0]
             if not getattr(e, "vivo", True) or any(c.contiene(e.posicion) for c in charcos):
                 cargas = []
-            e.combustible = cargas
+            e.combustible_pegado = cargas
             if not cargas:
                 self.portadores.remove(e)
         # 4) Explosiones de cargas pegadas (encender_combustible las deja pendientes)
@@ -3186,7 +3210,7 @@ class SistemaCombustible:
             pygame.draw.circle(pantalla, borde, centro, COMBUSTIBLE_RADIO, 2)
         for e in self.portadores:
             r = getattr(e, "radio", 10)
-            for i in range(len(e.combustible)):
+            for i in range(len(e.combustible_pegado)):
                 ang = math.tau * i / COMBUSTIBLE_MAX_PEGADAS + pygame.time.get_ticks() / 600.0
                 c = (round(e.posicion.x - ox + math.cos(ang) * r), round(e.posicion.y - oy + math.sin(ang) * r))
                 pygame.draw.circle(pantalla, (12, 10, 10), c, 4)

@@ -61,6 +61,9 @@ REGEN_ESCUDO_POR_SEGUNDO = 1.0
 # Tras recibir un golpe (mordida, zarpazo, embestida, espada) el personaje no puede recibir
 # otro golpe durante este tiempo: una manada no puede encadenar mordidas.
 INVULNERABILIDAD_TRAS_GOLPE = 0.5
+DISTANCIA_HUIDA = 200           # px del destino que se fija al huir (Palabras Malditas "Huye")
+COLOR_QUEMADURA = (255, 140, 40)
+COLOR_INMOVILIZADO = (170, 185, 210)
 # Aceleracion de regeneracion de energia (stat mejorable con puntos) y bonos del agua.
 REGEN_ENERGIA_POR_PUNTO = 0.05       # +5% de velocidad de regen de energia por punto (~+1 En/min quieto)
 REGEN_ENERGIA_TOPE = 1.0             # maximo +100% (20 puntos): regen al doble
@@ -100,6 +103,8 @@ def repartir_dano(cantidad, tipo_dano, escudo_disp):
 # CLASE PERSONAJE
 # -----------------------------
 class Personaje:
+    vida_minima_veneno = 1      # el veneno nunca mata a un personaje: lo deja a 1 de vida (EfectoVeneno)
+
     def __init__(self, nombre, x, y, tamano, velocidad, vida, fuerza, energia, escudo, color, habilidades=None, herramienta=None, escudo_magico=0):
         self.nombre = nombre
         self.posicion = pygame.Vector2(x, y)
@@ -198,6 +203,14 @@ class Personaje:
         self.tiempo_veneno = 0.0     # Acumulador del daño de hierba venenosa
         self.desangrado = None       # Efecto de desangrado activo (None si no tiene)
         self.veneno = None           # Veneno activo (ej. el que da Golpe de Suerte), None si no tiene
+        # Estados que le pueden poner otros combatientes (Fase 1 del plan de NPC; mismos efectos
+        # que en el maniqui y la fauna). Los tiquea actualizar_estados.
+        self.quemadura = None        # Carga de Fuego / Estrella Ignea / suelo en llamas
+        self.corrosion = None        # Corrosion: menos dano, mas lento, gasta escudos y energia
+        self.inmovilizado = None     # telarana de Sombra Arana: no se mueve
+        self.dormido = None          # Palabras Malditas "Duerme": no se mueve ni actua
+        self.huida = None            # Palabras Malditas "Huye": huye y no ataca
+        self.mantiene_ataque = False # intencion: mantener el ataque (golpes seguidos segun la cadencia)
         self.ralentizacion = 0.0     # Debuff de velocidad recibido (ej. Onda Sonora), 0.20 = -20%
         self.tiempo_ralentizacion = 0.0
         self.masa = MASA_PERSONAJE   # Al separar cuerpos solapados, las invocaciones le ceden el paso
@@ -549,6 +562,103 @@ class Personaje:
         else:
             self.visibilidad = max(objetivo, self.visibilidad - paso)
 
+    # ---------------------------------------------------------------- Estados (Fase 1 NPC)
+    @property
+    def controlado(self):
+        """Dormido, asustado o inmovilizado: no ataca ni usa habilidades (como la fauna)."""
+        return self.inmovilizado is not None or self.dormido is not None or self.huida is not None
+
+    @property
+    def puede_moverse(self):
+        return self.inmovilizado is None and self.dormido is None
+
+    def actualizar_estados(self, dt):
+        """Tiquea quemadura, corrosion, huida, sueno e inmovilizacion y quita los terminados."""
+        for nombre in ("quemadura", "corrosion", "dormido", "inmovilizado"):
+            efecto = getattr(self, nombre)
+            if efecto is not None:
+                efecto.actualizar(dt, self)
+                if not efecto.activo:
+                    setattr(self, nombre, None)
+        if self.huida is not None:
+            self.huida.actualizar(dt, self, mover=False)     # huye con su propio movimiento
+            amenaza = self.huida.amenaza
+            if amenaza is not None:
+                lejos = self.posicion - amenaza.posicion
+                if lejos.length_squared() > 0:
+                    self.destino = self.posicion + lejos.normalize() * DISTANCIA_HUIDA
+            if not self.huida.activo:
+                self.huida = None
+        if not self.puede_moverse:
+            self.destino = pygame.Vector2(self.posicion)
+
+    # ---------------------------------------------------------------- Intenciones (Fase 1 NPC)
+    # El jugador las genera con el teclado y el raton (mundo.py); un bot las generara con su
+    # inteligencia. Un personaje controlado (dormido, asustado, inmovilizado) no ataca.
+    def mover_a(self, punto):
+        if self.puede_moverse:
+            self.destino = pygame.Vector2(punto)
+
+    def alternar_arma(self):
+        """Sacar o guardar el arma."""
+        if self.herramienta:
+            self.herramienta.toggle()
+
+    def pulsar_ataque(self):
+        """Golpe con el arma; con el Arco empieza a cargar."""
+        if not self.herramienta or self.controlado:
+            return
+        if hasattr(self.herramienta, "iniciar_carga"):
+            self.herramienta.iniciar_carga()
+        else:
+            self.herramienta.atacar(self)
+
+    def soltar_ataque(self):
+        """Con el Arco: dispara la flecha si la carga llego a su minimo."""
+        if self.herramienta and hasattr(self.herramienta, "soltar_carga"):
+            flecha = self.herramienta.soltar_carga(self)
+            if flecha:
+                self.proyectiles.append(flecha)
+
+    def pulsar_habilidad(self, hab):
+        """Pulsar la tecla de una habilidad: cargar, modo combate de la invocacion o activarla."""
+        if self.controlado:
+            return
+        if getattr(hab, "cargable", False):
+            hab.iniciar_carga(self)
+        elif hab.estado == "INVOCADO" and hasattr(hab, "pulsar_tecla_combate"):
+            hab.pulsar_tecla_combate()
+        else:
+            hab.intentar_activar(self)
+
+    def soltar_habilidad(self, hab):
+        """Soltar la tecla: dispara la carga o, en una invocacion, vuelve al estado pasivo."""
+        if getattr(hab, "cargable", False):
+            hab.soltar_carga(self)
+        elif hasattr(hab, "soltar_tecla_combate"):
+            hab.soltar_tecla_combate()
+
+    def ordenar_sombras(self, punto, enemigos):
+        """Orden a las invocaciones en modo combate (sobre un enemigo lo persiguen; en terreno
+        libre van al punto). Devuelve las habilidades que recibieron la orden."""
+        en_combate = [h for h in self.habilidades if getattr(h, "modo_combate", False)]
+        for hab in en_combate:
+            hab.ordenar(punto, self, enemigos)
+        return en_combate
+
+    def apuntar(self, enemigo):
+        """Autoapuntado: fija (o quita) el objetivo."""
+        return self.alternar_autoapuntado(enemigo)
+
+    def elegir_palabra(self, clave):
+        """Palabras Malditas sin la ruleta (para los bots): pronuncia la palabra 'clave'."""
+        if self.controlado:
+            return False
+        for hab in self.habilidades:
+            if hasattr(hab, "pronunciar"):
+                return hab.pronunciar(self, clave)
+        return False
+
     @property
     def detectable(self):
         """Los enemigos no detectan al personaje oculto en un arbusto ni invisible (no lo miran
@@ -771,8 +881,9 @@ class Personaje:
         if self.objetivo_apuntado is not None:
             modificador -= AUTOAPUNTADO_DEBUFF
 
-        # Ralentizacion recibida (ej. Onda Sonora)
-        modificador -= self.ralentizacion
+        # Ralentizacion recibida (ej. Onda Sonora) o corrosion: la mayor de las dos
+        corrosion = self.corrosion.nivel if self.corrosion is not None and self.corrosion.activo else 0.0
+        modificador -= max(self.ralentizacion, corrosion)
 
         # Charco de agua: -50% (zona profunda de un lago grande: -80%)
         if self.en_agua_profunda:
@@ -1072,6 +1183,11 @@ class Personaje:
         # Envenenado: anillo verde exterior (como en los enemigos)
         if self.veneno is not None:
             pygame.draw.circle(pantalla, COLOR_VENENO, (pos_x, pos_y), self.radio + 4, 2)
+        # Estados puestos por otros combatientes (mismos anillos que el maniqui)
+        if self.quemadura is not None:
+            pygame.draw.circle(pantalla, COLOR_QUEMADURA, (pos_x, pos_y), self.radio + 6, 2)
+        if self.inmovilizado is not None:
+            pygame.draw.circle(pantalla, COLOR_INMOVILIZADO, (pos_x, pos_y), self.radio + 8, 1)
 
         # Ojos: dos puntos negros que siempre miran hacia donde se dirige el personaje
         self._dibujar_ojos(pantalla, pos_x, pos_y, (10, 10, 14))

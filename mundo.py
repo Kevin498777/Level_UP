@@ -45,6 +45,12 @@ RADIO_CHARCO_MAX = 750
 ANCHO_BARRO = 7             # Margen de barro alrededor del agua
 ZONA_SEGURA_SPAWN = RADIO_JARDIN + 50   # Sin rocas, lagos ni plantas: la casa del spawn y su jardin
 SUAVIZADO_CAMARA = 8.0      # Más alto = la cámara sigue más pegada al personaje
+# Semilla fija del terreno: lagos, vegetacion y rocas salen identicos en cada partida (mapa
+# principal fijo). Paso intermedio hasta el mundo guardado en archivo (Fase 2 del plan de NPC).
+# Solo fija el terreno: la fauna, los cofres y el botin siguen siendo aleatorios.
+SEMILLA_MUNDO = 1
+# Interruptor general de los personajes NPC (plan de NPC). Todavia sin efecto: no hay NPC.
+NPC_ACTIVOS = False
 TAMANO_CUADRICULA = 60
 
 COLOR_FUERA_MAPA = (16, 18, 23)
@@ -271,6 +277,24 @@ def generar_rocas(zonas_ocupadas=()):
         rocas.append(nueva)
 
     return rocas
+
+
+def generar_terreno(semilla=SEMILLA_MUNDO):
+    """Genera el terreno (lagos, vegetacion, rocas y cuevas de oso) con una semilla fija: el mismo
+    mapa en cada partida. Usa el generador global durante la generacion y despues lo devuelve a
+    su estado anterior, asi lo que se sortea luego (fauna, cofres, botin...) sigue siendo
+    imprevisible."""
+    estado_azar = random.getstate()
+    random.seed(semilla)
+    try:
+        charcos = generar_charcos()
+        vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
+        rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles)
+        vegetacion.registrar_obstaculos(rocas)
+        FAUNA.marcar_cuevas(rocas)
+    finally:
+        random.setstate(estado_azar)
+    return charcos, vegetacion, rocas
 
 
 def dibujar_suelo(pantalla, vista, desplazamiento):
@@ -766,6 +790,273 @@ def resolver_solapamientos(entidades):
                 b.posicion += normal * (solape * parte_b)
 
 
+# -----------------------------
+# COMBATIENTES (Fase 1 del plan de NPC)
+# -----------------------------
+# Todo personaje que pelea (el jugador y, mas adelante, los NPC) pasa por las mismas funciones:
+# combatiente_golpes -> combatiente_habilidades -> combatiente_estado. El jugador las llama desde
+# el bucle de iniciar_mundo en el orden de siempre (entre medias van pasos solo del mundo); los
+# demas combatientes las llaman seguidas en actualizar_combatiente. Las ordenes llegan como
+# "intenciones" del Personaje (mover_a, pulsar_ataque, pulsar_habilidad...): el jugador las genera
+# con el teclado y el raton; un bot las generara con su inteligencia (Fase 4).
+VISTA_COMBATIENTE = (1800, 1200)    # px alrededor de un combatiente no jugador en los que ve enemigos
+
+
+class Contexto:
+    """Lo que comparten todos los combatientes del mundo (antes, variables sueltas del bucle)."""
+
+    def __init__(self, rocas, vegetacion, charcos, fauna, limites_mundo):
+        self.rocas = rocas
+        self.vegetacion = vegetacion
+        self.charcos = charcos
+        self.fauna = fauna
+        self.limites_mundo = limites_mundo
+        self.combatientes = []          # personajes que no son el jugador (NPC)
+
+    def agregar_combatiente(self, personaje):
+        personaje.es_combatiente = True
+        self.combatientes.append(personaje)
+        return personaje
+
+
+def vista_de(c):
+    """Rectangulo del mundo que 've' un combatiente (para buscar a sus enemigos)."""
+    ancho, alto = VISTA_COMBATIENTE
+    return pygame.Rect(round(c.posicion.x - ancho / 2), round(c.posicion.y - alto / 2), ancho, alto)
+
+
+def enemigos_de(c, ctx, jugador):
+    """Objetivos de un combatiente que no es el jugador: el jugador, los demas combatientes y los
+    animales que tiene cerca. (Las facciones y el odio entre razas llegan en la Fase 5.)"""
+    rivales = ([jugador] if jugador is not c and jugador.vida > 0 else []) + [o for o in ctx.combatientes if o is not c and o.vida > 0]
+    return rivales + ctx.fauna.animales_con_vida(vista_de(c))
+
+
+def golpear_personaje(atacante, obj, dano, arma):
+    """Golpe de arma a un personaje (jugador o NPC), con las mismas reglas que el golpe del maniqui:
+    invulnerable tras otro golpe, el Escudo desenfundado lo bloquea (repele al atacante y desgasta
+    su arma) y marca al agresor para que sus sombras de anillo lo defiendan."""
+    if obj.invulnerable:
+        return
+    TL.marcar_agresor(obj, atacante)
+    if dano > 0 and obj.bloquear_con_escudo(dano, atacante.posicion):
+        if hasattr(atacante, "aplicar_empuje"):
+            atacante.aplicar_empuje(atacante.posicion - obj.posicion, obj.herramienta.puntos_empuje)
+        arma.desgastar(1)
+        return
+    if dano > 0:
+        atacante.golpear_con_arma(obj, dano, arma.tipo_dano)
+        obj.aplicar_empuje(obj.posicion - atacante.posicion, arma.puntos_empuje)
+        obj.marcar_golpe()
+        arma.desgastar(1)
+
+
+def combatiente_golpes(c, dt, enemigos):
+    """Arma del combatiente: su animacion, el ataque mantenido y el golpe (choque de armas con
+    prioridad o golpe al cuerpo del enemigo)."""
+    if c.herramienta:
+        c.herramienta.actualizar(dt, c)
+    # Mantener el ataque repite el golpe segun la cadencia del arma
+    if c.mantiene_ataque and c.herramienta and not c.controlado:
+        c.herramienta.atacar(c)
+    arma_actual = c.herramienta
+    if not (arma_actual and getattr(arma_actual, "golpeando", False)):
+        return
+    for enemigo in enemigos:
+        if id(enemigo) in arma_actual.enemigos_golpeados:
+            continue
+        arma_enemiga = getattr(enemigo, "herramienta", None)
+        # 1) Choque de armas: mi filo toca su espada -> repelido mutuo igual + ambas se desgastan
+        if (arma_enemiga and not arma_enemiga.roto
+                and hitboxes_de_armas_chocan(arma_actual, arma_enemiga)):
+            arma_actual.enemigos_golpeados.add(id(enemigo))
+            fuerza_choque = max(arma_actual.puntos_empuje, arma_enemiga.puntos_empuje)
+            dir_al_enemigo = enemigo.posicion - c.posicion
+            c.aplicar_empuje(-dir_al_enemigo, fuerza_choque)                # yo retrocedo
+            if hasattr(enemigo, "aplicar_empuje"):
+                enemigo.aplicar_empuje(dir_al_enemigo, fuerza_choque)       # el enemigo retrocede igual
+            arma_actual.desgastar(1)
+            arma_enemiga.desgastar(1)
+            continue
+        # 2) Golpe al cuerpo del enemigo
+        tocado = any(
+            hb and rect_circulo_colisionan(hb, enemigo.posicion, enemigo.radio)
+            for hb in arma_actual.obtener_hitboxes()
+        )
+        if not tocado:
+            continue
+        arma_actual.enemigos_golpeados.add(id(enemigo))
+        dano = arma_actual.calcular_dano(c)
+        if c.corrosion is not None:
+            dano = round(dano * factor_dano_corrosion(c), 2)    # corroido: pega menos
+        if isinstance(enemigo, Personaje):
+            golpear_personaje(c, enemigo, dano, arma_actual)
+        elif dano > 0 and hasattr(enemigo, "recibir_dano"):
+            c.golpear_con_arma(enemigo, dano, arma_actual.tipo_dano)
+            if hasattr(enemigo, "aturdir_ataque"):
+                enemigo.aturdir_ataque()     # retrasa su siguiente ataque (animales)
+            if hasattr(enemigo, "aplicar_empuje"):
+                enemigo.aplicar_empuje(enemigo.posicion - c.posicion, arma_actual.puntos_empuje)
+            arma_actual.desgastar(1)
+
+
+def combatiente_habilidades(c, ctx, dt, enemigos):
+    """Proyectiles, regeneracion, habilidades (equipadas y guardadas), sombras de los anillos,
+    cuchillas, explosiones y combustible del combatiente."""
+    # Proyectiles (Disparo Veloz, Carga de Fuego, Disparo Venenoso, flechas): chocan con las rocas
+    c.actualizar_proyectiles(dt, ctx.limites_mundo, ctx.rocas)
+    # Los proyectiles desaparecen al salir del círculo del mapa
+    c.proyectiles = [
+        p for p in c.proyectiles
+        if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
+    ]
+    for p in c.proyectiles:
+        if not p.activo or getattr(p, "clavada", False):
+            continue
+        for enemigo in enemigos:
+            if not getattr(enemigo, "vivo", True):
+                continue
+            if rect_circulo_colisionan(p.hitbox, enemigo.posicion, enemigo.radio):
+                if hasattr(p, "puntos_empuje"):
+                    # Flecha: daño fisico, empuje fijo del arma y desgaste del arco si hace daño
+                    aplicado = c.golpear_con_arma(enemigo, p.dano, p.tipo_dano)
+                    enemigo.aplicar_empuje(p.direccion, p.puntos_empuje)
+                    if aplicado > 0:
+                        p.arco.desgastar(1)
+                elif hasattr(enemigo, "recibir_dano"):
+                    enemigo.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"),
+                                         enemigo.posicion - p.posicion)
+                if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
+                    aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
+                    encender_combustible(enemigo, p.dano)   # combustible pegado: +50 % por carga
+                if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
+                    aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
+                    if p.corrosion_tope is not None:
+                        aplicar_corrosion(enemigo, p.corrosion_tope, p.veneno_duracion, impacto=True)
+                if hasattr(p, "impactar"):
+                    p.impactar()            # Estrella Ignea: explota 0.5 s despues
+                p.activo = False
+                break
+    c.proyectiles = [p for p in c.proyectiles if p.activo]
+
+    # Regeneración de energía y de los escudos físico y mágico
+    c.actualizar_regeneracion(dt)
+    c.actualizar_regeneracion_escudo(dt)
+    c.actualizar_regeneracion_escudo_magico(dt)
+
+    # Habilidades equipadas; las guardadas en la colección siguen su recarga
+    for hab in c.habilidades:
+        hab.actualizar(dt, c)
+    for hab in c.habilidades_guardadas():
+        hab.actualizar(dt, c)
+    # Sombras de los anillos (lo siguen y lo defienden)
+    c.sombras_anillo.actualizar(dt, c)
+
+    # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto
+    for hab in c.habilidades:
+        if hasattr(hab, "actualizar_cuchillas"):
+            destruidas = hab.actualizar_cuchillas(ctx.rocas, ctx.vegetacion.arbustos, ctx.vegetacion.arboles,
+                                                  enemigos, CENTRO_MUNDO, RADIO_MUNDO)
+            ctx.vegetacion.liberar_obstaculos(destruidas)
+    # Estrella Ignea: choques con troncos/arbustos, explosiones y suelo en llamas
+    for hab in c.habilidades:
+        if hasattr(hab, "actualizar_explosiones"):
+            destruidas, evaporado = hab.actualizar_explosiones(dt, c, enemigos, ctx.rocas, ctx.vegetacion.arbustos,
+                                                               ctx.vegetacion.arboles, ctx.charcos)
+            ctx.vegetacion.liberar_obstaculos(destruidas)
+            for centro_ev, radio_ev in evaporado:
+                ctx.fauna.quitar_fauna_acuatica(centro_ev, radio_ev)
+
+    # Combustible de Desmantelar: suelto, pegado a enemigos, explosiones y suelo en llamas
+    c.combustible.actualizar(dt, c, enemigos, ctx.charcos)
+
+
+def combatiente_estado(c, ctx, dt, enemigos, enemigos_sin_tumba):
+    """Ondas, auras y telarañas del combatiente, sus efectos y estados, el terreno (agua y zona
+    profunda), el autoapuntado y el movimiento con empuje."""
+    # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
+    for hab in c.habilidades:
+        if hasattr(hab, "actualizar_ondas"):
+            hab.actualizar_ondas(dt, enemigos)
+    # Auras (Aura Electrica, Relampago, humo de Corrosion), tambien las otorgadas
+    for hab in c.habilidades_en_efecto():
+        if hasattr(hab, "actualizar_dano_enemigos"):
+            hab.actualizar_dano_enemigos(dt, enemigos_sin_tumba, c)
+    # Sombra Araña: las telaranas atrapan a los enemigos que las pisan
+    for hab in c.habilidades:
+        if hasattr(hab, "actualizar_telaranas"):
+            hab.actualizar_telaranas(dt, enemigos_sin_tumba)
+    # Efectos temporales otorgados (ej. por Golpe de Suerte), desangrado, invulnerabilidad,
+    # veneno, ralentizacion, fundido de Paso 0 y anillo de regeneracion
+    c.actualizar_efectos(dt)
+    c.actualizar_desangrado(dt)
+    c.actualizar_invulnerabilidad(dt)
+    c.actualizar_reloj(dt)
+    c.actualizar_veneno(dt)
+    c.actualizar_ralentizacion(dt)
+    c.actualizar_desvanecimiento(dt)
+    c.actualizar_talismanes(dt)
+    # Estados puestos por otros combatientes (quemadura, corrosion, sueno, huida, telarana)
+    c.actualizar_estados(dt)
+
+    # Terreno: ¿pisa agua? ¿zona profunda de un lago grande? (10 de daño por segundo)
+    c.en_agua = any(ch.contiene(c.posicion) for ch in ctx.charcos)
+    c.en_agua_profunda = any(ch.en_zona_peligro(c.posicion) for ch in ctx.charcos)
+    if c.en_agua_profunda:
+        c.tiempo_dano_lago += dt
+        while c.tiempo_dano_lago >= 1.0:
+            c.tiempo_dano_lago -= 1.0
+            c.vida = max(0, c.vida - DANO_LAGO_PROFUNDO)
+    else:
+        c.tiempo_dano_lago = 0.0
+
+    # Autoapuntado: mira al objetivo (o lo suelta si muere o sale de rango) antes de moverse
+    c.actualizar_autoapuntado(dt)
+    # Velocidad acumulando debuffs y buffs
+    c.actualizar_velocidad()
+    # Mover respetando el círculo del mapa y las rocas. Con Cuerpo de niebla (Espectro) solo lo
+    # frenan las cuevas de oso y los arbustos en los que no cabe.
+    if c.cuerpo_de_niebla:
+        c.mover(ctx.limites_mundo, CENTRO_MUNDO, RADIO_MUNDO,
+                [r for r in ctx.rocas if getattr(r, "es_cueva", False)],
+                ctx.vegetacion.obstaculos_para(c, con_troncos=False))
+    else:
+        c.mover(ctx.limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, ctx.rocas, ctx.vegetacion.obstaculos_para(c))
+    # Retroceso acumulado por empuje
+    c.actualizar_empuje(dt, CENTRO_MUNDO, RADIO_MUNDO)
+
+
+def actualizar_combatiente(c, ctx, dt, jugador):
+    """Un fotograma completo de un combatiente que no es el jugador (sus intenciones ya puestas)."""
+    enemigos = enemigos_de(c, ctx, jugador)
+    combatiente_golpes(c, dt, enemigos)
+    combatiente_habilidades(c, ctx, dt, enemigos)
+    combatiente_estado(c, ctx, dt, enemigos, enemigos)
+    ctx.vegetacion.actualizar_personaje(dt, c)
+
+
+def retirar_combatientes_muertos(ctx):
+    """Quita del mundo a los combatientes sin vida (y a sus sombras). Devuelve los retirados."""
+    muertos = [c for c in ctx.combatientes if c.vida <= 0]
+    for c in muertos:
+        sombras = []
+        for hab in c.coleccion_habilidades + [c.sombras_anillo]:
+            for cr in getattr(hab, "criaturas", ()):
+                cr.vivo = False
+                sombras.append(cr)
+        ctx.fauna.olvidar_objetivos([c] + sombras)
+        ctx.combatientes.remove(c)
+    return muertos
+
+
+def cuerpos_de_combatiente(c):
+    """Cuerpos solidos de un combatiente: el suyo (salvo con Cuerpo de niebla) y sus sombras."""
+    cuerpos = [] if c.cuerpo_de_niebla else [c]
+    for hab in c.fuentes_criaturas():
+        cuerpos.extend(getattr(hab, "criaturas", ()))
+    return cuerpos
+
+
 class Maniqui:
     """Maniqui de pruebas en el centro del mapa: 100 de vida y escudos fisico y magico de 50,
     lleva una Espada Larga y ataca en intervalos (IA simple); recibe dano y desangrado. Los escudos siguen las mismas reglas que los del
@@ -1050,10 +1341,7 @@ def iniciar_mundo(config):
     limites_mundo = (0, 0, TAMANO_MUNDO, TAMANO_MUNDO)
     area_mundo_pantalla = pygame.Rect(mundo_x, mundo_y, mundo_w, mundo_h)
 
-    charcos = generar_charcos()
-    vegetacion = SistemaVegetacion(CENTRO_MUNDO, RADIO_MUNDO, ZONA_SEGURA_SPAWN, charcos)
-    rocas = generar_rocas(list(charcos) + vegetacion.arbustos + vegetacion.arboles)
-    vegetacion.registrar_obstaculos(rocas)
+    charcos, vegetacion, rocas = generar_terreno()
     fauna = SistemaFauna(CENTRO_MUNDO, RADIO_MUNDO, vegetacion, charcos, rocas)
 
     # Casa del spawn: paredes solidas e indestructibles (van con las rocas, despues de la fauna
@@ -1064,6 +1352,12 @@ def iniciar_mundo(config):
 
     # Maniqui de pruebas en el jardin, al sur de la puerta
     maniqui = Maniqui(casa.punto_maniqui)
+
+    # Contexto compartido por los combatientes (Fase 1 del plan de NPC). 'combatientes' en la
+    # configuracion: personajes extra que pelean en el mundo (por ahora solo en las pruebas).
+    ctx = Contexto(rocas, vegetacion, charcos, fauna, limites_mundo)
+    for otro in config.get("combatientes", ()):
+        ctx.agregar_combatiente(otro)
 
     # Capa oscura para simular la poca visibilidad dentro de un arbusto
     capa_oscura = pygame.Surface((mundo_w, mundo_h), pygame.SRCALPHA)
@@ -1145,7 +1439,6 @@ def iniciar_mundo(config):
     ejecutando = True
     muerto = False            # Vida a 0: el mundo se congela y sale la pantalla de muerte
     tumba = None              # Tumba de la ultima muerte sin totem (guarda el progreso 10 min)
-    niebla_previa = False     # Cuerpo de niebla (Espectro) activo el frame anterior
     inventario_abierto = False  # [I]: inventario superpuesto (NO pausa el mundo)
     tienda_abierta = None       # [E] junto a un vendedor: su tienda (NO pausa el mundo)
     mensaje_tienda = None
@@ -1318,7 +1611,7 @@ def iniciar_mundo(config):
 
         # Enemigos actuales (por ahora solo el maniqui de pruebas)
         enemigos_sin_tumba = (([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista_camara())
-                              + vendedores.objetivos())
+                              + vendedores.objetivos() + [c for c in ctx.combatientes if c.vida > 0])
         # La tumba recibe solo los golpes directos (arma, proyectiles, cuchillas, ondas, explosiones)
         enemigos = enemigos_sin_tumba + ([tumba] if tumba is not None and tumba.vivo else [])
 
@@ -1381,8 +1674,7 @@ def iniciar_mundo(config):
 
                 # [1] Exclusivo para Herramientas (Espada Ligera sacar/guardar)
                 elif evento.key == pygame.K_1:
-                    if jugador.herramienta:
-                        jugador.herramienta.toggle()
+                    jugador.alternar_arma()
 
                 # [K] (prueba) +100 monedas para probar el Gacha
                 elif evento.key == pygame.K_k:
@@ -1412,10 +1704,7 @@ def iniciar_mundo(config):
 
                 # [Espacio] Golpe cuerpo a cuerpo con el arma (manual); con el Arco empieza a cargar
                 elif evento.key == pygame.K_SPACE:
-                    if jugador.herramienta and hasattr(jugador.herramienta, "iniciar_carga"):
-                        jugador.herramienta.iniciar_carga()
-                    elif jugador.herramienta:
-                        jugador.herramienta.atacar(jugador)
+                    jugador.pulsar_ataque()
                 # [R] Arco: comprar un lote de 10 flechas con energia
                 elif evento.key == pygame.K_r:
                     if jugador.herramienta and hasattr(jugador.herramienta, "comprar_flechas"):
@@ -1427,33 +1716,20 @@ def iniciar_mundo(config):
 
                 # Teclas dinámicas [2], [3] y [4] para Habilidades
                 else:
+                    # Cargables: empiezan a cargar; invocacion activa: modo combate; si no, se activa
                     for hab in jugador.habilidades:
                         if evento.key == hab.tecla:
-                            # Las habilidades cargables (ej. Carga de Fuego) empiezan a cargar al pulsar
-                            if getattr(hab, "cargable", False):
-                                hab.iniciar_carga(jugador)
-                            # Invocacion ya activa: la tecla controla el modo combate
-                            elif hab.estado == "INVOCADO" and hasattr(hab, "pulsar_tecla_combate"):
-                                hab.pulsar_tecla_combate()
-                            else:
-                                hab.intentar_activar(jugador)
+                            jugador.pulsar_habilidad(hab)
 
             # Soltar la tecla de una habilidad cargable: dispara la carga acumulada.
             # Soltar la de una invocacion: si no se dio otra orden, vuelve al estado pasivo.
             elif evento.type == pygame.KEYUP:
                 # Soltar [Espacio] con el Arco: dispara la flecha si la carga llego a 1 s
-                if evento.key == pygame.K_SPACE and jugador.herramienta \
-                        and hasattr(jugador.herramienta, "soltar_carga"):
-                    flecha = jugador.herramienta.soltar_carga(jugador)
-                    if flecha:
-                        jugador.proyectiles.append(flecha)
+                if evento.key == pygame.K_SPACE:
+                    jugador.soltar_ataque()
                 for hab in jugador.habilidades:
-                    if evento.key != hab.tecla:
-                        continue
-                    if getattr(hab, "cargable", False):
-                        hab.soltar_carga(jugador)
-                    elif hasattr(hab, "soltar_tecla_combate"):
-                        hab.soltar_tecla_combate()
+                    if evento.key == hab.tecla:
+                        jugador.soltar_habilidad(hab)
 
             elif evento.type == pygame.MOUSEBUTTONDOWN:
                 if evento.button == 1:
@@ -1520,10 +1796,7 @@ def iniciar_mundo(config):
                         info_abierta = None
                         # Convertir clic de pantalla a coordenadas del mundo según la cámara
                         vista = vista_camara()
-                        jugador.destino = pygame.Vector2(
-                            vista.x + (mouse_x - mundo_x),
-                            vista.y + (mouse_y - mundo_y)
-                        )
+                        jugador.mover_a((vista.x + (mouse_x - mundo_x), vista.y + (mouse_y - mundo_y)))
 
                 elif evento.button == 3:
                     # Clic derecho: dirige a las sombras en modo combate (mantener su tecla).
@@ -1541,63 +1814,30 @@ def iniciar_mundo(config):
                             vista.x + (mouse_x - mundo_x),
                             vista.y + (mouse_y - mundo_y)
                         )
-                        en_combate = [h for h in jugador.habilidades if getattr(h, "modo_combate", False)]
-                        for hab in en_combate:
-                            hab.ordenar(punto, jugador, enemigos_sin_tumba)
-                        if not en_combate:
-                            jugador.alternar_autoapuntado(enemigo_en(punto, enemigos, AUTOAPUNTADO_MARGEN_CLIC))
+                        en_combate = jugador.ordenar_sombras(punto, enemigos_sin_tumba)
+                        # Con la tecla de una invocacion mantenida el clic derecho es una orden aunque
+                        # esa invocacion no pueda recibirla ahora (Sombra Arana en recarga): nunca
+                        # cambia el Autoapuntado
+                        tecla_invocacion = any(hasattr(h, "ordenar") and teclas_estado[h.tecla]
+                                               for h in jugador.habilidades)
+                        if not en_combate and not tecla_invocacion:
+                            jugador.apuntar(enemigo_en(punto, enemigos, AUTOAPUNTADO_MARGEN_CLIC))
 
         # Muerto: el mundo queda congelado detrás de la pantalla de muerte
         if not muerto:
-            # Actualizar herramienta (temporizador y cálculo de su hitbox)
-            if jugador.herramienta:
-                jugador.herramienta.actualizar(dt, jugador)
-
-            # Mantener [Espacio] repite el golpe segun la cadencia del arma
-            if teclas_estado[pygame.K_SPACE] and jugador.herramienta:
-                jugador.herramienta.atacar(jugador)
-
-            # Golpe del jugador: choque de armas (prioridad) o golpe al cuerpo del enemigo
-            arma_actual = jugador.herramienta
-            if arma_actual and getattr(arma_actual, "golpeando", False):
-                for enemigo in enemigos:
-                    if id(enemigo) in arma_actual.enemigos_golpeados:
-                        continue
-                    arma_enemiga = getattr(enemigo, "herramienta", None)
-                    # 1) Choque de armas: mi filo toca su espada -> repelido mutuo igual + ambas se desgastan
-                    if (arma_enemiga and not arma_enemiga.roto
-                            and hitboxes_de_armas_chocan(arma_actual, arma_enemiga)):
-                        arma_actual.enemigos_golpeados.add(id(enemigo))
-                        fuerza_choque = max(arma_actual.puntos_empuje, arma_enemiga.puntos_empuje)
-                        dir_al_enemigo = enemigo.posicion - jugador.posicion
-                        jugador.aplicar_empuje(-dir_al_enemigo, fuerza_choque)      # yo retrocedo
-                        if hasattr(enemigo, "aplicar_empuje"):
-                            enemigo.aplicar_empuje(dir_al_enemigo, fuerza_choque)   # el enemigo retrocede igual
-                        arma_actual.desgastar(1)
-                        arma_enemiga.desgastar(1)
-                        continue
-                    # 2) Golpe al cuerpo del enemigo
-                    tocado = any(
-                        hb and rect_circulo_colisionan(hb, enemigo.posicion, enemigo.radio)
-                        for hb in arma_actual.obtener_hitboxes()
-                    )
-                    if not tocado:
-                        continue
-                    arma_actual.enemigos_golpeados.add(id(enemigo))
-                    dano = arma_actual.calcular_dano(jugador)
-                    if dano > 0 and hasattr(enemigo, "recibir_dano"):
-                        jugador.golpear_con_arma(enemigo, dano, arma_actual.tipo_dano)
-                        if hasattr(enemigo, "aturdir_ataque"):
-                            enemigo.aturdir_ataque()     # retrasa su siguiente ataque (animales)
-                        if hasattr(enemigo, "aplicar_empuje"):
-                            enemigo.aplicar_empuje(enemigo.posicion - jugador.posicion, arma_actual.puntos_empuje)
-                        arma_actual.desgastar(1)
+            # El jugador es un combatiente mas (Fase 1 del plan de NPC): pasa por las mismas
+            # funciones que los NPC, en el orden de siempre, con los pasos del mundo entre medias.
+            # Mantener [Espacio] = intencion de mantener el ataque (golpes segun la cadencia).
+            jugador.mantiene_ataque = bool(teclas_estado[pygame.K_SPACE])
+            combatiente_golpes(jugador, dt, enemigos)
 
             # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
             for enemigo in enemigos:
                 arma_enemiga = getattr(enemigo, "herramienta", None)
                 if not (arma_enemiga and getattr(arma_enemiga, "golpeando", False)):
                     continue
+                if getattr(enemigo, "es_combatiente", False):
+                    continue                            # un combatiente golpea en su propio turno
                 objetivos = [jugador]
                 for hab in jugador.fuentes_criaturas():
                     objetivos.extend(getattr(hab, "criaturas", ()))
@@ -1628,76 +1868,7 @@ def iniciar_mundo(config):
                             jugador.marcar_golpe()
                         arma_enemiga.desgastar(1)
 
-            # Actualizar proyectiles disparados (Disparo Veloz) — chocan con las rocas
-            jugador.actualizar_proyectiles(dt, limites_mundo, rocas)
-            # Los proyectiles desaparecen al salir del círculo del mapa
-            jugador.proyectiles = [
-                p for p in jugador.proyectiles
-                if (p.posicion - CENTRO_MUNDO).length() <= RADIO_MUNDO + p.radio
-            ]
-
-            # Proyectiles (Disparo Veloz, Carga de Fuego, Disparo Venenoso, flechas del Arco) golpean a los enemigos
-            for p in jugador.proyectiles:
-                if not p.activo or getattr(p, "clavada", False):
-                    continue
-                for enemigo in enemigos:
-                    if not getattr(enemigo, "vivo", True):
-                        continue
-                    if rect_circulo_colisionan(p.hitbox, enemigo.posicion, enemigo.radio):
-                        if hasattr(p, "puntos_empuje"):
-                            # Flecha: daño fisico, empuje fijo del arma y desgaste del arco si hace daño
-                            aplicado = jugador.golpear_con_arma(enemigo, p.dano, p.tipo_dano)
-                            enemigo.aplicar_empuje(p.direccion, p.puntos_empuje)
-                            if aplicado > 0:
-                                p.arco.desgastar(1)
-                        elif hasattr(enemigo, "recibir_dano"):
-                            enemigo.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"),
-                                                 enemigo.posicion - p.posicion)
-                        if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
-                            aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
-                            encender_combustible(enemigo, p.dano)   # combustible pegado: +50 % por carga
-                        if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
-                            aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
-                            if p.corrosion_tope is not None:
-                                aplicar_corrosion(enemigo, p.corrosion_tope, p.veneno_duracion, impacto=True)
-                        if hasattr(p, "impactar"):
-                            p.impactar()            # Estrella Ignea: explota 0.5 s despues
-                        p.activo = False
-                        break
-            jugador.proyectiles = [p for p in jugador.proyectiles if p.activo]
-
-            # Actualizar regeneración global de energía
-            jugador.actualizar_regeneracion(dt)
-            # Actualizar regeneración del escudo físico
-            jugador.actualizar_regeneracion_escudo(dt)
-            # Actualizar regeneración del escudo mágico
-            jugador.actualizar_regeneracion_escudo_magico(dt)
-
-            # Actualizar todas las habilidades equipadas
-            for hab in jugador.habilidades:
-                hab.actualizar(dt, jugador)
-            # Las habilidades guardadas en la colección siguen su recarga
-            for hab in jugador.habilidades_guardadas():
-                hab.actualizar(dt, jugador)
-            # Sombras de los anillos (te siguen y te defienden)
-            jugador.sombras_anillo.actualizar(dt, jugador)
-
-            # Cuchillas de Cortar: golpean al primer enemigo o destruyen una roca/arbusto
-            for hab in jugador.habilidades:
-                if hasattr(hab, "actualizar_cuchillas"):
-                    destruidas = hab.actualizar_cuchillas(rocas, vegetacion.arbustos, vegetacion.arboles, enemigos, CENTRO_MUNDO, RADIO_MUNDO)
-                    vegetacion.liberar_obstaculos(destruidas)
-            # Estrella Ignea: choques con troncos/arbustos, explosiones y suelo en llamas
-            for hab in jugador.habilidades:
-                if hasattr(hab, "actualizar_explosiones"):
-                    destruidas, evaporado = hab.actualizar_explosiones(dt, jugador, enemigos, rocas, vegetacion.arbustos,
-                                                                       vegetacion.arboles, charcos)
-                    vegetacion.liberar_obstaculos(destruidas)
-                    for centro_ev, radio_ev in evaporado:
-                        fauna.quitar_fauna_acuatica(centro_ev, radio_ev)
-
-            # Combustible de Desmantelar: suelto, pegado a enemigos, explosiones y suelo en llamas
-            jugador.combustible.actualizar(dt, jugador, enemigos, charcos)
+            combatiente_habilidades(jugador, ctx, dt, enemigos)
 
             # Tumba rota: se recupera el personaje guardado (se descarta la vida nueva)
             if tumba is not None and tumba.rota:
@@ -1713,91 +1884,44 @@ def iniciar_mundo(config):
                 textos_flotantes.append(["¡Recuperaste todo lo de la tumba!", COLOR_XP_MAX,
                                          jugador.posicion - pygame.Vector2(0, 48), 0.0])
 
-            # Ondas Sonoras: anillos que golpean una vez a cada enemigo (atraviesan obstaculos)
             maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
-            for hab in jugador.habilidades:
-                if hasattr(hab, "actualizar_ondas"):
-                    hab.actualizar_ondas(dt, enemigos)
-            # Auras (Aura Electrica, Relampago, humo de Corrosion), tambien las otorgadas
-            for hab in jugador.habilidades_en_efecto():
-                if hasattr(hab, "actualizar_dano_enemigos"):
-                    hab.actualizar_dano_enemigos(dt, enemigos_sin_tumba, jugador)
-            # Sombra Araña: las telaranas atrapan a los enemigos que las pisan
-            for hab in jugador.habilidades:
-                if hasattr(hab, "actualizar_telaranas"):
-                    hab.actualizar_telaranas(dt, enemigos_sin_tumba)
-            # Efectos temporales otorgados (ej. por Golpe de Suerte)
-            jugador.actualizar_efectos(dt)
-            # Desangrado activo (resta vida por intervalo; preparado para el combate)
-            jugador.actualizar_desangrado(dt)
-            # Invulnerabilidad breve tras recibir un golpe
-            jugador.actualizar_invulnerabilidad(dt)
-            jugador.actualizar_reloj(dt)
-            # Veneno activo (ej. el que da Golpe de Suerte al portador)
-            jugador.actualizar_veneno(dt)
-            # Ralentizacion recibida (ej. Onda Sonora de un enemigo)
-            jugador.actualizar_ralentizacion(dt)
-            # Fundido visual de Paso 0 (desvanecerse / volver a verse)
-            jugador.actualizar_desvanecimiento(dt)
-            # Anillo de regeneración inversa (cura cada cierto tiempo)
-            jugador.actualizar_talismanes(dt)
-
-            # Terreno: ¿el jugador está pisando agua? ¿zona profunda de un lago grande?
-            jugador.en_agua = any(c.contiene(jugador.posicion) for c in charcos)
-            jugador.en_agua_profunda = any(c.en_zona_peligro(jugador.posicion) for c in charcos)
-
-            # Zona profunda: 10 de daño por segundo
-            if jugador.en_agua_profunda:
-                jugador.tiempo_dano_lago += dt
-                while jugador.tiempo_dano_lago >= 1.0:
-                    jugador.tiempo_dano_lago -= 1.0
-                    jugador.vida = max(0, jugador.vida - DANO_LAGO_PROFUNDO)
-            else:
-                jugador.tiempo_dano_lago = 0.0
-
-            # Autoapuntado: mira al objetivo (o lo suelta si muere o sale de rango) antes de moverse
-            jugador.actualizar_autoapuntado(dt)
-
-            # Calcular velocidad acumulando debuffs y buffs
-            jugador.actualizar_velocidad()
-
-            # Mover personaje respetando el círculo del mapa y las rocas. Con Cuerpo de niebla
-            # (Espectro) solo lo frenan las cuevas de oso y los arbustos en los que no cabe.
-            niebla = jugador.cuerpo_de_niebla
-            if niebla:
-                jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO,
-                              [r for r in rocas if getattr(r, "es_cueva", False)],
-                              vegetacion.obstaculos_para(jugador, con_troncos=False))
-            else:
-                jugador.mover(limites_mundo, CENTRO_MUNDO, RADIO_MUNDO, rocas, vegetacion.obstaculos_para(jugador))
-
-            # Aplicar el retroceso acumulado por empuje (combate futuro; por ahora suele ser 0)
-            jugador.actualizar_empuje(dt, CENTRO_MUNDO, RADIO_MUNDO)
+            combatiente_estado(jugador, ctx, dt, enemigos, enemigos_sin_tumba)
 
             # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
             vegetacion.actualizar(dt, jugador)
 
+            # Los demas combatientes (NPC). En una partida normal todavia no hay ninguno.
+            for otro in list(ctx.combatientes):
+                actualizar_combatiente(otro, ctx, dt, jugador)
+            retirar_combatientes_muertos(ctx)
+
             # Maniqui de pruebas (tiquea su desangrado y su reaparicion)
             maniqui.actualizar(dt, jugador)
 
-            # Cuerpos solidos: jugador, maniqui e invocaciones no se solapan entre si
-            # (con Cuerpo de niebla el jugador no entra: atraviesa a todos)
-            cuerpos = ([] if niebla else [jugador]) + ([maniqui] if maniqui.vivo else [])
+            # Cuerpos solidos: combatientes, maniqui e invocaciones no se solapan entre si
+            # (con Cuerpo de niebla el combatiente no entra: atraviesa a todos)
+            todos = [jugador] + ctx.combatientes
+            cuerpos = ([] if jugador.cuerpo_de_niebla else [jugador]) + ([maniqui] if maniqui.vivo else [])
             for hab in jugador.fuentes_criaturas():
                 cuerpos.extend(getattr(hab, "criaturas", ()))
+            for otro in ctx.combatientes:
+                cuerpos.extend(cuerpos_de_combatiente(otro))
             cuerpos.extend(fauna.cuerpos_solidos(vista_camara()))
             if tumba is not None:
                 cuerpos.append(tumba)           # solida: nada la atraviesa ni la mueve
             # Fin del Cuerpo de niebla: si quedo dentro de algo, sale al hueco libre mas cercano
-            if niebla_previa and not niebla:
-                propias = {id(cr) for hab in jugador.fuentes_criaturas() for cr in getattr(hab, "criaturas", ())}
-                ajenos = [c for c in cuerpos if id(c) not in propias]   # tus sombras se apartan solas
-                sacar_a_hueco_libre(jugador, rocas, vegetacion.obstaculos_para(jugador), ajenos,
-                                    CENTRO_MUNDO, RADIO_MUNDO)
-            niebla_previa = niebla
+            for c in todos:
+                niebla = c.cuerpo_de_niebla
+                if getattr(c, "niebla_previa", False) and not niebla:
+                    propias = {id(cr) for hab in c.fuentes_criaturas() for cr in getattr(hab, "criaturas", ())}
+                    ajenos = [o for o in cuerpos if id(o) not in propias]   # sus sombras se apartan solas
+                    sacar_a_hueco_libre(c, rocas, vegetacion.obstaculos_para(c), ajenos,
+                                        CENTRO_MUNDO, RADIO_MUNDO)
+                c.niebla_previa = niebla
             resolver_solapamientos(cuerpos)
-            jugador.hitbox.x = round(jugador.posicion.x - jugador.radio)
-            jugador.hitbox.y = round(jugador.posicion.y - jugador.radio)
+            for c in todos:
+                c.hitbox.x = round(c.posicion.x - c.radio)
+                c.hitbox.y = round(c.posicion.y - c.radio)
 
         # Cámara que sigue suavemente al personaje
         factor = min(1.0, SUAVIZADO_CAMARA * dt)
@@ -1812,7 +1936,7 @@ def iniciar_mundo(config):
         vista = vista_camara()
         desplazamiento = (vista.x - mundo_x, vista.y - mundo_y)  # mundo -> pantalla
         if not muerto:
-            fauna.actualizar(dt, jugador, vista, vendedores.objetivos())
+            fauna.actualizar(dt, jugador, vista, vendedores.objetivos(), ctx.combatientes)
             vendedores.actualizar(dt, jugador)
             if tienda_abierta is not None and not tienda_abierta.puede_comerciar(jugador):
                 tienda_abierta = None          # se alejo, huyo, murio o se fue a casa
@@ -1872,19 +1996,23 @@ def iniciar_mundo(config):
         # Arboles (bosques): sombra + tronco solido bajo las entidades; la copa va al final
         vegetacion.dibujar_arboles_base(pantalla, vista, desplazamiento)
         # Telaranas de la Sombra Araña (en el suelo, bajo las entidades)
-        for hab in jugador.habilidades:
-            if hasattr(hab, "dibujar_telaranas"):
-                hab.dibujar_telaranas(pantalla, desplazamiento)
-            if hasattr(hab, "dibujar_suelo"):
-                hab.dibujar_suelo(pantalla, desplazamiento)
-        jugador.combustible.dibujar_suelo(pantalla, desplazamiento)
+        for c in [jugador] + ctx.combatientes:
+            for hab in c.habilidades:
+                if hasattr(hab, "dibujar_telaranas"):
+                    hab.dibujar_telaranas(pantalla, desplazamiento)
+                if hasattr(hab, "dibujar_suelo"):
+                    hab.dibujar_suelo(pantalla, desplazamiento)
+            c.combustible.dibujar_suelo(pantalla, desplazamiento)
         if tumba is not None and tumba.vivo:
             tumba.dibujar(pantalla, desplazamiento, fuentes["mini"])
         # Maniqui de pruebas en el centro
         maniqui.dibujar(pantalla, desplazamiento, fuentes["mini"])
 
-        # Dibujar personaje, auras interiores, herramienta rotada y proyectiles
+        # Dibujar personaje, auras interiores, herramienta rotada y proyectiles (y los demas
+        # combatientes, con el mismo dibujo; solo el jugador tiene paneles, inventario y textos)
         jugador.dibujar(pantalla, fuentes["nombre"], desplazamiento)
+        for otro in ctx.combatientes:
+            otro.dibujar(pantalla, fuentes["nombre"], desplazamiento)
         fauna.dibujar_conejos(pantalla, vista, desplazamiento)
         fauna.dibujar_venados(pantalla, vista, desplazamiento)
         fauna.dibujar_jabalies(pantalla, vista, desplazamiento)
@@ -1899,23 +2027,27 @@ def iniciar_mundo(config):
             dibujar_mira(pantalla, jugador.objetivo_apuntado, desplazamiento)
 
         # Dibujar invocaciones (conejos y futuras) de las habilidades que las tengan
-        for hab in jugador.habilidades:
-            if hasattr(hab, "dibujar_invocaciones"):
-                hab.dibujar_invocaciones(pantalla, desplazamiento)
-            if hasattr(hab, "dibujar_cuchillas"):
-                hab.dibujar_cuchillas(pantalla, desplazamiento)
-            if hasattr(hab, "dibujar_ondas"):
-                hab.dibujar_ondas(pantalla, desplazamiento)
-            if hasattr(hab, "dibujar_explosiones"):
-                hab.dibujar_explosiones(pantalla, desplazamiento)
-        jugador.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
-        jugador.combustible.dibujar(pantalla, desplazamiento)
+        for c in [jugador] + ctx.combatientes:
+            for hab in c.habilidades:
+                if hasattr(hab, "dibujar_invocaciones"):
+                    hab.dibujar_invocaciones(pantalla, desplazamiento)
+                if hasattr(hab, "dibujar_cuchillas"):
+                    hab.dibujar_cuchillas(pantalla, desplazamiento)
+                if hasattr(hab, "dibujar_ondas"):
+                    hab.dibujar_ondas(pantalla, desplazamiento)
+                if hasattr(hab, "dibujar_explosiones"):
+                    hab.dibujar_explosiones(pantalla, desplazamiento)
+            c.sombras_anillo.dibujar_invocaciones(pantalla, desplazamiento)
+            c.combustible.dibujar(pantalla, desplazamiento)
 
         # Parpadeo rojo de todo lo vivo que acaba de perder vida (jugador, maniqui, fauna, sombras)
         vivos_parpadeo = ([jugador] + ([maniqui] if maniqui.vivo else []) + fauna.animales_con_vida(vista)
                           + vendedores.objetivos())
-        for hab in jugador.fuentes_criaturas():
-            vivos_parpadeo.extend(getattr(hab, "criaturas", ()))
+        for c in [jugador] + ctx.combatientes:
+            if c is not jugador:
+                vivos_parpadeo.append(c)
+            for hab in c.fuentes_criaturas():
+                vivos_parpadeo.extend(getattr(hab, "criaturas", ()))
         actualizar_parpadeos(vivos_parpadeo, 0.0 if muerto else dt)
         if animaciones_activas():
             dibujar_parpadeos(pantalla, vivos_parpadeo, desplazamiento)
@@ -1927,8 +2059,11 @@ def iniciar_mundo(config):
         # Copas de los arboles encima de todo, arbustos incluidos (profundidad). Se vuelven
         # semitransparentes si hay una entidad debajo: jugador, maniqui, invocaciones o fauna.
         entidades = [jugador] + ([maniqui] if maniqui.vivo else [])
-        for hab in jugador.fuentes_criaturas():
-            entidades.extend(getattr(hab, "criaturas", ()))
+        for c in [jugador] + ctx.combatientes:
+            if c is not jugador:
+                entidades.append(c)
+            for hab in c.fuentes_criaturas():
+                entidades.extend(getattr(hab, "criaturas", ()))
         entidades.extend(fauna.cuerpos_solidos(vista))
         vegetacion.dibujar_arboles_copas(pantalla, vista, desplazamiento, entidades)
         # Techo de la casa (casi transparente con el jugador dentro)

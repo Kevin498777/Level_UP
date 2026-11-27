@@ -212,7 +212,10 @@ El zorro tiene **tres pasivas**:
   Sale si te detecta (**emboscada**) y, además, **cada 1 minuto sale 10 s** a
   acercarse al **lago más cercano** a "pescar" y vuelve.
 - **Entrada de la cueva:** la roca del oso tiene una **entrada oscura** dibujada
-  que la distingue de una roca normal.
+  que la distingue de una roca normal. Las cuevas y la direccion de su entrada son
+  parte del terreno fijo (`mundo.generar_terreno`): son las mismas en cada partida. La
+  boca se calcula sobre el borde real de la roca cuadrada (`Oso.cueva_borde`), asi la
+  entrada, la salida del oso y los orbes nunca quedan dentro de la roca (27/11/2026).
 - **Orbe de la cueva:** solo se puede **entrar a la cueva cuando el oso muere**.
   Al llegar a la entrada, el **mapa se oscurece** (simula estar dentro de la cueva)
   y recoges un **orbe que cura +20** de vida y da **+2 XP** (un solo uso). En la

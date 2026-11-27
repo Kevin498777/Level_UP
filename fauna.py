@@ -402,6 +402,18 @@ class Cofre:
         pygame.draw.circle(pantalla, (255, 230, 130), (px, py - 3), 1)
 
 
+def marcar_cuevas(rocas):
+    """Elige las cuevas de oso entre las rocas gigantes (OSO_MIN a OSO_MAX por mundo), las marca
+    con es_cueva (nada puede destruirlas) y les da la direccion de su entrada. Devuelve la lista."""
+    gigantes = [r for r in rocas if getattr(r, "gigante", False)]
+    random.shuffle(gigantes)
+    cuevas = gigantes[:min(len(gigantes), random.randint(OSO_MIN, OSO_MAX))]
+    for r in cuevas:
+        r.es_cueva = True
+        r.angulo_entrada = random.uniform(0, math.tau)
+    return cuevas
+
+
 class SistemaFauna:
     def __init__(self, centro_mundo, radio_mundo, vegetacion, charcos, rocas=()):
         self.centro_mundo = pygame.Vector2(centro_mundo)
@@ -456,15 +468,11 @@ class SistemaFauna:
         for _ in range(LOBO_MANADAS):
             self.manadas.append(Manada(self._centro_manada()))
 
-        # Osos: uno por algunas rocas gigantes (8 a 12 por mundo), su cueva.
+        # Osos: uno por cueva. Las cuevas son parte del terreno (mundo.generar_terreno las marca
+        # con la semilla fija); si nadie las marco (terreno hecho a mano en pruebas), se eligen aqui.
         self.rugidos = []
-        self.osos = []
-        gigantes = [r for r in self.rocas if getattr(r, "gigante", False)]
-        random.shuffle(gigantes)
-        n_osos = min(len(gigantes), random.randint(OSO_MIN, OSO_MAX))
-        for r in gigantes[:n_osos]:
-            r.es_cueva = True             # nada puede destruir la cueva de un oso
-            self.osos.append(Oso(r))
+        cuevas = [r for r in self.rocas if getattr(r, "es_cueva", False)] or marcar_cuevas(self.rocas)
+        self.osos = [Oso(r) for r in cuevas]
 
         # Cocodrilos: 2 por lago profundo; 3 si el lago es muy grande (radio >= COCODRILO_LAGO_GRANDE).
         self.cocodrilos = []
@@ -509,9 +517,11 @@ class SistemaFauna:
             return p
         return None
 
-    def actualizar(self, dt, jugador, vista, presas_hostiles=()):
+    def actualizar(self, dt, jugador, vista, presas_hostiles=(), combatientes=()):
         """'presas_hostiles': otros objetivos que atacan los hostiles (lobos, osos, cocodrilos,
-        lobos solitarios) ademas del jugador y sus sombras, p. ej. los vendedores ambulantes."""
+        lobos solitarios) ademas del jugador y sus sombras, p. ej. los vendedores ambulantes.
+        'combatientes': otros personajes (no el jugador); como el jugador, asustan a los animales
+        y los hostiles los atacan si son detectables (no ocultos ni invisibles)."""
         zona = vista.inflate(MARGEN_CULL * 2, MARGEN_CULL * 2)
         # Antes de limpiar las listas: XP de los animales que murieron desde el ultimo frame.
         self._recoger_muertes()
@@ -550,6 +560,11 @@ class SistemaFauna:
             for cr in getattr(hab, "criaturas", ()):
                 if getattr(cr, "vivo", True):
                     amenazas.append(cr)
+        for c in combatientes:
+            if c.vida > 0 and getattr(c, "detectable", True):
+                amenazas.append(c)
+            for hab in c.fuentes_criaturas():
+                amenazas.extend(cr for cr in getattr(hab, "criaturas", ()) if getattr(cr, "vivo", True))
         # Los zorros hambrientos y visibles tambien asustan a los conejos (depredador).
         for z in getattr(self, "zorros", ()):
             if z.vivo and z.hambriento and not z.invisible:
@@ -2341,9 +2356,14 @@ class Oso(AnimalCombatible):
         self.roca = roca
         self.cueva = pygame.Vector2(roca.rect.center)
         self.cueva_radio = roca.rect.width / 2.0
-        ang = random.uniform(0, math.tau)
+        ang = getattr(roca, "angulo_entrada", None)     # la marca el terreno (marcar_cuevas)
+        if ang is None:
+            ang = random.uniform(0, math.tau)
         self.entrada_dir = pygame.Vector2(math.cos(ang), math.sin(ang))
-        self.entrada = self.cueva + self.entrada_dir * (self.cueva_radio + 12)
+        # La roca es cuadrada: distancia del centro a su borde en la direccion de la entrada (en
+        # diagonal es mayor que el medio lado; si no, la boca y los orbes quedarian dentro de la roca)
+        self.cueva_borde = self.cueva_radio / max(abs(self.entrada_dir.x), abs(self.entrada_dir.y))
+        self.entrada = self.cueva + self.entrada_dir * (self.cueva_borde + 12)
         self.posicion = pygame.Vector2(self.cueva)
         self.radio = OSO_RADIO
         self.masa = OSO_MASA
@@ -2372,10 +2392,11 @@ class Oso(AnimalCombatible):
         nuevo = Oso(self.roca)
         nuevo.entrada_dir = pygame.Vector2(self.entrada_dir)
         nuevo.entrada = pygame.Vector2(self.entrada)
+        nuevo.cueva_borde = self.cueva_borde
         return nuevo
 
     def _boca(self):
-        return self.cueva + self.entrada_dir * (self.cueva_radio + self.radio + 6)
+        return self.cueva + self.entrada_dir * (self.cueva_borde + self.radio + 6)
 
     def recibir_dano(self, cantidad, tipo_dano="fisico", direccion_empuje=None):
         if not self.vivo or self.estado == "cueva":
@@ -2478,8 +2499,8 @@ class Oso(AnimalCombatible):
                     self.vida = min(self.vida_max, self.vida + OSO_REGEN_CUEVA * 0.5 * dt)
 
     def dibujar_entrada(self, pantalla, desplazamiento):
-        mx = self.cueva.x + self.entrada_dir.x * (self.cueva_radio - 4)
-        my = self.cueva.y + self.entrada_dir.y * (self.cueva_radio - 4)
+        mx = self.cueva.x + self.entrada_dir.x * (self.cueva_borde - 4)
+        my = self.cueva.y + self.entrada_dir.y * (self.cueva_borde - 4)
         px = round(mx - desplazamiento[0]); py = round(my - desplazamiento[1])
         pygame.draw.circle(pantalla, (34, 28, 26), (px, py), 12)
         pygame.draw.circle(pantalla, (12, 10, 10), (px, py), 9)

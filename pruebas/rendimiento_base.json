@@ -1,0 +1,76 @@
+{
+  "fecha": "2026-11-27",
+  "segundos_por_escenario": 30.0,
+  "pantalla": [
+    1920,
+    1080
+  ],
+  "python": "3.14.7",
+  "pygame": "2.5.8",
+  "escenarios": {
+    "centro": {
+      "media_ms": 11.57,
+      "p95_ms": 13.54,
+      "max_ms": 28.62,
+      "fotogramas": 1874,
+      "actividad": {
+        "enemigos_heridos": 0,
+        "proyectiles_max": 0,
+        "criaturas_max": 0,
+        "habilidades": [
+          "Carga de Fuego",
+          "Onda Sonora",
+          "Invocar Lobos"
+        ]
+      }
+    },
+    "bosque": {
+      "media_ms": 13.28,
+      "p95_ms": 15.08,
+      "max_ms": 35.26,
+      "fotogramas": 1874,
+      "actividad": {
+        "enemigos_heridos": 8,
+        "proyectiles_max": 3,
+        "criaturas_max": 3,
+        "habilidades": [
+          "Carga de Fuego",
+          "Onda Sonora",
+          "Invocar Lobos"
+        ]
+      }
+    },
+    "lago": {
+      "media_ms": 10.39,
+      "p95_ms": 12.0,
+      "max_ms": 31.26,
+      "fotogramas": 1874,
+      "actividad": {
+        "enemigos_heridos": 2,
+        "proyectiles_max": 2,
+        "criaturas_max": 1,
+        "habilidades": [
+          "Carga de Fuego",
+          "Onda Sonora",
+          "Invocar Lobos"
+        ]
+      }
+    },
+    "caos": {
+      "media_ms": 19.2,
+      "p95_ms": 26.33,
+      "max_ms": 37.53,
+      "fotogramas": 1874,
+      "actividad": {
+        "enemigos_heridos": 2,
+        "proyectiles_max": 5,
+        "criaturas_max": 1,
+        "habilidades": [
+          "Estrella Ígnea",
+          "Palabras Malditas",
+          "Invocar Lobos"
+        ]
+      }
+    }
+  }
+}
