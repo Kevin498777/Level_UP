@@ -1,7 +1,7 @@
 import pygame
 import math
 from herramientas import EspadaLigera, HERRAMIENTAS_DISPONIBLES, crear_herramienta
-from talismanes import ColeccionTalismanes, GestorSombras
+from talismanes import ColeccionTalismanes, GestorSombras, BRUJULA_ANGULO
 from habilidades import (combinar_buffs, factor_duplicado, PIXELES_POR_PUNTO_EMPUJE,
                          actualizar_anulacion_escudo_magico, actualizar_ralentizacion, COLOR_VENENO,
                          aplicar_inmovilizacion, SistemaCombustible)
@@ -156,6 +156,12 @@ class Personaje:
         self.bono_regen_escudo = 0.0     # +% a la regeneración del escudo físico
         self.bono_regen_escudo_magico = 0.0
         self.regen_vida = None           # (vida, intervalo) del anillo de regeneración inversa
+        self.bono_regen_energia_anillo = 0.0   # +% a la regen de energía (anillo de regeneración vital)
+        self.bono_brujula = 0.0          # +% de velocidad caminando hacia la tumba (anillo de brújula)
+        self.posicion_tumba = None       # la pone el mundo cada fotograma (None si no hay tumba)
+        self.nivel_mapa = 0              # nivel del anillo de mapa equipado (0 = sin minimapa)
+        self.bono_dano_magico = 0.0      # +% al daño mágico (anillos potenciador y de sacrificio)
+        self.reduccion_recarga = 0.0     # -% a la recarga de las habilidades (anillo de recarga)
         self.sombras_anillo = GestorSombras()   # sombras de conejo / lobo de los anillos
         self.ultimo_agresor = None       # quien te atacó por última vez (lo usan esas sombras)
         self.t_agresor = 0.0
@@ -214,6 +220,9 @@ class Personaje:
         # ShadowGOD (personaje de inspeccion del mapa): no recibe dano, nadie lo detecta, lo
         # atraviesa todo y se teletransporta al punto marcado (mover_a)
         self.inspector = False
+        # Estadistica oculta "asesino": +10 por cada humano que mata el jugador (Fase 4). Con 100
+        # no podra entrar en la Ciudad Humana (futuro). Se conserva al morir (mundo.reaparecer).
+        self.asesino = 0
         self.ralentizacion = 0.0     # Debuff de velocidad recibido (ej. Onda Sonora), 0.20 = -20%
         self.tiempo_ralentizacion = 0.0
         self.masa = MASA_PERSONAJE   # Al separar cuerpos solapados, las invocaciones le ceden el paso
@@ -268,6 +277,10 @@ class Personaje:
         cadencia máximas) se suman a la stat y se recuerdan para poder quitarlos; al quitar un
         anillo la vida/energía actuales se recortan al nuevo máximo (equiparlo no cura)."""
         b = self.talismanes.bonos()
+        if b.get("vida_factor"):
+            # Anillo de sacrificio: -50 % de la vida máxima con todo lo demás ya sumado
+            sin_talismanes = self.vida_max - self._bonos_talismanes.get("vida_max", 0)
+            b["vida_max"] = round(b.get("vida_max", 0) - (sin_talismanes + b.get("vida_max", 0)) * b["vida_factor"], 2)
         for clave, attr in (("vida_max", "vida_max"), ("energia_max", "energia_max"), ("cadencia", "cadencia")):
             delta = b.get(clave, 0) - self._bonos_talismanes.get(clave, 0)
             if delta:
@@ -281,6 +294,11 @@ class Personaje:
         self.bono_regen_escudo = b.get("regen_escudo", 0.0)
         self.bono_regen_escudo_magico = b.get("regen_escudo_magico", 0.0)
         self.regen_vida = b.get("regen_vida")
+        self.bono_regen_energia_anillo = b.get("regen_energia_pct", 0.0)
+        self.bono_brujula = b.get("brujula_pct", 0.0)
+        self.nivel_mapa = int(b.get("mapa", 0))
+        self.bono_dano_magico = b.get("magico_pct", 0.0)
+        self.reduccion_recarga = b.get("recarga_pct", 0.0)
         niveles_sombra = {}
         if b.get("sombra_conejo"):
             niveles_sombra["conejo"] = int(b["sombra_conejo"])
@@ -292,7 +310,13 @@ class Personaje:
         self._bonos_talismanes = b
 
     def actualizar_talismanes(self, dt):
-        """Anillo de regeneración inversa: cura su cantidad cada intervalo, en todo momento."""
+        """Anillo de regeneración vital: gasta 1 de durabilidad por segundo mientras la energía no
+        está llena (roto deja de dar su efecto). Anillo de regeneración inversa: cura su cantidad
+        cada intervalo, en todo momento."""
+        col = self.talismanes
+        if (col.esta_equipado("regen_vital") and self.energia < self.energia_max
+                and col.desgastar("regen_vital", dt)):
+            self.recalcular_talismanes()
         if not self.regen_vida:
             self._t_regen_vida = 0.0
             return
@@ -737,6 +761,8 @@ class Personaje:
         if nombre == "vida":
             self.vida_max += 2
             self.vida += 2
+            if self._bonos_talismanes.get("vida_factor"):
+                self.recalcular_talismanes()       # el sacrificio vuelve a ser el 50 % del total
         elif nombre == "fuerza":
             self.fuerza_base = round(self.fuerza_base + 0.2, 2)
             # Si no hay un Burst activo, reflejar el cambio en la fuerza actual
@@ -809,7 +835,7 @@ class Personaje:
         if self.energia < self.energia_max:
             intervalo = 6.0 if self.esta_en_movimiento() else 3.0
             # Velocidad de regen: aceleracion mejorable + agua (x2) / zona profunda (x4).
-            mult = 1.0 + self.bono_regen_energia
+            mult = 1.0 + self.bono_regen_energia + self.bono_regen_energia_anillo
             if self.en_agua_profunda:
                 mult *= REGEN_ENERGIA_AGUA_PROFUNDA
             elif self.en_agua:
@@ -885,6 +911,9 @@ class Personaje:
 
         # Anillo de viento: +% sobre la velocidad base
         modificador += self.bono_velocidad
+        # Anillo de brújula: +% mientras camina hacia su tumba
+        if self.caminando_hacia_tumba():
+            modificador += self.bono_brujula
 
         # Autoapuntado activo
         if self.objetivo_apuntado is not None:
@@ -902,6 +931,20 @@ class Personaje:
 
         # Velocidad final con umbral mínimo seguro
         self.velocidad = max(0.4, round(self.velocidad_base * (1.0 + modificador), 2))
+
+    def caminando_hacia_tumba(self):
+        """True si lleva el anillo de brújula, hay tumba y se mueve hacia ella (con BRUJULA_ANGULO
+        grados de margen). Cambiar de dirección hace perder el aumento."""
+        if self.bono_brujula <= 0 or self.posicion_tumba is None or not self.esta_en_movimiento():
+            return False
+        hacia_tumba = pygame.Vector2(self.posicion_tumba) - self.posicion
+        if hacia_tumba.length_squared() < 1:
+            return False
+        return abs((self.destino - self.posicion).angle_to(hacia_tumba) + 180) % 360 - 180 <= BRUJULA_ANGULO
+
+    def potenciar_magico(self, cantidad):
+        """Daño mágico que hace este personaje con sus bonus (anillos potenciador y de sacrificio)."""
+        return round(cantidad * (1.0 + self.bono_dano_magico), 2) if self.bono_dano_magico else cantidad
 
     def mover(self, limites_mundo, limite=None, obstaculos=None, obstaculos_circulares=None):
         """

@@ -806,7 +806,8 @@ class SistemaVegetacion:
             jugador.tiempo_veneno = 0.0
 
         # Arbusto frutal: consumir orbes al tocarlos
-        if arbusto and arbusto.tipo == TIPO_FRUTAL:
+        # (los NPC que no tocan nada del jugador, como los Humanos, no los consumen)
+        if arbusto and arbusto.tipo == TIPO_FRUTAL and getattr(jugador, "toma_objetos", True):
             restantes = []
             for o in arbusto.orbes:
                 if (o - jugador.posicion).length() <= jugador.radio + RADIO_ORBE:

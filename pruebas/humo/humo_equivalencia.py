@@ -139,7 +139,8 @@ def jugar(arma, nombres, potenciadas, semilla):
     habs = [habilidades.crear_habilidad(n) for n in nombres]
     for i, h in enumerate(habs):
         h.asignar_tecla(TECLAS[i], "234"[i])
-    config = {"nombre": "Equivalencia", "color": (0, 150, 255), "tamano": 1.0, "velocidad": 3, "vida": 5000,
+    config = {"npc": False,               # sin NPC: se compara solo el bucle del jugador
+              "nombre": "Equivalencia", "color": (0, 150, 255), "tamano": 1.0, "velocidad": 3, "vida": 5000,
               "fuerza": 4, "energia": 300, "escudo": 10, "escudo_magico": 10,
               "habilidades": habs, "herramienta": herramientas.crear_herramienta(arma)}
     try:

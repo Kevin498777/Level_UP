@@ -23,7 +23,7 @@ CAMPOS_TRANSITORIOS = (
     "posicion", "destino", "angulo", "proyectiles", "combustible", "empuje", "hitbox",
     "objetivo_apuntado", "mensaje_apuntado", "tiempo_mensaje_apuntado", "efectos_extra",
     "arbusto_actual", "oculto", "en_agua", "en_agua_profunda", "tiempo_dano_lago",
-    "ultimo_agresor", "t_agresor", "visibilidad", "mantiene_ataque", "niebla_previa",
+    "ultimo_agresor", "t_agresor", "visibilidad", "mantiene_ataque", "niebla_previa", "asesino",
 )
 
 
@@ -37,8 +37,10 @@ def restaurar_estado(jugador, estado):
     """Devuelve al personaje el estado guardado en la tumba (se descarta la vida nueva). Queda
     donde está, con la vida, la energía y los escudos llenos y sin efectos."""
     actuales = {k: jugador.__dict__[k] for k in CAMPOS_TRANSITORIOS if k in jugador.__dict__}
+    permanentes = jugador.talismanes.permanentes()   # anillo de brujula de la vida nueva
     jugador.__dict__.update(estado)
     jugador.__dict__.update(actuales)
+    jugador.talismanes.conservar(permanentes)
     jugador.efectos_extra = []
     # Habilidades que estaban en marcha al morir: terminan y pasan a su recarga
     for h in jugador.coleccion_habilidades:

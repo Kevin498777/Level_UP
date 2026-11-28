@@ -62,6 +62,8 @@ ATURDIR_INMUNE = 1.0         # s sin poder volver a aturdirlo
 SALTO_MAX_FRENADO = 200.0    # px: un desplazamiento mayor entre frames (reaparicion) no se frena
 # Jardin de la casa del spawn: (centro, radio) donde ningun animal puede entrar (lo fija mundo)
 ZONA_PROHIBIDA = None
+# Lo que matan los NPC se regenera este numero de veces mas rapido (sin pasar los maximos)
+RITMO_TRAS_NPC = 5
 
 
 def bloqueado_por_escudo(atacante, objetivo, dano):
@@ -440,6 +442,7 @@ class SistemaFauna:
         self.vegetacion = vegetacion
         self.charcos = charcos
         self.rocas = list(rocas)
+        self.deuda_npc = {}                 # especie -> animales que mataron los NPC sin reponer
         self._rocas_mundo = rocas          # lista viva: Cortar puede destruir rocas (cuevas)
         self.mariposas = []
         self.xp_pendiente = 0.0            # XP ganada por el jugador y aun no entregada
@@ -597,12 +600,13 @@ class SistemaFauna:
                 cn.actualizar(dt, jugador, amenazas)
         # Reproduccion por madriguera: cada 30 s nace +1 si hay >=2 y no supera el maximo.
         for m in self.madrigueras:
-            m._t_repro += dt
+            m._t_repro += dt * self._ritmo("ConejoSalvaje")
             if m._t_repro >= CONEJO_REPRO_INTERVALO:
                 m._t_repro -= CONEJO_REPRO_INTERVALO
                 vivos = sum(1 for c in self.conejos if c.madriguera is m)
                 if 2 <= vivos < m.max_conejos:
                     self.conejos.append(ConejoSalvaje(m))
+                    self._pagar("ConejoSalvaje")
         # Madriguera sin conejos: se destruye y aparece otra en otra parte del pasto alto.
         habitadas = {id(c.madriguera) for c in self.conejos}
         for i, m in enumerate(self.madrigueras):
@@ -617,26 +621,28 @@ class SistemaFauna:
             if zona.collidepoint(v.posicion.x, v.posicion.y):
                 v.actualizar(dt, jugador, amenazas)
         # Reproduccion: cada 60 s nace +1 si hay >=2 venados y no supera VENADO_MAX.
-        self._t_repro_venado += dt
+        self._t_repro_venado += dt * self._ritmo("Venado")
         if self._t_repro_venado >= VENADO_REPRO_INTERVALO:
             self._t_repro_venado -= VENADO_REPRO_INTERVALO
             if 2 <= len(self.venados) < VENADO_MAX:
                 padre = random.choice(self.venados)
                 off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
                 self.venados.append(Venado(padre.posicion.x + off.x, padre.posicion.y + off.y))
+                self._pagar("Venado")
 
         # Jabalies: quitar muertos, actualizar los cercanos, reproduccion.
         self.jabalies = [j for j in self.jabalies if j.vivo]
         for j in self.jabalies:
             if zona.collidepoint(j.posicion.x, j.posicion.y):
                 j.actualizar(dt, jugador, amenazas)
-        self._t_repro_jabali += dt
+        self._t_repro_jabali += dt * self._ritmo("Jabali")
         if self._t_repro_jabali >= JABALI_REPRO_INTERVALO:
             self._t_repro_jabali -= JABALI_REPRO_INTERVALO
             if 2 <= len(self.jabalies) < JABALI_MAX:
                 padre = random.choice(self.jabalies)
                 off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
                 self.jabalies.append(Jabali(padre.posicion.x + off.x, padre.posicion.y + off.y))
+                self._pagar("Jabali")
 
         # Zorros: quitar muertos, actualizar los cercanos (cazan conejos).
         self.zorros = [z for z in self.zorros if z.vivo]
@@ -644,29 +650,34 @@ class SistemaFauna:
             if zona.collidepoint(z.posicion.x, z.posicion.y):
                 z.actualizar(dt, jugador, amenazas, self.conejos)
         # Reaparicion (uno nuevo cada 3 min, lejos de la vista) y reproduccion (cada 2 min, con >= 2).
-        self._t_reap_zorro += dt
+        self._t_reap_zorro += dt * self._ritmo("Zorro")
         if self._t_reap_zorro >= ZORRO_REAPARICION:
             self._t_reap_zorro -= ZORRO_REAPARICION
             if len(self.zorros) < ZORRO_MAX:
                 self.zorros.append(self._nuevo_zorro(evitar=zona))
-        self._t_repro_zorro += dt
+                self._pagar("Zorro")
+        self._t_repro_zorro += dt * self._ritmo("Zorro")
         if self._t_repro_zorro >= ZORRO_REPRO_INTERVALO:
             self._t_repro_zorro -= ZORRO_REPRO_INTERVALO
             if 2 <= len(self.zorros) < ZORRO_MAX:
                 padre = random.choice(self.zorros)
                 off = pygame.Vector2(random.uniform(-45, 45), random.uniform(-45, 45))
                 self.zorros.append(Zorro(padre.posicion.x + off.x, padre.posicion.y + off.y))
+                self._pagar("Zorro")
 
         # Manadas de lobos: crecen cada minuto (fuera de combate) y se actualizan las que
         # tienen algun lobo cerca de la camara.
         presas = [c for c in self.conejos if c.vivo] + [v for v in self.venados if v.vivo]
         for man in self.manadas:
-            man._t_repro += dt
+            man._t_repro += dt * self._ritmo("Lobo")
             if man._t_repro >= LOBO_REAPARICION:
                 man._t_repro -= LOBO_REAPARICION
                 # Exterminada: la manada nueva se inicia en otro bosque, fuera de la vista
                 otro = self._centro_manada(evitar=zona, lejos_de=man.centro) if not man.vivos() else None
+                antes = sum(1 for l in man.lobos if l.vivo)
                 man.repoblar(otro)
+                if sum(1 for l in man.lobos if l.vivo) > antes:
+                    self._pagar("Lobo")
             if any(l.vivo and zona.collidepoint(l.posicion.x, l.posicion.y) for l in man.lobos):
                 man.actualizar(dt, jugador, hostiles, presas)
             else:
@@ -677,7 +688,7 @@ class SistemaFauna:
         for i, oso in enumerate(self.osos):
             if oso.vivo or not oso._xp_contada:
                 continue
-            oso._t_reaparicion += dt
+            oso._t_reaparicion += dt * (RITMO_TRAS_NPC if getattr(oso, "ultimo_golpe_npc", False) else 1)
             if (oso._t_reaparicion >= OSO_REAPARICION and oso.roca in self._rocas_mundo
                     and (jugador.posicion - oso.entrada).length() > ENTRADA_RADIO * 2):
                 self.osos[i] = oso.renacer()
@@ -714,7 +725,7 @@ class SistemaFauna:
         for i, ls in enumerate(self.lobos_solitarios):
             if ls.vivo or not ls._xp_contada:
                 continue
-            ls._t_reaparicion += dt
+            ls._t_reaparicion += dt * (RITMO_TRAS_NPC if getattr(ls, "ultimo_golpe_npc", False) else 1)
             if ls._t_reaparicion >= LOBO_SOL_REAPARICION:
                 self.lobos_solitarios[i] = self._nuevo_lobo_solitario(evitar=zona)
         for ls in self.lobos_solitarios:
@@ -840,12 +851,30 @@ class SistemaFauna:
         if animal.vivo or animal._xp_contada:
             return False
         animal._xp_contada = True
-        # Cazado por un depredador o rematado por un NPC: no da XP ni monedas al jugador
-        if animal.muerto_por_fauna or getattr(animal, "ultimo_golpe_npc", False):
+        # Rematado por un NPC: la XP es para el NPC (no para el jugador) y su especie se
+        # regenera RITMO_TRAS_NPC veces mas rapido hasta reponerlo (Fase 4)
+        if getattr(animal, "ultimo_golpe_npc", False) and not animal.muerto_por_fauna:
+            asesino = getattr(animal, "ultimo_golpe_por", None)
+            if asesino is not None:
+                asesino.ganar_xp(animal.xp)
+            especie = type(animal).__name__
+            self.deuda_npc[especie] = self.deuda_npc.get(especie, 0) + 1
+            return False
+        # Cazado por un depredador: no da XP ni monedas al jugador
+        if animal.muerto_por_fauna:
             return False
         self.xp_pendiente += animal.xp
         self.monedas_pendientes += animal.tirar_monedas()
         return True
+
+    def _ritmo(self, especie):
+        """RITMO_TRAS_NPC si un NPC mato animales de esta especie y aun no se han repuesto."""
+        return RITMO_TRAS_NPC if self.deuda_npc.get(especie, 0) > 0 else 1
+
+    def _pagar(self, especie):
+        """Nacio o reaparecio uno de esta especie: se descuenta de lo que mataron los NPC."""
+        if self.deuda_npc.get(especie, 0) > 0:
+            self.deuda_npc[especie] -= 1
 
     def _recoger_muertes(self):
         for grupo in (self.conejos, self.venados, self.jabalies, self.zorros, self.osos, self.cocodrilos, self.lobos_solitarios):
@@ -861,9 +890,16 @@ class SistemaFauna:
             if murio and not man.vivos() and man.alfa_cazado and not man.bono_dado:
                 man.bono_dado = True
                 self.xp_pendiente += XP_MANADA_COMPLETA
-        # Un oso muerto por un efecto (desangrado, quemadura...) tambien deja su orbe.
+        # Un oso muerto por un efecto (desangrado, quemadura...) tambien deja su orbe. El que
+        # remata un NPC no deja ninguno (no te aprovechas de lo que mato otro).
+        # (el golpe mortal ya los solto: si lo remato un NPC se retiran antes de poder cogerlos)
         for oso in self.osos:
-            if not oso.vivo and oso.orbe is None:
+            if oso.vivo:
+                continue
+            if getattr(oso, "ultimo_golpe_npc", False):
+                oso.orbe = None
+                oso.orbes_extra = []
+            elif oso.orbe is None:
                 oso.dejar_orbes()
 
     def quitar_fauna_acuatica(self, centro, radio):

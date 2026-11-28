@@ -14,6 +14,9 @@ from habilidades import (dibujar_panel_habilidades, dibujar_badge_ayuda, dibujar
 from herramientas import EspadaLigera, EspadaLarga
 from vegetacion import SistemaVegetacion, OSCURECIMIENTO, RejillaEspacial, CELDA_REJILLA
 from espacial import RejillaObstaculos, FondoPorTrozos
+from navegacion import RejillaPaso, ColaRutas
+from humanos import PoblacionHumanos, recompensa_por_humano, ASESINO_POR_HUMANO
+from cerebro import regenerar_fuera_de_pelea
 from limite_mundo import LIMITE as LIMITE_MUNDO, BORDE_LIBRE
 from diseno_mapa import Diseno
 import fauna as FAUNA
@@ -58,8 +61,9 @@ SUAVIZADO_CAMARA = 8.0      # Más alto = la cámara sigue más pegada al person
 # Solo fija el terreno: la fauna, los cofres y el botin siguen siendo aleatorios.
 SEMILLA_MUNDO = 1
 MAPA_POR_DEFECTO = "principal"   # mapas/principal.json (Fase 2); habra 4 mapas extra
-# Interruptor general de los personajes NPC (plan de NPC). Todavia sin efecto: no hay NPC.
-NPC_ACTIVOS = False
+# Interruptor general de los personajes NPC (plan de NPC): con False no aparece ninguno (y el juego
+# queda como antes de los NPC). config['npc'] lo cambia para una partida (las pruebas lo usan).
+NPC_ACTIVOS = True
 TAMANO_CUADRICULA = 60
 
 COLOR_FUERA_MAPA = (16, 18, 23)
@@ -917,6 +921,25 @@ class Contexto:
         # del fondo que hay que redibujar (lagos evaporados; lo destruido lo anota la vegetacion)
         self.obstaculos = RejillaObstaculos(rocas, vegetacion)
         self.cambios_fondo = []
+        # Fase 4: limite del mapa, rejilla de paso y cola de rutas de los bots (si hay NPC)
+        self.limite = LIMITE
+        self.rejilla_paso = None
+        self.cola_rutas = None
+        self.cambios_vistos = 0         # obstaculos destruidos ya aplicados a la rejilla de paso
+
+    def salir_a_hueco(self, c):
+        """Antiatascos de un bot: al hueco libre mas cercano."""
+        materializar(c, self)
+
+    def actualizar_paso(self):
+        """Lo destruido desde la ultima vez vuelve a ser pisable en la rejilla de paso."""
+        if self.rejilla_paso is None:
+            return
+        nuevos = self.vegetacion.cambios[self.cambios_vistos:]
+        self.cambios_vistos = len(self.vegetacion.cambios)
+        for rect in nuevos:
+            self.rejilla_paso.actualizar_zona(rect, self.obstaculos, _PERSONAJE_PASO,
+                                              lambda p, r, rocas, circ: punto_libre(p, r, rocas, circ, [], LIMITE))
 
     def agregar_combatiente(self, personaje, cerebro=None):
         """Mete un personaje en el mundo. 'cerebro(c, ctx, jugador)' (opcional) decide sus
@@ -1038,13 +1061,14 @@ def combatiente_habilidades(c, ctx, dt, enemigos):
                     if aplicado > 0:
                         p.arco.desgastar(1)
                 elif hasattr(enemigo, "recibir_dano"):
-                    enemigo.recibir_dano(p.dano, getattr(p, "tipo_dano", "magico"),
+                    tipo_p = getattr(p, "tipo_dano", "magico")
+                    enemigo.recibir_dano(c.potenciar_magico(p.dano) if tipo_p == "magico" else p.dano, tipo_p,
                                          enemigo.posicion - p.posicion)
                 if hasattr(p, "quemadura_dano") and hasattr(enemigo, "quemadura"):
                     aplicar_quemadura(enemigo, p.quemadura_dano, p.quemadura_duracion)
                     encender_combustible(enemigo, p.dano)   # combustible pegado: +50 % por carga
                 if hasattr(p, "veneno_total") and hasattr(enemigo, "veneno"):
-                    aplicar_veneno(enemigo, p.veneno_total, p.veneno_duracion)
+                    aplicar_veneno(enemigo, c.potenciar_magico(p.veneno_total), p.veneno_duracion)
                     if p.corrosion_tope is not None:
                         aplicar_corrosion(enemigo, p.corrosion_tope, p.veneno_duracion, impacto=True)
                 if hasattr(p, "impactar"):
@@ -1156,12 +1180,14 @@ def salud_de(objetivos):
     return [(o, o.vida) for o in objetivos if not isinstance(o, Personaje)]
 
 
-def marcar_autor(salud_antes, de_npc):
+def marcar_autor(salud_antes, de_npc, autor=None):
     """Quien hirio por ultima vez a cada objetivo: si lo remata un NPC (o sus efectos y sombras
-    despues de su golpe), la XP y las monedas no son para el jugador (respuesta del 27/11)."""
+    despues de su golpe), la XP y las monedas no son para el jugador (respuesta del 27/11): la XP
+    es para ese NPC ('autor')."""
     for o, vida in salud_antes:
         if o.vida < vida:
             o.ultimo_golpe_npc = de_npc
+            o.ultimo_golpe_por = autor if de_npc else None
 
 
 def actualizar_combatiente(c, ctx, dt, jugador, animales=None):
@@ -1173,7 +1199,7 @@ def actualizar_combatiente(c, ctx, dt, jugador, animales=None):
     combatiente_estado(c, ctx, dt, enemigos, enemigos)
     cerca = pygame.Rect(round(c.posicion.x) - c.radio, round(c.posicion.y) - c.radio, c.radio * 2 + 1, c.radio * 2 + 1)
     ctx.vegetacion.actualizar_personaje(dt, c, ctx.obstaculos.arbustos_en(cerca))
-    marcar_autor(antes, True)
+    marcar_autor(antes, True, c)
 
 
 # -----------------------------
@@ -1213,6 +1239,22 @@ def dibujo_del_fondo(casa, charcos, vegetacion, obstaculos):
     return dibujar_fondo
 
 
+def cargar_rejilla_paso(nombre_mapa, charcos, vegetacion, rocas):
+    """Rejilla de paso de los bots: de la rejilla de rutas guardada con el mapa; si falta, se
+    calcula ahora (tarda algo mas)."""
+    import mapa as MAPA
+    try:
+        return RejillaPaso.cargar(MAPA.ruta_rutas(nombre_mapa), LIMITE.rect.topleft, charcos)
+    except (OSError, ValueError):
+        r = MAPA.Rejilla(charcos, vegetacion, rocas, MAPA.RADIO_PERSONAJE)
+        return RejillaPaso.desde_rutas(LIMITE.rect.topleft, r.celda, r.ancho, r.alto, r.bloqueo, charcos)
+
+
+# Personaje de referencia para recalcular la rejilla de paso (los arbustos en los que un personaje
+# de tamano 1 no cabe son solidos)
+_PERSONAJE_PASO = type("PersonajePaso", (), {"radio": 20})()
+
+
 def zona_activa(vista):
     """Rectangulo del mundo con simulacion completa: la vista agrandada ZONA_ACTIVA_FACTOR veces."""
     return vista.inflate(round(vista.width * (ZONA_ACTIVA_FACTOR - 1)), round(vista.height * (ZONA_ACTIVA_FACTOR - 1)))
@@ -1238,12 +1280,23 @@ def simular_resumido(c, t, rng=random):
     hacia su destino a su velocidad (sin choques finos, dentro del mapa), gana la XP por minuto
     de su nivel y puede morir segun el peligro de la zona. Las peleas lejos (Fase 5, facciones)
     y el gasto de puntos (Fase 4, inteligencia) llegaran con esas fases."""
-    hacia = c.destino - c.posicion
+    nav = getattr(getattr(c, "cerebro", None), "nav", None)
+    objetivo = nav.objetivo if nav is not None and nav.objetivo is not None else c.destino
+    hacia = objetivo - c.posicion
     paso = c.velocidad * 60.0 * t             # 'velocidad' son px por fotograma a 60 fps
     if hacia.length() > paso:
         hacia.scale_to_length(paso)
+    elif nav is not None:                     # llego: otro punto al azar para seguir explorando
+        ang = rng.uniform(0, math.tau)
+        nav.objetivo = LIMITE.acotar(c.posicion + pygame.Vector2(math.cos(ang), math.sin(ang)) * rng.uniform(900, 2500), 400)
+        nav.puntos = []
     c.posicion = LIMITE.acotar(c.posicion + hacia, c.radio)
+    c.destino = pygame.Vector2(c.posicion)
     c.ganar_xp(xp_por_minuto_resumen(c.nivel) * t / 60.0)
+    if getattr(c, "cerebro", None) is not None:
+        regenerar_fuera_de_pelea(c, t)          # lejos no pelea: se regenera como fuera de pelea
+        if hasattr(c.cerebro, "_gastar_puntos"):
+            c.cerebro._gastar_puntos(c)
     prob_muerte = 1 - (1 - min(1.0, MUERTES_POR_MINUTO_RESUMEN * peligro_zona(c.posicion))) ** (t / 60.0)
     if rng.random() < prob_muerte:
         c.vida = 0
@@ -1258,6 +1311,9 @@ def materializar(c, ctx):
                         ALCANCE_MATERIALIZAR)
     c.destino = pygame.Vector2(c.destino)
     c.hitbox.center = (round(c.posicion.x), round(c.posicion.y))
+    nav = getattr(getattr(c, "cerebro", None), "nav", None)
+    if nav is not None and nav.objetivo is not None:
+        nav.ir_a(c, nav.objetivo, forzar=True)  # la ruta se vuelve a calcular desde aqui
 
 
 def actualizar_otros_combatientes(ctx, dt, jugador, zona):
@@ -1287,7 +1343,11 @@ def actualizar_otros_combatientes(ctx, dt, jugador, zona):
             if c.t_pensar <= 0:
                 c.t_pensar += c.pensar_cada * (1 if c.modo == "activo" else FACTOR_PENSAR_INTERMEDIO)
                 c.cerebro(c, ctx, jugador)
+            if hasattr(c.cerebro, "fotograma"):
+                c.cerebro.fotograma(c, ctx, dt)  # seguir la ruta y soltar cargas: cada fotograma
         actualizar_combatiente(c, ctx, dt, jugador, animales)
+    if ctx.cola_rutas is not None:
+        ctx.cola_rutas.procesar()
 
 
 def retirar_combatientes_muertos(ctx):
@@ -1340,6 +1400,56 @@ def dibujar_mapa_lejano(pantalla, area, imagen, vista, z):
     pygame.draw.rect(pantalla, COLOR_BORDE_MAPA, pygame.Rect(
         area.x + round((LIMITE.rect.x - vista.x) * z), area.y + round((LIMITE.rect.y - vista.y) * z),
         round(LIMITE.lado * z), round(LIMITE.lado * z)), 2)
+
+
+# Anillo de mapa (minimapa) y anillo de brujula (flecha a la tumba junto al personaje)
+ESCALA_MINIMAPA = 0.05        # resolucion de la imagen del terreno del minimapa (885 px)
+MINIMAPA_LADO = 180           # px en pantalla
+MINIMAPA_MARGEN = 12
+COLOR_TUMBA_MINIMAPA = (220, 220, 235)
+COLOR_JUGADOR_MINIMAPA = (90, 255, 140)
+COLOR_FLECHA_BRUJULA = (150, 210, 255)
+COLOR_FLECHA_BRUJULA_ACTIVA = (255, 215, 90)
+DISTANCIA_FLECHA_BRUJULA = 40  # px desde el centro del personaje
+
+
+def dibujar_minimapa(pantalla, area, imagen, centro, radio, marcas):
+    """Minimapa arriba a la derecha: el terreno alrededor de 'centro' ('radio' px de mundo), el
+    jugador en el centro y las marcas [(posicion, color)] que caen dentro."""
+    e = ESCALA_MINIMAPA
+    origen = pygame.Vector2(LIMITE.rect.topleft)
+    fuente = pygame.Rect(round((centro.x - radio - origen.x) * e), round((centro.y - radio - origen.y) * e),
+                         max(1, round(radio * 2 * e)), max(1, round(radio * 2 * e)))
+    destino = pygame.Rect(area.right - MINIMAPA_LADO - MINIMAPA_MARGEN, area.y + MINIMAPA_MARGEN,
+                          MINIMAPA_LADO, MINIMAPA_LADO)
+    pygame.draw.rect(pantalla, (12, 14, 18), destino)
+    recorte = fuente.clip(imagen.get_rect())
+    if recorte.width > 0 and recorte.height > 0:
+        k = MINIMAPA_LADO / fuente.width
+        trozo = pygame.transform.scale(imagen.subsurface(recorte),
+                                       (max(1, round(recorte.width * k)), max(1, round(recorte.height * k))))
+        pantalla.blit(trozo, (destino.x + round((recorte.x - fuente.x) * k), destino.y + round((recorte.y - fuente.y) * k)))
+    escala = MINIMAPA_LADO / (radio * 2)
+    for pos, color in marcas:
+        d = (pygame.Vector2(pos) - centro) * escala
+        if abs(d.x) <= MINIMAPA_LADO / 2 and abs(d.y) <= MINIMAPA_LADO / 2:
+            pygame.draw.circle(pantalla, color, (round(destino.centerx + d.x), round(destino.centery + d.y)), 3)
+    pygame.draw.circle(pantalla, COLOR_JUGADOR_MINIMAPA, destino.center, 4)
+    pygame.draw.rect(pantalla, COLOR_BORDE_MAPA, destino, 2)
+
+
+def dibujar_flecha_brujula(pantalla, jugador, destino, desplazamiento):
+    """Flecha junto al personaje que apunta a su tumba; dorada mientras camina hacia ella."""
+    d = pygame.Vector2(destino) - jugador.posicion
+    if d.length_squared() < 1:
+        return
+    dn = d.normalize()
+    perp = pygame.Vector2(-dn.y, dn.x)
+    base = jugador.posicion - pygame.Vector2(desplazamiento) + dn * (jugador.radio + DISTANCIA_FLECHA_BRUJULA)
+    color = COLOR_FLECHA_BRUJULA_ACTIVA if jugador.caminando_hacia_tumba() else COLOR_FLECHA_BRUJULA
+    puntos = [base + dn * 10, base - dn * 6 + perp * 7, base - dn * 6 - perp * 7]
+    pygame.draw.polygon(pantalla, color, puntos)
+    pygame.draw.polygon(pantalla, (20, 24, 30), puntos, 1)
 
 
 def dibujar_capas(pantalla, area, datos_mapa, rocas, vista, z, fuente):
@@ -1719,6 +1829,14 @@ def iniciar_mundo(config):
 
     fondo = FondoPorTrozos(dibujo_del_fondo(casa, charcos, vegetacion, ctx.obstaculos))
 
+    # NPC (Fase 4): humanos con su rejilla de paso y su cola de rutas
+    poblacion = None
+    if config.get("npc", NPC_ACTIVOS):
+        ctx.rejilla_paso = cargar_rejilla_paso(config.get("mapa", MAPA_POR_DEFECTO), charcos, vegetacion, rocas)
+        ctx.cola_rutas = ColaRutas(ctx.rejilla_paso)
+        poblacion = PoblacionHumanos(ctx, datos_mapa.get("aparicion", {}).get("Humanos", []),
+                                     random.Random(config.get("semilla_npc")))
+
     # Capa oscura para simular la poca visibilidad dentro de un arbusto
     capa_oscura = pygame.Surface((mundo_w, mundo_h), pygame.SRCALPHA)
     capa_oscura.fill((0, 0, 0, OSCURECIMIENTO))
@@ -1834,6 +1952,7 @@ def iniciar_mundo(config):
     zoom_inspector = [0]
     mostrar_capas = False
     imagen_lejana = [None]
+    imagen_minimapa = [None]   # terreno del anillo de mapa (se crea la primera vez que se necesita)
 
     def zoom_actual():
         return NIVELES_ZOOM[zoom_inspector[0]] if jugador.inspector else 1.0
@@ -1969,7 +2088,12 @@ def iniciar_mundo(config):
             nuevas.append(nueva)
         herramienta = equipo_inicial[1]() if equipo_inicial[1] else None
         # Se reinicia el mismo objeto: quien lo referencia (maniqui, fauna) sigue valiendo
+        asesino = jugador.asesino               # estadistica oculta: se conserva al morir
+        permanentes = jugador.talismanes.permanentes()   # anillo de brujula: no se pierde al morir
         jugador.__init__(**datos_jugador(nuevas, herramienta))
+        jugador.asesino = asesino
+        jugador.talismanes.conservar(permanentes)
+        jugador.recalcular_talismanes()
         aplicar_extras_pruebas(jugador)
         camara.update(jugador.posicion)
         textos_flotantes.clear()
@@ -1989,6 +2113,8 @@ def iniciar_mundo(config):
                 if not muerto:
                     textos_flotantes.append(["La tumba desapareció", (200, 200, 210),
                                              jugador.posicion - pygame.Vector2(0, 48), 0.0])
+        # Anillo de brujula: el jugador sabe donde esta su tumba (None si no hay)
+        jugador.posicion_tumba = pygame.Vector2(tumba.posicion) if tumba is not None and tumba.vivo else None
 
         # Modo combate de las sombras: mantener la tecla de una invocacion activa pone a
         # sus criaturas en guardia (se dirigen con el clic derecho).
@@ -2233,6 +2359,7 @@ def iniciar_mundo(config):
             # Mantener [Espacio] = intencion de mantener el ataque (golpes segun la cadencia).
             jugador.mantiene_ataque = bool(teclas_estado[pygame.K_SPACE])
             salud_antes = salud_de(enemigos)        # lo que hiera el jugador vuelve a ser suyo
+            salud_npc = [(c, c.vida) for c in npc_cerca]
             combatiente_golpes(jugador, dt, enemigos)
 
             # Golpe del arma del enemigo (maniqui): dana al jugador y a sus invocaciones de sombra
@@ -2291,6 +2418,10 @@ def iniciar_mundo(config):
             maniqui.en_agua = any(c.contiene(maniqui.posicion) for c in charcos)
             combatiente_estado(jugador, ctx, dt, enemigos, enemigos_sin_tumba)
             marcar_autor(salud_antes, False)
+            for c, vida_c in salud_npc:             # NPC heridos por el jugador: se defienden de el
+                if c.vida < vida_c:
+                    TL.marcar_agresor(c, jugador)
+                    c.ultimo_golpe_jugador = True
 
             # Arbustos: ocultarse, veneno, orbes de curación y reaparición de frutales
             vegetacion.actualizar(dt, jugador)
@@ -2298,8 +2429,24 @@ def iniciar_mundo(config):
             # Los demas combatientes (NPC). En una partida normal todavia no hay ninguno. Cerca de
             # la camara: simulacion completa (como mucho MAX_NPC_ACTIVOS; el resto piensa menos);
             # lejos: simulacion resumida cada RESUMEN_CADA s (Fase 3, nivel de detalle).
+            ctx.actualizar_paso()
             actualizar_otros_combatientes(ctx, dt, jugador, zona_activa(vista_camara()))
-            retirar_combatientes_muertos(ctx)
+            for caido in retirar_combatientes_muertos(ctx):
+                # Un humano muerto por el jugador (o sus sombras): XP, monedas y +10 de "asesino"
+                if (getattr(caido, "raza", None) == "Humanos" and getattr(caido, "ultimo_golpe_jugador", False)
+                        and getattr(caido, "ultimo_agresor", None) is jugador):
+                    xp_h, monedas_h = recompensa_por_humano(caido)
+                    niveles = jugador.ganar_xp(xp_h)
+                    jugador.monedas += monedas_h
+                    jugador.asesino += ASESINO_POR_HUMANO
+                    textos_flotantes.append([f"+{xp_h:g} XP  +{monedas_h} monedas", COLOR_XP, pygame.Vector2(jugador.posicion), 0.0])
+                    if niveles:
+                        textos_flotantes.append([f"NIVEL {jugador.nivel}  +{niveles * MONEDAS_POR_NIVEL} monedas", COLOR_XP_MAX,
+                                                 jugador.posicion - pygame.Vector2(0, 32), 0.0])
+                if poblacion is not None:
+                    poblacion.murio(caido)
+            if poblacion is not None:
+                poblacion.actualizar(dt)
             # NPC que se simulan y se ven (los resumidos estan lejos: ni chocan ni se dibujan)
             npc_cerca = [c for c in ctx.combatientes if c.modo != "resumido"]
 
@@ -2400,6 +2547,7 @@ def iniciar_mundo(config):
             for rect_cambio in vegetacion.cambios + ctx.cambios_fondo:
                 fondo.invalidar(rect_cambio.inflate(8, 8))
             vegetacion.cambios.clear()
+            ctx.cambios_vistos = 0
             ctx.cambios_fondo.clear()
             fondo.dibujar(pantalla, vista, desplazamiento)
 
@@ -2545,6 +2693,21 @@ def iniciar_mundo(config):
         # Tumba: flecha en el borde hacia ella, con la distancia y el tiempo que le queda
         if tumba is not None and not muerto:
             tumba.dibujar_indicador(pantalla, area_mundo_pantalla, jugador, fuentes["mini"])
+            # Anillo de brujula: flecha junto al personaje (dorada mientras da su velocidad)
+            if jugador.bono_brujula > 0 and z == 1.0:
+                dibujar_flecha_brujula(pantalla, jugador, tumba.posicion, desplazamiento)
+
+        # Anillo de mapa: minimapa arriba a la derecha del area del mundo
+        if jugador.nivel_mapa > 0 and not muerto and z == 1.0:
+            if imagen_minimapa[0] is None:
+                imagen_minimapa[0] = MAPA.imagen_terreno(charcos, vegetacion, rocas, ESCALA_MINIMAPA)
+            marcas = []
+            if jugador.nivel_mapa >= TL.MAPA_NIVEL_MARCAS:
+                marcas = [(pos_v, color_v) for _, color_v, pos_v in vendedores.brujula()]
+                if tumba is not None and tumba.vivo:
+                    marcas.append((pygame.Vector2(tumba.posicion), COLOR_TUMBA_MINIMAPA))
+            dibujar_minimapa(pantalla, area_mundo_pantalla, imagen_minimapa[0], jugador.posicion,
+                             TL.radio_mapa(jugador.nivel_mapa), marcas)
 
         # Brujula [C]: flechas hacia el conejo, lobo, oso y maniqui mas cercanos
         if mostrar_brujula and z == 1.0:
@@ -2554,6 +2717,10 @@ def iniciar_mundo(config):
             if maniqui.vivo:
                 objetivos_b.append(("M", (230, 120, 120), pygame.Vector2(maniqui.posicion)))
             objetivos_b.extend(vendedores.brujula())
+            humanos_b = [c for c in ctx.combatientes if getattr(c, "raza", None) == "Humanos"]
+            if humanos_b:
+                cercano_h = min(humanos_b, key=lambda c: (c.posicion - jugador.posicion).length_squared())
+                objetivos_b.append(("H", (214, 176, 120), pygame.Vector2(cercano_h.posicion)))
             fuente_b = fuentes["mini"]
             for etiqueta_b, color_b, pos_b in objetivos_b:
                 d_b = pos_b - jugador.posicion
@@ -2569,7 +2736,7 @@ def iniciar_mundo(config):
                 pygame.draw.polygon(pantalla, color_b, [p1, p2, p3])
                 txt_b = fuente_b.render("%s %d" % (etiqueta_b, int(dist_b)), True, color_b)
                 pantalla.blit(txt_b, (cx + int(dn.x * 76) - txt_b.get_width() // 2, cy + int(dn.y * 76) - txt_b.get_height() // 2))
-            leyenda = fuente_b.render("[C] Brujula  C=conejo  L=lobo  O=oso  M=maniqui  V=vendedor", True, (200, 210, 225))
+            leyenda = fuente_b.render("[C] Brujula  C=conejo  L=lobo  O=oso  M=maniqui  V=vendedor  H=humano", True, (200, 210, 225))
             pantalla.blit(leyenda, (mundo_x + 12, mundo_y + 12))
 
         # Dibujar Hitboxes si está activada la visualización [H]

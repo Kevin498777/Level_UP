@@ -1,3 +1,5 @@
+
+
 ### DOMINIO (Vacio infinito)
 Acticar el dominio sin cd para ninguna habilidad
 las estadisicas basicas(vida,defensa,energia) * 9 
@@ -87,18 +89,13 @@ Que hace JackPot
 Duracion 77 segundos
 Pasivas
 Cura el 77% de vida por segundo y Aumenta el 177% de vida maxima
-
 Aumenta el 77% de velocidad de movimiento
-
 Regenera 77% de escudo(Magico y fisico) por segundo y Aumenta  77% de escudo(Mafico y fisico) por s
-
 Aumenta el daño base un 77%
-
 Aumenta la energia base un 77% y regenera un 177% de energia por segundo
-
 Aumenta la cadencia un 77% 
-
 Puede disparar disparo veloz al nivel 20 con un 77% de probabilidad de que salga rafaga veloz nv30
+Aun en el estado de afortunado puedes seguir utilizando la habilidad afortunado sumando las estadisticas que da afortunado mas jackPot
 
 
 
@@ -121,508 +118,236 @@ Puede disparar disparo veloz al nivel 20 con un 77% de probabilidad de que salga
 
 
 
+### Herramientas
+NUEVO SISTEMA DE CALIDAD DE ARMAS
+COMUN
+Estasticas nivel maximo 10 pero cuesta 1 subir cada nivel 
+Arma(**Espada Ligera**), (daño(nv1(2.2)|nv10(3.0))), (velocidad(nv1(-17%)|nv10(-5%))), (durabilidad(nv1(220)|nv10(300))), (cadencia(nv1(1.48)|nv10(1.78))), empuje 8
 
+Arma(**Espada Larga**), (daño(nv1(3.4)|nv10(5.0))), (velocidad(nv1(-34%)|nv10(-10%))), (durabilidad(nv1(190)|nv10(230))), (cadencia(nv1(1.06)|nv10(1.30))), empuje 12
 
+Arma(Mandoble), (daño(nv1(6.6)|nv10(9.0))), (velocidad(nv1(-70%)|nv10(-30%))), (durabilidad(nv1(148)|nv10(180))), (cadencia(nv1(0.64)|nv10(0.80))), empuje 20
 
+Arma(Escudo), (daño(0)), (velocidad(nv1(-34%)|nv10(-10%))), (durabilidad(nv1(100)|nv10(300))), (reducción de desgaste(nv1(20%)|nv10(70%))), (bonus a escudos(nv1(+15%)|nv10(+30%))), empuje 40
 
+Arma(Arco), (daño(nv1(5.0)|nv10(10.0))), (velocidad(nv1(-15%)|nv10(-3%))), (durabilidad(nv1(100)|nv10(150))), (flechas(nv1(10)|nv10(30))), (costo de 10 flechas(nv1(10)|nv10(30))), empuje 25
 
+El daño es × Fuerza. Mientras el arco carga, el portador va un 10 % más lento, además de su debuff.
 
+Estadisticas normales Nuevo nivel 10 pero cuesta 1 punto subir cada nivel
 
+#### ##### Especial
+Estasticas nivel maximo 10 pero cuesta 2 subir cada nivel 
+Estadisticas
+Arma(Dagas Simples), (daño(nv1(1.5)|nv10(2.5))), (velocidad(nv1(-20%)|nv10(+10%))), (durabilidad(nv1(150)|nv10(400))), (cadencia(nv1(2.13)|nv10(2.63))), empuje 4
 
+Martillo de guerra
+Arma(Martillo de guerra), (daño(nv1(4)|nv10(8))), (velocidad(nv1(-60%)|nv10(-20%))), (durabilidad(nv1(150)|nv10(200))), (cadencia(nv1(1.0)|nv10(2))), empuje 0
+Esta arma no hace daño unico esta golpea al suelo y genera una onda pequeña que hace daño en area
 
+lanza
+Arma(lanza), (daño(nv1(4)|nv10(7))), (velocidad(nv1(-30%)|nv10(-5%))), (durabilidad(nv1(200)|nv10(250))), (cadencia(nv1(1.4)|nv10(2))), empuje 4
+Hasta arma es larga para daño a distancias medianas
 
+Baculo
+Arma(Baculo) (velocidad(nv1(-20%)|nv10(-5%))), (durabilidad(nv1(50)|nv10(120)))
+(daño(nv1(Cualquier daño magico de habildiades *0.1)|nv10(Cualquier daño magico de habildiades *0.9))),
 
+Arco Elfico
+Arma(Arco), (daño(nv1(10.0)|nv10(20.0))), (velocidad(nv1(-20%)|nv10(+10%))), (durabilidad(nv1(150)|nv10(200))), (flechas infinitas), empuje 30
+Se dibuja una linea roja formada por puntitos separados 
 
+#### ##### Epico
+Estadisticas nivel maximo 5 pero cuesta 3 punots subir cada nivel
+Hacha de batalla
+Arma(Hacha de batalla), (daño(nv1(10)|nv5(20))), (velocidad(nv1(-50%)|nv5(-10%))), (durabilidad(nv1(200)|nv5(300))), (cadencia(nv1(1.5)|nv5(2.5))), empuje 10
+Esta arma comienza a girar al rededor del personaje generando daño en area 
+Esta hacha comienza girando despacio aumentando su velocidad por segundo tiene un limite de veloidad de giro
 
-Sistema de inventario
-Al precionar la tecla I este abre un ninventario donde se muestran las estadisticas, las herramientas (selecionadas), y habilidades selecionadas(solo las selecionadas no todas las existentes), El nivel con la xp, las monedas , que sea un interfaz bonita interactiva, y hay que tener cuidado porque activar la interfaz no pausa el mundo solo sobremone una pantalla, asi que si puedo morir dentro del inventario, para salir de el que exista una x o precionando la I igualnmente sales de el
+Ballesta
+Arma(Ballesta), (daño(nv1(4)|nv5(8))), (velocidad(nv1(-10%)|nv5(+20%))), (durabilidad(nv1(300)|nv5(500))), (flechas(nv1(50)|nv5(100))), (costo de carga completa de flechas(nv1(10)|nv5(30))), empuje 20
+Esta no tiene recarga dispara la flecha al daño y distancia maxima por cada click 
+Igualmente se dibuja una linea roja de puntitos
 
+Dagas del tirano
+Arma(Dagas del tirano), (daño(nv1(3)|nv5(6))), (velocidad(nv1(-10%)|nv5(+30%))), (durabilidad(nv1(300)|nv5(600))), (cadencia(nv1(3)|nv5(5))), empuje 10
+Entre mas tiempo pasa golpeando va ganando furia +1 furia por segundo si deja de atacar baja -1 de furia por segundo no ocupa dañar objetivos para aumentar la fueria
+Si llega a 100 de furia Aumenta las siguientes estadisticas por 10s 
+Vida+10%
+velocidad+10%
+daño+10%
+cd de la furia 20s no se puede cargar furia en este intervalo
 
+Orbe magico
+Arma(Orbe magico) (velocidad(nv1(-15%)|nv5(0%))), (durabilidad(nv1(70)|nv10(150)))
+(daño(nv1(Cualquier daño magico de habildiades *0.3)|nv5(Cualquier daño magico de habildiades *1.5)))
+Regeneracion de energia +2 cada 1s
+Energia maxima +20
 
-Sistema nuevo
-Gacha de Level_UP
-Esta es un sistema de ruleta que 1 tirada que cuesta 30 monedas
-Y tienes las sigueines probabilidades
-Herramienta(30%)(si ya no hay Herramientas esta de devuelve 25 monedas)
-Habilidad(15%)(si ya no hay habilidaes esta te devuelve 25 monedas)
-Anillo(50%)(si ya no hay anillos esta te devuelve 25 monedas)
-Si te toca un anillo ahi entran las probabilidades internas de los objetos anillos
-Nada(5%)
+#### ##### Legendario ##### ####
+Nivel maximo 3 pero solo se puede subir de nivel si te sale otra vez en el gacha
+Darkness (Mandoble)
+Arma(Darkness), (daño(nv1(20)|nv3(50))), (velocidad(nv1(-40%)|nv5(+30%))), (durabilidad(nv1(498)|nv3(999))), (cadencia(nv1(0.8)|nv10(1))), empuje 40
+Tiene 3 modos cada una de desbloquea segun el nivel
+### Darknes Neutral
+daño (nv1(20)|nv3(50))
+velocidad(nv1(-30%))nv3(-0%)
+durabilidad(nv1(498)|nv3(999))
+cadencia(nv1(0.8)|nv10(1))
+empuje 40
+Pasiva
+Activa Espectro sin restriciones si golpeas a alguien se cancela espectro y entra en un cd de 2s despues se activa en automatico mientras estes en este modo
 
+(Solo se puede desbloquear en nv2)
+### Shadow Darknes
+daño (nv1(60)|nv3(150))
+velocidad(nv1(-80%))nv5(-40%)
+durabilidad(nv1(498)|nv3(999))
+cadencia(nv1(0.4)|nv10(0.9))
+empuje 49
+Pasiva
+Activa fuerza colozal al maximo sin restriciones se quita cuando cambias de modo
 
+(Solo se puede desbloquear en nv3)
+### Darkness of the crimson shadow
+daño (nv1(10)|nv3(40))
+velocidad(nv1(0%))nv3(+40%)
+durabilidad(nv1(498)|nv3(999))
+cadencia(nv1(3)|nv3(5))
+empuje 10
+Pasiva
+Entre mas tiempo pasa golpeando va ganando furia +5 furia por segundo si deja de atacar baja -1 de furia por segundo no ocupa dañar objetivos para aumentar la fueria
+Si llega a 100 de furia Aumenta las siguientes estadisticas por 15s 
+Vida+20% (Es la vida total)
+velocidad+20%
+daño+20%
+cadencia+0.5
+regeneracion de vida 10 por segundo
+Corrupcion + 0.1 por segundo
+cd de la furia 10 no se puede cargar furia en este intervalo
 
+La corrupcion no se puede elimnar con nada solo si el personaje muere y pierde todo pues se guarda esto en la tumba y despues de revivir con totem
+Si corrupcion llega a 100 Tu personaje se divide en dos y la mitad de ti con el 200% de tus estadisticas totales se buelve demonio y te ataca a ti si te mata destruye la tumba con el en una explocion oscura dejando un crater rojo no se puede recuperar el progreso si esto pasa 
+Si eliminas al demonio corrupto obtines sus estadisticas
+A estadisticas me refiero las base(vida,defensa,energia,regeneracion de energia etc)
+Ya no tienes nunca corrupcion y la espada evolcuiona a "Eternal Darkness Requiem"
 
+### Eternal Darkness Requiem
+daño 299
+velocidad +49%
+durabilidad 9498
+cadencia 4
+empuje 9
+Pasivas
+Activa Espectro sin restriciones si golpeas a alguien se cancela espectro y entra en un cd de 2s despues se activa en automatico mientras estes en este modo
+Activa fuerza colozal al maximo sin restriciones siempre que este desfundada esta activa
+Entre mas tiempo pasa golpeando va ganando furia +10 furia por segundo si deja de atacar no baja la furia no ocupa dañar objetivos para aumentar la fueria
+Si llega a 100 de furia Aumenta las siguientes estadisticas por 30s 
+Vida+99% (Es la vida total)
+velocidad+99%
+daño+99%
+cadencia+9
+regeneracion de vida 99 por segundo
+No hay corrupcion
+cd de la furia 10 no se puede cargar furia en este intervalo
 
-Objetos nuevo 
-nuevo archivo llamado talismanes
-Comun (probabilidad de obtener 60%)
-    anillos de viento (color blanco,forma de anillo)
-    +1% de velocidad de movimiento, nivel maximo 10 aumento de velocidad maxima +10%
-    si consiges uno mas se puede mejorar maximo nivel 10
-    anillo de fuerza(color naranja,forma de anillo)
-    +1% de daño extra, nivel maximo 5 aumento de daño extra +10%
-    si consiges uno mas se puede mejorar maximo nivel 10
-    anillo de energia(color azul marino,forma de anillo)
-    +2.5 de energia extra, nivel maximo 10, aumento de energia maxima 25 puntos
+Orbe divino del infinito
+Arma(Orbe divino del infinito) (velocidad(nv1(0%)|nv5(+20%))), (durabilidad(nv1(100)|nv3(200)))
+(daño(nv1(Cualquier daño magico de habildiades *2)|nv3(Cualquier daño magico de habildiades *5)))
+Regeneracion de energia +5 puntos cada 1s
+Energia maxima +100
 
-    nuevo
-    anillo sombra conejo (color oscuro)
-    1 sombra de conejo no se reproduce
-    nivel maximo 10 este es como la habilidad sombra de conejos como este el nivel es maximo 20 este solo seran las estadisticas pero dividida para que sea acorde a el nivel 10 del anillo
-    si muere la sombra darda 10s en reaparecer otra, nivel maximo tarda 5s
-    (Esta no se puede controlar solo ataca si atacan al jugador o asi misma)
 
+Juicio divino
+Arma(Arco), (daño(nv1(10)|nv3(30))), (velocidad(nv1(0%)|nv5(+30%))), (durabilidad(nv1(500)|nv3(999))), (flechas infinitas), empuje 0
+Esta no tiene recarga dispara la flecha al daño y distancia maxima por cada click 
+Igualmente se dibuja una linea dorada de puntitos
+Pasivas
+Si una flecha llega a golpear a cualquier objetivo este despues de 10s de carga este se marca con un punto de mira dorado el cual generara lo siguiente:
+Cada 0.3 segundos se dispararan 4 flechas a este personaje marcado con daño 50 cada flecha por 20s
+las 4 flecas aparecen en los 4 puntos cardinales siempre apuntando hacia el no lo siguen las flechas pero van a alta velocidad 
 
-Especial (probabilidad de obtener 30%)
-    anillo de defensa magica (color azul)
-    +4 de defensa magica, nivel maximo 7, aumeto de defensa maxima +20
-    +10% de velocidad de regeneracion de escudo magico
-    anillo de defensa fisica (color cafe)
-    +4 de defensa fisica, nivel maximo 7, aumeto de defensa maxima +20
-    +10% de velocidad de regeneracion de escudo fisico  
 
-    Nuevo  
 
-Epico (probabilidad de obtener 9%)
-    anillo de vida (color rosa y rojo,forma de anillo)
-    +4 de vida, nivel maximo 5 aumento de vida maxima 20
-    anillo de cadencia (color amarillo y azul, forma de anillo)
-    +0.3 de cadencia, nivel maximo 5, aumento maximo de cadencia 1.5
-    anillo sobra lobo(color oscuro y morado)
-    nivel maximo 10 este es como la habilidad sombra de lobo como este el nivel es maximo 20 este solo seran las estadisticas pero dividida para que sea acorde a el nivel 10 del anillo
-    si muere la sombra darda 8s en reaparecer otra, nivel maximo tarda 4s
-    (Esta no se puede controlar solo ataca si atacan al jugador o asi misma) 
 
-    Nuevo  
 
 
 
-Legendario  (probabilidad de obtener 1%)
-    anillo de regeneracion inversa (color rosa con azul marino y dorado, forma de anillo)
-    +0.3 de regeneracion de vida por segundo por nivel, nivel maximo 3, regenerecion de vida maxima por nivel 0.9 por segundo
-
-    Nuevo
-
-
-
-
-
-### Carga de Fuego → Estrella ignea
-Estadisticas de Carga de Fuego nv20
-Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **5 s** = carga más daño y tamaño, y dispara al soltar. Daño base **39**. Se detiene en el **primer enemigo** que toca y le aplica **quemadura**: 1 de daño por segundo (**ignora escudos**, como el desangrado). Cada segundo completo de carga cambia el daño, el tamaño, la quemadura y la recarga:
-| Carga | Daño (× base) | Nv 1 | Nv 20 | Quemadura | Recarga |
-|---    |---            |---   |---    |---        |---      |
-| Toque | ×0.6          | 12   | 23.4  | 2 s       | 8 s     |
-| 1 s   | ×0.8          | 16   | 31.2  | 3 s       | 9.4 s   |
-| 2 s   | ×1.0          | 20   | 39    | 4 s       | 10.8 s  |
-| 3 s   | ×1.3          | 26   | 50.7  | 5 s       | 12.2 s  |
-| 4 s   | ×1.6          | 32   | 62.4  | 6 s       | 13.6 s  |
-| 5 s   | ×2.0          | 40   | 78    | 7 s       | 15 s    |
-**Carga de Fuego pasa a llamarse Estrella ignea**
-nivel maximo 30
-nueva skin en el centro del circulo un estrella roja
-Esfera de fuego con **dos modos**: pulsar = disparo rápido; mantener la tecla hasta **8 s** = carga más daño y tamaño, y dispara al soltar. Daño base **39-**. Se detiene en el **primer enemigo** que toca y le aplica **quemadura**: 1 de daño por segundo (**ignora escudos**, como el desangrado). Cada segundo completo de carga cambia el daño, el tamaño, la quemadura y la recarga:
-| Carga | Daño (× base) | Nv 20| Nv 30 | Quemadura | Recarga |
-|---    |---            |---   |---    |---        |---      |
-| Toque | ×0.6          | 23.4 | 29.4  | 3 s       | 15 s     |
-| 1 s   | ×0.8          | 31.2 | 29.4  | 4 s       | 16 s   |
-| 2 s   | ×1.0          | 39   | 49    | 5 s       | 17 s  |
-| 3 s   | ×1.3          | 50.7 | 63.7  | 6 s       | 18 s  |
-| 4 s   | ×1.6          | 62.4 | 78.4  | 7 s       | 19 s  |
-| 5 s   | ×2.0          | 78   | 98    | 8 s       | 21 s    |
-| 6 s   | ×2.2          | 85.8 | 107.8 | 6 s       | 23 s  |
-| 7 s   | ×2.4          | 93.6 | 117.6 | 7 s       | 25 s  |
-| 8 s   | ×2.6          | 101.4| 127.4 | 8 s       | 28 s    |
-Cunado toca a alguien le hace daño y 0.5 segundos despues explota en un radio de 100 pixeles generando un 30% del daño todal y dejando en el suelo por 10s el efecto de quemadura realizando 1 de daño por segundo meintras estas dentro de este radio
-
-
-
-### Reforzamiento Mágico → Reforzamiento inverso
-Estaditicas de reforzamiento magico 20
-Campo de fuerza **azul celeste** (solo el contorno, delgado) un **10 % más grande** que el personaje. Bloquea **daño físico y mágico**: absorbe todo el daño hasta agotar su **dureza**. Si la dureza se agota antes de terminar la duración, el campo **se rompe**, entra en recarga y el daño sobrante pasa a los escudos y a la vida.
-Ajuste de habilidad
-
-| Nivel | Dureza | Duración | Recarga | Coste En. |
-|---    |---     |---       |---      |--- |
-| 1     | 200    | 1 s      | 20 s    | 10 |
-| 5     | 260    | 3 s      | 18 s    | 15 |
-| 10    | 335    | 5 s      | 15 s    | 20 |
-| 15    | 410    | 7 s      | 10 s    | 25 |
-| 20    | **500**| 10 s     | 8 s     | 30 |
-
-**Reforzamiento inverso**
-Estaditicas de reforzamiento inverso 20  → 30 
-Campo de fuerza **azul marino** (solo el contorno, delgado) un **10 % más grande** que el personaje. Bloquea **daño físico y mágico**: absorbe todo el daño hasta agotar su **dureza**. Si la dureza se agota antes de terminar la duración, el campo **se rompe**, entra en recarga y el daño sobrante pasa a los escudos y a la vida.
-
-| Nivel | Dureza | Duración | Recarga | Coste En. |
-|---    |---     |---       |---      |--- |
-| 20    | 500    | Infinita | 8 s     | 5 de energia por segundo    |
-| 22    | 600    | Infinita | 7 s     | 4.5 de energia por segundo  |
-| 25    | 700    | Infinita | 6 s     | 4 de energia por segundo    |
-| 27    | 800    | Infinita | 5 s     | 3.5 de energia por segundo  |
-| 30    | 900    | Infinita | 3 s     | 3 de energia por segundo    | 
-
-Este escudo consume energia por segundo se activa con la tecla normal donde esa posisionada y se desactiva volvendola a precionar si ya no hay energia se desactiva automaticaemnte
-Este escudo no se regenera la unica forma de que se regenere es desactivarlo y activarlo
-
-### Regeneración Inversa → Invercion Vital
-Estadistica de regeneracion inversa
-Ajsute de habilidad
-Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; con la vida llena no cobra). Si no hay energía para el siguiente intervalo, deja de curar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **rosa**. Nivel máximo **10**; cada mejora cuesta **2 puntos** (como las armas).
-Tiene un debuff de -20% de velocidad cuando se esta curando
-
-| Nivel | Cura | Energía | Cada |
-|---    |---   |---      |---   |
-| 1 – 2 | +2   | −5      | 4 s  |
-| 3 – 5 | +4   | −10     | 3.5 s  |
-| 6 – 8 | +8   | −15     | 3 s  |
-| 9     | +10  | −20     | 2.5 s  |
-| 10    | +12  | −25     | 2 s 
-
-**Inversion vital**
-Esta aparece Un boton de cambio en el panel de la habilidad en el juego el cual intercambie entre 
-Regeneracion inversa y Inversion Vital
-Regeneracion inversa realiza lo mismo con el sigueinte escalado
-Nivel maximo 15
-Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra energía y cura vida (sin pasar de la vida máxima; con la vida llena no cobra). Si no hay energía para el siguiente intervalo, deja de curar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **rosa**. Nivel máximo **10**; cada mejora cuesta **2 puntos** (como las armas).
-Tiene un debuff de -20% de velocidad cuando se esta curando
-
-| Nivel | Cura | Energía | Cada |-velocidad
-|---    |---   |---      |---   |---------
-| 15    | +12  | −25     | 2 s  | -20%
-| 16    | +14  | −26     | 2 s  | -16
-| 17    | +16  | −27     | 2 s  | -12
-| 18    | +18  | −28     | 2 s  | -8
-| 19    | +20  | −29     | 2 s  | -4
-| 20    | +20  | −30     | 2 s  | -0
-Inversion vital 
-(Comparte el mismo nivel escala igual)
-Nivel maximo 15
-Habilidad **mágica** que se **mantiene pulsada** y **no tiene recarga**. Mientras la tecla sigue pulsada, cada intervalo completo cobra vida y regenera energia (sin pasar de la energia maxima; con la nergia llena no cobra). Si hay menos de 5 de vida no se puede activar, deja de regenerar hasta volver a pulsar. Mientras está activa muestra el mismo contorno que el Reforzamiento Mágico, en **Azul marino y rosa**. Nivel máximo **15**; cada mejora cuesta **3 puntos**.
-Tiene un debuff de -20% de velocidad cuando se esta curando
-energia 113/100    100/100   2+2+2=6           1 98/100  2 99/100   3 
-vida   54/100    50/100                     1 58/100     2 56/100   3
-| Nivel | Daño | Energía | Cada |-velocidad|Curacion en area|
-|---    |---   |---      |---   |--------- |----------------|
-| 15    | -4   | +20     | 2 s  | -20%     | +2
-| 16    | -8   | +25     | 2 s  | -16      | +4
-| 17    | -12  | +30     | 2 s  | -12      | +6
-| 18    | -16  | +40     | 2 s  | -8       | +8
-| 19    | -20  | +50     | 2 s  | -4       | +10
-| 20    | -25  | +60     | 2 s  | -0       | +12
-Pasiva genera una onda color rosa que cada 2s que cura a los aliados (sombras) solo a aliados no a si mismo
-cd en intervalo de cambio entre regeneracion inversa e inversion vital 4s en todos los niveles 10-15
-
-
-### Cortar → Desmantelar
-Ajuste de habilidad
-Habilidad cortar al nv20
-Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza hacia donde mira el personaje una **cuchilla delgada** en línea recta, del largo aproximado de la Espada Ligera, **negra con contorno rojo**. Sale desde el centro del personaje (se hace visible al salir de su cuerpo) y se detiene en lo primero que toque:
-
-- **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 8 s** (ver 6.3).
-- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**solo un objeto** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**; antes, la cuchilla se rompe y el objeto queda intacto. Las **cuevas de oso** no se destruyen nunca (ni con Cortar ni con Estrella Ígnea). Si hay arbustos solapados (matorral), corta el más cercano.
-- **Árbol:** lo **destruye al tocar cualquier parte** (incluida la copa), **a cualquier nivel**, y la cuchilla se rompe con él.
-- Los objetos destruidos **no reaparecen** (Los frutales si) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
-
-| Nivel | Daño | Velocidad | Coste En. | Recarga |
-|---    |---   |---        |---        |---      |
-| 1     | 2    | 5         | 15        | 2 s     |
-| 5     | 10   | 9         | 23        | 4 s     |
-| 10    | 20   | 14        | 33        | 6 s     |
-| 15    | 30   | 19        | 43        | 8 s     |
-| 19    | 38   | 23        | 51        | 8 s     |
-| 20    | 40   | 24        | 53        | 10 s    |
-
-### Desmantelar
-Habilidad desmantelar maximo 30
-Habilidad de **daño mágico** (categoría Ataque Mágico). Lanza 8 cuchillas que te rodean en 8 direciones distintas al rededor del personaje, **cuchaillas delgadas** en linea recta del largo aproxiamdo de la espada ligera, **totalemnte roja**, sale desde el centro del personaje (se hace visible al salir de su cuerpo) y no se detiene en lo primero que toque:
-Este no vuela de forma infinita tiene un rango de 600px llegado ahi se destruye sola y deja combustible
-
-**Combustible** Esta es una pequeña esfera negro con contorno rojo la cual dura 10s despues desaparece sola esta no hace daño por si sola pero si cualquier habilidad que proveque una quemadura hara que esta 2s despues exploque generado una pequeña explocion del mismo radio que deja estrella ignea la cual hace 20 punos de daño y dura 5s con quemadura 1 de daño por segundo esta quemadura y daño es daño magico
-
-***Combustible aderible* si cualquier cuchilla de desmantelar te golpea las esferas de combustible se pegan a ti por 10s la unica forma de elinarla rapido del cuerpo es entrando en un lago(contacto con agua) si cualquier tipo de quemadura te toca con un punto de combutible esta explota y te hace el daño de quien te genero la quemadura multiplicada por 3 la explocion es igual como con estrella ignea, los puntos de combustible pegados al personaje son acumulables maximo 3
-Ejemplo1
- si te llega a golpear un extrella ignea al 30 cargada al maximo hace 127.4 de daño el puro daño de esta sin contar el daño colateral este se multiplica por 3 y hace un daño de 382
-Ejemplo2 
-si tengo 1 a 3 cargas de combustible y resivo cualquier tipo de daño el daño de la explocion si tengo pegado 3 cargas de combustible el daño final se multiplica por 9, el tiempo de vida de cada carga es independiente
-
-- **Enemigo:** se detiene en el **primero**. Hace su daño mágico (lo amortigua el escudo mágico) y, si llega a hacer daño, **anula su escudo mágico 8 s**.
-- **Roca o arbusto:** lo **destruye** y la cuchilla se rompe con él (**con 3 objetos** por cuchilla). Las **rocas gigantes** y los **arbustos grandes** (más de 100 de diámetro) solo se destruyen a **nivel 20**;(igual) antes, la cuchilla se rompe y el objeto queda intacto. Las **cuevas de oso** no se destruyen nunca (ni con Cortar ni con Estrella Ígnea,ni desmantelar,ni explociones). Si hay arbustos solapados (matorral), corta el más cercano.
-- **Árbol:** lo **destruye al tocar cualquier parte** (incluida la copa), **a cualquier nivel**, y la cuchilla se rompe con él pero mientras aun tenga los 3 objetos cortados no se destruira.
-- Los objetos destruidos **no reaparecen** (Los frutales si) y, si estabas escondido en un arbusto que se destruye, quedas a la vista. **Lanzada desde dentro de un arbusto**, la cuchilla sale de dentro hacia afuera **sin cortarlo** (sí corta el siguiente objeto de su camino).
-
-| Nivel | Daño | Velocidad | Coste En. | Recarga |duracion activa de combustible|cuchillas por nivel|
-|---    |---   |---        |---        |---      |------------------------------|--------------------
-| 20    | 40   | 24        | 60        | 10 s    |1s                            |1 n
-| 22    | 40   | 26        | 70        | 12 s    |2s                            |2 n,s
-| 24    | 40   | 28        | 80        | 14 s    |4s                            |3 n,s,e
-| 26    | 40   | 30        | 90        | 16s     |6s                            |4 n,s,e,o
-| 28    | 40   | 32        | 100       | 18 s    |8s                            |6 n,s,e,o,ne,no
-| 30    | 40   | 35        | 120       | 20 s    |10s                           |8 n,s,e,o,ne,no,so,se
-
-La duracion aplicada estando en el suelo y pegadas al cuerpo cuando cabian de estado de sueltas a pegadas lso tiempos son independietes
-
-El norte siempre apunta al frente donde esta mirando actalmente el personaje si mara para abajo el norte sera abajo
-norte=n
-sur=s
-este=e
-oeste=0
-ne=noreste
-se=sureste
-so=suroeste
-no=noroeste
-
-### 9.15 Onda Sonora
-
-Habilidad de **daño mágico** (categoría Ataque Mágico). Emite **anillos blancos finos** que se expanden en **360°** hasta el radio máximo, donde se desvanecen. Las ondas salen **una cada 0.8 s**, todas desde el **punto donde se lanzó** (no siguen al personaje aunque se mueva):
-
-- **Nivel 1–9:** 1 onda de **10** de daño.
-- **Nivel 10–19:** 2 ondas (**10** y **20**).
-- **Nivel 20:** 3 ondas (**10**, **20** y **30**).
-
-Atraviesan rocas y arbustos **sin destruir nada** y **solo afectan a enemigos** (no al lanzador ni a sus invocaciones). Cada onda golpea **una sola vez** a cada objetivo; tras golpear sigue visible y las ondas siguientes sí pueden golpearlo. El escudo mágico amortigua su daño.
-
-**Pasiva (ralentización):** según cuántas ondas del mismo lanzamiento golpeen al objetivo: **-5 % / -10 % / -20 %** de velocidad de movimiento durante **3 s**. No se suma: se queda la más fuerte y cada impacto reinicia los 3 s.
-
-**Medio (agua):** cuenta el punto de lanzamiento (agua o tierra, igual para todas sus ondas) y dónde está el objetivo al recibir cada onda.
-
-| Lanzador → objetivo | Daño | Ralentización |
-|---|---|---|
-| Tierra → tierra | normal | -5 / -10 / -20 % |
-| Agua → agua | **x2** (20 / 40 / 60) | **x2** (-10 / -20 / -40 %) |
-| Cambio de medio (tierra ↔ agua) | **x0.5** (5 / 10 / 15) | **x0.5** (-2.5 / -5 / -10 %) |
-
-La onda viaja a **300 px/s** y al **doble (600 px/s)** si se lanza desde el agua; el alcance no cambia.
-
-| Nivel | Ondas | Radio | Coste En. | Recarga |
-|---|---|---|---|---|
-| 1 | 1 | 200 | 10 | 10 s |
-| 5 | 1 | 242 | 15 | 14.2 s |
-| 10 | 2 | 295 | 20 | 19.5 s |
-| 15 | 2 | 347 | 25 | 24.7 s |
-| 20 | 3 | 400 | 30 | 30 s |
-
-
-
-### Disparo Venenoso → Corrocion
-nivel maximo 30
-Es un disparo color cafe verde y morado con las mismas propiedades que disparo venenoso pero
-Hace daño por segundo a la vida como disparo venenoso
-Reduce el daño por segundo -1% por segundo de quien golpee
-Reduce la velocidad por segundo del -1% de quien golpee
-Para la regeneracion de energia y reduce 1% por segundo
-Hace daño al escudo Fisico y lo reduce un 1% por segundo
-Hace daño al escudo Magico y lo reduce un 1% por segundo
-Hace 1 punto de daño a la arma en cuestion que tenga el personaje a quien golpeo
-El dueño de la habilidad suelta humo que aplica dichos efectos en un radio de 60 px 
-El color del aura es igualmente cafe,verde y morado
-Promon las estadisticas que estos valores y te dire si me convence ademas dice si esta muy fuerte balancealo
-
-
-
-### Golpe de Suerte → Afortunado
-Nivel 20
-Al lanzarla otorga un **resultado aleatorio**: Burst de Fuerza, Destello, Reforzamiento Mágico, Regeneración Inversa, Aura Eléctrica o **Paso 0** (como efecto temporal, sin coste extra), **energía al máximo**, **escudos al máximo** (físico y mágico), **Disparo Venenoso** o **nada**. **nivel 20** "nada" baja al **5 %** y el resto se reparte igual (**≈10.56 %** cada uno).
-
-El autoveneno de Golpe de Suerte queda en 10 de daño en 10 s al nivel 1 y 50 en 20 s al nivel 20.
-
-| Nivel |Coste En.|Nivel de la habilidad otorgada|Duración otorgada|Espera (instantáneos)| Recarga|
-|---    |---   ---|---                           |---              |---                  |
-| 1 – 4 | 15      | 1                            | 5 s             | 5 s                 | 5 s    |
-| 5 – 9 | 20      | 5                            | 10 s            | 5 s                 | 8 s    |
-| 10–14 | 25      | 10                           | 15 s            | 5 s                 | 12 s   |
-| 15–19 | 30      | 15                           | 20 s            | 5 s                 | 15 s   |
-| 20    | 50      | 20                           | 30 s            | **2 s**             | 20 s   |
-
-- **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; **después** empieza la recarga. Así nunca hay dos resultados a la vez.
-- **Habilidad otorgada:** tiene las estadísticas de su nivel pero dura lo que marca la tabla. Si termina antes (por ejemplo, el Reforzamiento se rompe), la recarga empieza en ese momento. El Destello otorgado no deja fatiga.
-- **Regeneración otorgada:** cura sola, sin pulsar ni gastar energía, con sus propios tiempos: 4 s (+1 cada 2 s) en nv 1–4, 6 s en nv 5–9, 8 s en nv 10–14, 10 s (+2 cada 2 s) en nv 15–19 y 10 s (+2 cada 1 s) en nv 20.
-- **Resultado instantáneo** (energía, escudos o nada): bloquea durante la espera básica y luego empieza la recarga.
-- **Misma habilidad activa dos veces** (equipada y otorgada): sus efectos buenos **se suman**. La otorgada por Golpe de Suerte aporta siempre el **100 %** y la equipada solo el **50 %**, sin importar su nivel ni el orden en que se activen (ej. Burst otorgado +21 % y equipado +35 % = +21 % + 17.5 % = **+38.5 %**). Reforzamiento: absorbe primero el campo otorgado y luego el equipado al 50 % de eficacia. Regeneración: la equipada cura al 50 %. Cuando una termina, la otra vuelve al 100 %. Costes, recargas, combo y efectos negativos (fatiga del Destello, autodaño del Aura) no cambian.
-
-### Afortunado
-
-nivel maximo 30
-Al lanzarla otorga un **resultado aleatorio**: 
-Fuerza Colosal,
-Relámpago,
-Reforzamiento Inverso,  
-Inversión Vital(vida), 
-Inversión Vital(energia),
-Vestigios Míticos o **Espectro** (como efecto temporal, sin coste extra),
-Corrocion (Solo la nube que rodea de Corrosión) Ya no daña al usuario
-**energía al máximo**, + un 100% de la energia total por 40s,(100+(100*1.0=100)=100+100=200)
-**escudos al máximo** (físico y mágico), + 100% de escudos(Magicos y fisicos) de los escudos total por 40s
-**nada**. **nivel 30** "nada" baja al **1 %** y el resto se reparte igual (**≈x %** cada uno).
-
-| Nivel |Coste En.|Nivel de la habilidad otorgada|Duración otorgada|Espera (instantáneos)| Recarga|
-|---    |---   ---|---                           |---              |---                  |
-| 20    | 20-40   | 20                           | 30 s            | 8 s                 | 20     |
-| 22    | 30-60   | 22                           | 32 s            | 8 s                 | 22 s   |
-| 24    | 40-80   | 24                           | 34 s            | 8 s                 | 24 s   |
-| 26    | 50-100  | 26                           | 36 s            | 8 s                 | 26 s   |
-| 28    | 60-100  | 28                           | 38 s            | **5 s**             | 28 s   |
-| 30    |   77    | 30                           | 30-50s          | **1-5 s**           | 10-40 s|
-Los valores del costo 20-40 es aleatoria le puede costar o 20 o 40 si de casualidad tiene solo 21 de energia este se cobra el minimo que es 20 para activarse aunque asi se quedaria en 0 de energia pues es el minimo + lo que salio ejemplo 
-tengo 80 de eneriga tiro y me sale un coste de 40
-me cobra 20 + 20 = 40
-80 - 20+20 = 60 - 20 = 40
-ahora si tengo 30 de energia hago un tiro y me sale de 40
-me cobra 20 + 20 = 40 
-30 - 20+20 = 10 - 20 = 0
-
-- **Bloqueo:** no se puede volver a lanzar hasta que termine lo otorgado; **después** empieza la recarga. Así nunca hay dos resultados a la vez.
-- **Habilidad otorgada:** tiene las estadísticas de su nivel pero dura lo que marca la tabla. Si termina antes (por ejemplo, el Reforzamiento se rompe), la recarga empieza en ese momento. El Relámpago otorgado no deja fatiga.
-
-- **Regeneración otorgada de vida de Inversión Vital:** cura sola, sin pulsar ni gastar energía, con sus propios tiempos: 
-10 s en nv 20, 2 de vida por segundo/20 de vida total
-12 s en nv 22, 2 de vida por segundo/24 de vida total
-14 s en nv 24, 2 de vida por segundo/26 de vida total
-16 s en nv 26, 3 de vida por segundo/48 de vida total
-18 s en nv 28, 3 de vida por segundo/54 de vida total
-20 s en nv 30, 4 de vida por segundo/80 de vida total
-
-- **Regeneración de energia de Inversión Vital:** regenera sola, sin pulsar ni gastar vida, con sus propios tiempos: 
-10 s en nv 20, 6 de energia por segundo/60 de energia total
-12 s en nv 22, 6 de energia por segundo/72 de energia total
-14 s en nv 24, 6 de energia por segundo/84 de energia total
-16 s en nv 26, 6 de energia por segundo/96 de energia total
-18 s en nv 28, 7 de energia por segundo/126 de energia total
-20 s en nv 30, 8 de energia por segundo/160 de energia total
-
-- **Resultado instantáneo** (energía, escudos o nada): bloquea durante la espera básica y luego empieza la recarga.
-- **Misma habilidad activa dos veces** (equipada y otorgada): sus efectos buenos **se suman**. La otorgada por Afortunado aporta siempre el **100 %** y la equipada solo el **50 %**, sin importar su nivel ni el orden en que se activen sigue la misma logica. 
-
-
-### DOMINIO (Afortunado → JackPot)
-
-
-
-No por el momento dejemoslo asi por ahora agregemos los sigueintes, NPC y en todo el mapa habran 3 vendedores hambulantes de anillos los cuales venderan los anillos en los sigueintes precios
-Solo puede vender 5 anillos por NPC
-comun 100 MONEDAS
-especial  200 MONEDAS
-epiko     400 MONEDAS
-legendario 1000 MONEDAS
-
-probabilidad de que salga
-comun       50% 
-especial    30%
-epiko       15%
-legendario  5%
-
-Los npc tienen las misma skin tipo bolita pero con gorrito mochila ademas si puede morir por los enemigos del mapa
-si resive daño activa paso 0 por 10s y escapa del lugar 
-Tiene siempre 20 de vida
-Si muere uno tarda 5 minutos en reaparecer otro con nuevos anillos
-Este da 20 de xp y 20 de oro si lo mata el jugador 
-Alguna duda o algo que se me pase
-
-
-
-
-Perfecto ahora puedes agregar bots que actuen como personajes los cuales habran de diferentes razan
-Humanos
-6 en todo el mapa
-Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
-Puede aparecer con cualqier arma
-Puede aparecer con cualqueir habildiad
-No tiene odio por ninguna raza pero si le golpean se difiente
-Estos escalan de forma normal buscan subir de nivel 
-vida 30 · fuerza 2 · velocidad 1 · cadencia +0 · energía 100 · escudos 0.
-
-SemiHumanos
-4 en todo el mapa 1 de cada tipo
-### Tipo lobo
-Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
-Puede aparecer con cualqier arma menos arco y escudo
-Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
-Odio hacia la raza humana un 40%
-Odio hacia la raza elfica un 0%
-Odio hacia la raza enana un 5%
-Estos escalan de forma normal buscan subir de nivel 
-vida 50 · fuerza 4 · velocidad 2 · cadencia +0 · energía 50 · escudos 10.
-Solo puede subir hasta nivel 20
-Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
-
-### Tipo conejo
-Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
-Puede aparecer solo con la espada corta o dagas simples
-Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
-Odio hacia la raza humana un 5%
-Odio hacia la raza elfica un 0%
-Odio hacia la raza enana un 5%
-Estos escalan de forma normal buscan subir de nivel 
-vida 10 · fuerza 2 · velocidad 4 · cadencia +0 · energía 50 · escudos 0.
-Solo puede subir hasta nivel 20
-Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
-
-### Tipo Oso
-Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
-Puede aparecer solo con las espada corta, espada larga o escudo
-Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
-Odio hacia la raza humana un 20%
-Odio hacia la raza elfica un 0%
-Odio hacia la raza enana un 5%
-Estos escalan de forma normal buscan subir de nivel 
-vida 80 · fuerza 4 · velocidad -1 · cadencia +4 · energía 30 · escudos 20.
-Solo puede subir hasta nivel 20
-Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
-### Tipo cocodrilo
-Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
-Puede aparecer solo con la espada larga o dagas simles
-Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
-Odio hacia la raza humana un 20%
-Odio hacia la raza elfica un 0%
-Odio hacia la raza enana un 5%
-Estos escalan de forma normal buscan subir de nivel 
-vida 50 · fuerza 2 · velocidad 1 · cadencia +0 · energía 50 · escudos 40.
-En agua su velocidad se triplica
-Solo puede subir hasta nivel 20
-Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
-
-Elfos 
-4 en todo el mapa
-Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
-No ataca animales pasivos ni neutrales solo agresivos
-Puede aparecer solo con arco
-Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
-Odio hacia la raza humana un 30%
-Odio hacia la raza enana un 20%
-Odio hacia la raza semihumana un 0%
-Estos escalan de forma normal buscan subir de nivel 
-vida 80 · fuerza 5 · velocidad 1 · cadencia +0 · energía 200 · escudos 0.
-Puede subir al nivel 30
-Pero desbloquea aleatoriamente una de sus habilidades a habilidad potenciada en nivel 20
-no puede desbloquear mas
-El 80% estan en bosques y se esconden entre los arbustos
-
-
-Enanos
-4 en todo el mapa
-Funcionan con las estadisticas normales de los bots de pruea que siempre usas.
-No ataca osos ni los osos los atacan a ellos
-Puede aparecer solo con Espada larga o mandoble
-Puede aparecer con cualqueir habildiad pero este no las escoje son aleatorias y no las puede cambiar 
-Odio hacia la raza humana un 10%
-Odio hacia la raza elfica un 30%
-Odio hacia la raza semihumana un 10%
-Estos escalan de forma normal buscan subir de nivel 
-vida 120 · fuerza 4 · velocidad 1 · cadencia +0 · energía 50 · escudos 30.
-Solo puede subir hasta nivel 30
-Su espawn es en cuevas de osos no nesesariamente se quedan en ellas 
-
-Guardianes(Semidioses)
-No tiene odio por ninguno pero si le golpean se defiente
-1 en todo el mapa
-Puede aparecer solo con mandoble al maximo
-No tiene habilidades solo daño cuerpo a cuerpo
-vida 999 · fuerza 9 · velocidad 1 · cadencia +4 · energía 0 · escudos 999.
-No sube de nivel 
-Los animales no lo atacan 
-Por lo general estan en la parte norte del mapa
-
-
-El odio funciona como un sistema de combate entre mas odio tenga por una raza mas facil es que comienzen a pelear sin razon alguna 
-
-Si muere uno reaparece en un lugar aleatorio con sus estadisticas desde el incio 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Anillos
+
+Legendario
+- Anillo(Cadencia) [Legendario], (nv1(+0.3)|nv3(+1.5) golpes/s)
+- Anillo(Regeneración inversa) [Legendario], (nv1(+0.3)|nv3(+0.9) vida/s)
+
+Épico
+- Anillo(Sombra lobo) [Épico], (daño(nv1(4)|nv10(30))), (reaparece(nv1(8s)|nv10(4s)))
+- Anillo(Vida) [Épico], (nv1(+4)|nv5(+20) de vida máxima)
+
+Especial
+- Anillo(Defensa física) [Especial], (nv1(+2.86)|nv7(+20) de escudo físico), +10 % de regeneración del escudo
+- Anillo(Defensa mágica) [Especial], (nv1(+2.86)|nv7(+20) de escudo mágico), +10 % de regeneración del escudo
+
+Común
+- Anillo(Fuerza) [Común], (nv1(+1 %)|nv10(+10 %) de daño del arma)
+- Anillo(Viento) [Común], (nv1(+1 %)|nv10(+10 %) de velocidad base)
+- Anillo(Energía) [Común], (nv1(+2.5)|nv10(+25) de energía máxima)
+- Anillo(Sombra conejo) [Común], (daño(nv1(0.5)|nv10(5))), (reaparece(nv1(10s)|nv10(5s)))
+
+Nuevos anillos
+Anillo de regeneracion de energia
+Calidad(x)
+- Anillo(Regeneracion vital) [x], (nv1(+5%)|nvx(+20%), +x % de regeneración de energia
+Unico anillo con durabilidad nv1(1000)|nvx(3000) cada segundo activo pierde 1 punto de durabilidad
+Color azul marino y talvez con amarillo lima
+
+Anillo de brujula 
+Calidad(x)
+- Este anillo busca la tumba y te indica exactamente donde moriste con una flecha hacia ella es el unico anillo que no se puede perder cuando mueres.
+(nv1(+10%)|nvx(+30%), +x % de velocidad de movimiento mientras sigas la flecha de la tumba si cambias de direcion se pierde este aumento de velocidad 
+
+Anillo mapa
+Aparece un minimapa arriba a la dereche en tiempo real mostrandote tu ubicacion
+Color verde menta
+
+Anillo potenciador
+Aumenta el daño magico 
+(nv1(+0.2%)|nvx(+0.4%)
+Color Rojo y gris
+
+Anillo cd
+Disminuye el cd de las habilidades
+(nv1(-5%)|nvx(-10%)
+Color amarillo y gris
+
+Anillo de sacrificio
+Desminuye la vida -50% 
+Aumenta las sigueinte estadisticas
+Defensa magica y fisica(nv1(+8)|nvx(+18)
+Velocidad de movimento(nv1(+2%)|nvx(+8%)
+Aumento de daño magico(nv1(+0.1%)|nvx(+0.2%)
+Aumento de daño (nv1(+1%)|nvx(+5%)
+Color morado y dorado
+
