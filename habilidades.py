@@ -226,6 +226,13 @@ def factor_duplicado(habilidad, activas):
     return FACTOR_DUPLICADO if hay_otorgada else 1.0
 
 
+def potenciar_magico(fuente, cantidad):
+    """Dano magico que hace 'fuente' con sus bonus (anillos potenciador y de sacrificio). Si la
+    fuente no es un personaje (o no hay fuente), el dano no cambia."""
+    f = getattr(fuente, "potenciar_magico", None)
+    return f(cantidad) if f is not None else cantidad
+
+
 def combinar_buffs(activas, atributo="porcentaje_buff"):
     """Suma el buff de las habilidades activas del mismo nombre aplicando factor_duplicado."""
     return sum(getattr(h, atributo) * factor_duplicado(h, activas) for h in activas)
@@ -400,7 +407,8 @@ class HabilidadBase:
                 self.terminar_activo(jugador)
 
         elif self.estado == "COOLDOWN":
-            self.tiempo_restante_cooldown -= dt
+            # Anillo de recarga: -X % de recarga = la cuenta atras corre 1 / (1 - X) veces mas rapido
+            self.tiempo_restante_cooldown -= dt / (1.0 - getattr(jugador, "reduccion_recarga", 0.0))
             if self.tiempo_restante_cooldown <= 0:
                 self.estado = "LISTA"
                 self.tiempo_restante_cooldown = 0.0
@@ -495,7 +503,8 @@ class Destello(HabilidadBase):
                 if not getattr(enemigo, "vivo", True) or not hasattr(enemigo, "recibir_dano"):
                     continue
                 if (enemigo.posicion - jugador.posicion).length() <= RELAMPAGO_RADIO + getattr(enemigo, "radio", 0):
-                    enemigo.recibir_dano(RELAMPAGO_DANO, "magico", enemigo.posicion - jugador.posicion)
+                    enemigo.recibir_dano(potenciar_magico(jugador, RELAMPAGO_DANO), "magico",
+                                         enemigo.posicion - jugador.posicion)
 
     def dibujar_aura(self, pantalla, jugador, desplazamiento=(0, 0)):
         """Relampago: aura electrica amarilla y cian con rayos que parpadean."""
@@ -1270,10 +1279,11 @@ class EmisionSonora:
         n = self.impactos.get(id(objetivo), 0) + 1
         self.impactos[id(objetivo)] = n
         direccion = objetivo.posicion - anillo.centro
+        dano = potenciar_magico(self.lanzador, anillo.dano * factor)
         if hasattr(objetivo, "recibir_dano"):
-            objetivo.recibir_dano(anillo.dano * factor, "magico", direccion)
+            objetivo.recibir_dano(dano, "magico", direccion)
         else:
-            objetivo.vida = max(0.0, round(objetivo.vida - anillo.dano * factor, 2))
+            objetivo.vida = max(0.0, round(objetivo.vida - dano, 2))
         ralent = OndaSonora.PALABRAS_RALENTIZACION if self.hab.potenciada_activa else OndaSonora.RALENTIZACION[n - 1]
         aplicar_ralentizacion(objetivo, ralent * factor)
         if self.palabra is not None and not es_tumba and getattr(objetivo, "vivo", True):
@@ -1497,8 +1507,10 @@ class OndaSonora(HabilidadBase):
     def _explotar(self, objetivo, dano, emision):
         """Explosion instantanea en el objetivo; la mitad a lo que este a EXPLOTA_RADIO px (tu incluido)."""
         centro = pygame.Vector2(objetivo.posicion)
-        objetivo.recibir_dano(dano, "magico", objetivo.posicion - emision.centro)
-        area = round(dano * self.EXPLOTA_FACTOR_AREA, 2)
+        potenciado = potenciar_magico(emision.lanzador, dano)      # al lanzador le llega sin bonus
+        objetivo.recibir_dano(potenciado, "magico", objetivo.posicion - emision.centro)
+        area_propia = round(dano * self.EXPLOTA_FACTOR_AREA, 2)
+        area = round(potenciado * self.EXPLOTA_FACTOR_AREA, 2)
         cercanos = [e for e in emision._enemigos if e is not objetivo and getattr(e, "vivo", True)
                     and not getattr(e, "es_tumba", False)]
         if emision.lanzador is not None:
@@ -1506,7 +1518,8 @@ class OndaSonora(HabilidadBase):
         for e in cercanos:
             hacia = e.posicion - centro
             if hacia.length() <= self.EXPLOTA_RADIO + e.radio:
-                e.recibir_dano(area, "magico", hacia if hacia.length_squared() > 0 else None)
+                e.recibir_dano(area_propia if e is emision.lanzador else area, "magico",
+                               hacia if hacia.length_squared() > 0 else None)
         self.explosiones.append([centro, self.DURACION_DESTELLO_EXPLOSION])
 
     def _muere(self, objetivo):
@@ -2988,7 +3001,7 @@ class CargaDeFuego(HabilidadBase):
         for e in enemigos:
             if getattr(e, "vivo", True) and hasattr(e, "recibir_dano") and \
                     (e.posicion - centro).length() <= r + getattr(e, "radio", 0):
-                e.recibir_dano(round(dano, 1), "magico", e.posicion - centro)
+                e.recibir_dano(round(potenciar_magico(jugador, dano), 1), "magico", e.posicion - centro)
                 encender_combustible(e, round(dano, 1))     # su combustible pegado explota
         jugador.combustible.encender_en_area(centro, r)
         destruidos = []
@@ -3372,7 +3385,7 @@ class AuraElectrica(HabilidadBase):
         self._t_dano_enemigos += dt
         # Equipada y otorgada a la vez: la equipada hace el 50 % (ver factor_duplicado)
         activas = [h for h in jugador.habilidades_en_efecto() if h.nombre == self.nombre and h.estado == "ACTIVA"]
-        dano = round(self.dano_por_segundo * factor_duplicado(self, activas), 2)
+        dano = potenciar_magico(jugador, round(self.dano_por_segundo * factor_duplicado(self, activas), 2))
         while self._t_dano_enemigos >= 1.0:
             self._t_dano_enemigos -= 1.0
             centro, radio = self.zona_dano(jugador)

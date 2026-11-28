@@ -37,13 +37,36 @@ OSCURO = (52, 50, 66)
 MORADO = (140, 70, 200)
 AZUL = (70, 130, 235)
 ROJO = (215, 50, 60)
+VERDE_LIMA = (170, 230, 50)
+VERDE_MENTA = (130, 230, 190)
 
 # Efectos por nivel
 VIENTO_VEL_POR_NIVEL = 0.01            # +1 % de velocidad base por nivel (máx. +10 %)
 FUERZA_DANO_POR_NIVEL = 0.01           # +1 % de daño del arma por nivel (máx. +10 %)
 ENERGIA_POR_NIVEL = 2.5
 VIDA_POR_NIVEL = 4                     # épico: +4 por nivel (máx. +20)
-CADENCIA_POR_NIVEL = 0.3               # épico: +0.3 golpes/s por nivel (máx. +1.5)
+CADENCIA_POR_NIVEL = 0.5               # legendario: +0.5 golpes/s por nivel (máx. +1.5 en nv3)
+
+# Anillos nuevos (27/11/2026). Pares = (valor en nivel 1, valor en nivel máximo), lineales.
+REGEN_VITAL_NIVEL_MAX = 10
+REGEN_VITAL_ENERGIA = (0.05, 0.50)     # +% a la regeneración de energía
+REGEN_VITAL_DURABILIDAD = (1000, 3000) # pierde 1 por segundo mientras la energía no está llena
+BRUJULA_NIVEL_MAX = 5
+BRUJULA_VELOCIDAD = (0.05, 0.20)       # +% de velocidad mientras caminas hacia la tumba
+BRUJULA_ANGULO = 30.0                  # grados de margen respecto a la dirección de la tumba
+MAPA_NIVEL_MAX = 3
+MAPA_RADIO = (2000, 2000, 3500)        # px de mundo que abarca el minimapa (radio) por nivel
+MAPA_NIVEL_MARCAS = 2                  # desde este nivel muestra la tumba y los vendedores
+POTENCIADOR_NIVEL_MAX = 7
+POTENCIADOR_MAGICO = (0.03, 0.20)      # +% al daño mágico
+RECARGA_NIVEL_MAX = 5
+RECARGA_REDUCCION = (0.04, 0.20)       # -% a la recarga de las habilidades (tope: el del nv5)
+SACRIFICIO_NIVEL_MAX = 3
+SACRIFICIO_VIDA = 0.50                 # -50 % de la vida máxima (después de todos los bonus)
+SACRIFICIO_DEFENSA = (10, 20)          # escudo físico y mágico máximos
+SACRIFICIO_VELOCIDAD = (0.03, 0.08)
+SACRIFICIO_DANO = (0.03, 0.10)         # daño del arma
+SACRIFICIO_MAGICO = (0.03, 0.10)       # daño mágico
 DEFENSA_MAXIMA = 20                    # especiales: +20 de escudo repartido en 7 niveles
 DEFENSA_NIVEL_MAX = 7
 REGEN_ESCUDO_ANILLO = 0.10             # +10 % fijo a la regeneración de ese escudo
@@ -54,7 +77,7 @@ REGEN_VIDA_INTERVALO = 1.0             # se aplica cada segundo
 # de invocación a este nivel (1-20); el daño y la reaparición van en línea recta.
 NIVEL_HABILIDAD_SOMBRA = (1, 3, 5, 7, 9, 12, 14, 16, 18, 20)
 SOMBRA_NIVEL_MAX = 10
-SOMBRA_CONEJO_DANO = (1.0, 7.7)        # daño del conejo en nivel 1 y 10 del anillo
+SOMBRA_CONEJO_DANO = (0.5, 5.0)        # daño del conejo en nivel 1 y 10 del anillo
 SOMBRA_CONEJO_REAPARICION = (10.0, 5.0)
 SOMBRA_LOBO_DANO = (4.0, 30.0)
 SOMBRA_LOBO_REAPARICION = (8.0, 4.0)
@@ -65,9 +88,9 @@ TOTEM_MAX = 5
 COLOR_TOTEM = (90, 200, 120)
 
 
-def _lineal(par, n, n_max=SOMBRA_NIVEL_MAX):
+def _lineal(par, n, n_max=SOMBRA_NIVEL_MAX, decimales=2):
     a, b = par
-    return round(a + (b - a) * (n - 1) / (n_max - 1), 2)
+    return round(a + (b - a) * (n - 1) / (n_max - 1), decimales)
 
 
 def _defensa(n):
@@ -101,6 +124,27 @@ def _efecto_def_fisica(n): return {"escudo": _defensa(n), "regen_escudo": REGEN_
 def _efecto_regeneracion(n): return {"regen_vida": (round(REGEN_VIDA_POR_NIVEL * n, 2), REGEN_VIDA_INTERVALO)}
 def _efecto_sombra_conejo(n): return {"sombra_conejo": n}
 def _efecto_sombra_lobo(n): return {"sombra_lobo": n}
+def _efecto_regen_vital(n): return {"regen_energia_pct": _lineal(REGEN_VITAL_ENERGIA, n, REGEN_VITAL_NIVEL_MAX, 4)}
+def _efecto_brujula(n): return {"brujula_pct": _lineal(BRUJULA_VELOCIDAD, n, BRUJULA_NIVEL_MAX, 4)}
+def _efecto_mapa(n): return {"mapa": n}
+def _efecto_potenciador(n): return {"magico_pct": _lineal(POTENCIADOR_MAGICO, n, POTENCIADOR_NIVEL_MAX, 4)}
+def _efecto_recarga(n): return {"recarga_pct": _lineal(RECARGA_REDUCCION, n, RECARGA_NIVEL_MAX, 4)}
+
+
+def _efecto_sacrificio(n):
+    defensa = _lineal(SACRIFICIO_DEFENSA, n, SACRIFICIO_NIVEL_MAX)
+    return {"vida_factor": SACRIFICIO_VIDA, "escudo": defensa, "escudo_magico": defensa,
+            "velocidad_pct": _lineal(SACRIFICIO_VELOCIDAD, n, SACRIFICIO_NIVEL_MAX, 4),
+            "dano_pct": _lineal(SACRIFICIO_DANO, n, SACRIFICIO_NIVEL_MAX, 4),
+            "magico_pct": _lineal(SACRIFICIO_MAGICO, n, SACRIFICIO_NIVEL_MAX, 4)}
+
+
+def durabilidad_max_regen_vital(n):
+    return round(_lineal(REGEN_VITAL_DURABILIDAD, n, REGEN_VITAL_NIVEL_MAX))
+
+
+def radio_mapa(n):
+    return MAPA_RADIO[n - 1]
 
 
 def _txt_viento(n): return f"+{VIENTO_VEL_POR_NIVEL * n * 100:g}% de velocidad base"
@@ -111,6 +155,35 @@ def _txt_cadencia(n): return f"+{CADENCIA_POR_NIVEL * n:g} golpes/s de cadencia"
 def _txt_def_magica(n): return f"+{_defensa(n):g} de escudo mágico máx. · +10% regeneración"
 def _txt_def_fisica(n): return f"+{_defensa(n):g} de escudo físico máx. · +10% regeneración"
 def _txt_regeneracion(n): return f"+{REGEN_VIDA_POR_NIVEL * n:g} de vida por segundo"
+
+
+def _pct(v): return f"{v * 100:.4g}%"
+
+
+def _txt_regen_vital(n):
+    return (f"+{_pct(_efecto_regen_vital(n)['regen_energia_pct'])} de regeneración de energía · durabilidad "
+            f"{durabilidad_max_regen_vital(n)} (gasta 1/s mientras la energía no está llena; otro igual lo repara)")
+
+
+def _txt_brujula(n):
+    return (f"Flecha hacia tu tumba y +{_pct(_efecto_brujula(n)['brujula_pct'])} de velocidad mientras caminas "
+            f"hacia ella · no se pierde al morir")
+
+
+def _txt_mapa(n):
+    marcas = " con la tumba y los vendedores" if n >= MAPA_NIVEL_MARCAS else ""
+    return f"Minimapa arriba a la derecha (radio {radio_mapa(n)} px){marcas}"
+
+
+def _txt_potenciador(n): return f"+{_pct(_efecto_potenciador(n)['magico_pct'])} de daño mágico"
+def _txt_recarga(n): return f"-{_pct(_efecto_recarga(n)['recarga_pct'])} de recarga de las habilidades"
+
+
+def _txt_sacrificio(n):
+    e = _efecto_sacrificio(n)
+    return (f"-{_pct(SACRIFICIO_VIDA)} de vida máxima · +{e['escudo']:g} de escudo físico y mágico · "
+            f"+{_pct(e['velocidad_pct'])} de velocidad · +{_pct(e['dano_pct'])} de daño del arma · "
+            f"+{_pct(e['magico_pct'])} de daño mágico")
 
 
 def _txt_sombra(tipo, nombre):
@@ -137,13 +210,27 @@ ANILLOS = {
                        efecto=_efecto_def_fisica, texto=_txt_def_fisica),
     "vida":       dict(nombre="Anillo de vida", rareza=EPICO, colores=(ROSA, ROJO), nivel_max=5,
                        efecto=_efecto_vida, texto=_txt_vida),
-    "cadencia":   dict(nombre="Anillo de cadencia", rareza=EPICO, colores=(AMARILLO, AZUL), nivel_max=5,
+    "cadencia":   dict(nombre="Anillo de cadencia", rareza=LEGENDARIO, colores=(AMARILLO, AZUL), nivel_max=3,
                        efecto=_efecto_cadencia, texto=_txt_cadencia),
     "sombra_lobo": dict(nombre="Anillo sombra lobo", rareza=EPICO, colores=(OSCURO, MORADO), nivel_max=SOMBRA_NIVEL_MAX,
                         efecto=_efecto_sombra_lobo, texto=_txt_sombra("lobo", "lobo")),
     "regeneracion": dict(nombre="Anillo de regeneración inversa", rareza=LEGENDARIO,
                          colores=(ROSA, AZUL_MARINO, DORADO), nivel_max=3,
                          efecto=_efecto_regeneracion, texto=_txt_regeneracion),
+    # Anillos nuevos (27/11/2026)
+    "regen_vital": dict(nombre="Anillo de regeneración vital", rareza=COMUN, colores=(AZUL_MARINO, VERDE_LIMA),
+                        nivel_max=REGEN_VITAL_NIVEL_MAX, efecto=_efecto_regen_vital, texto=_txt_regen_vital,
+                        durabilidad=durabilidad_max_regen_vital),
+    "brujula":    dict(nombre="Anillo de brújula", rareza=COMUN, colores=(GRIS, CELESTE), nivel_max=BRUJULA_NIVEL_MAX,
+                       efecto=_efecto_brujula, texto=_txt_brujula, permanente=True),
+    "mapa":       dict(nombre="Anillo de mapa", rareza=ESPECIAL, colores=(VERDE_MENTA,), nivel_max=MAPA_NIVEL_MAX,
+                       efecto=_efecto_mapa, texto=_txt_mapa),
+    "potenciador": dict(nombre="Anillo potenciador", rareza=ESPECIAL, colores=(ROJO, GRIS),
+                        nivel_max=POTENCIADOR_NIVEL_MAX, efecto=_efecto_potenciador, texto=_txt_potenciador),
+    "recarga":    dict(nombre="Anillo de recarga", rareza=EPICO, colores=(AMARILLO, GRIS), nivel_max=RECARGA_NIVEL_MAX,
+                       efecto=_efecto_recarga, texto=_txt_recarga),
+    "sacrificio": dict(nombre="Anillo de sacrificio", rareza=LEGENDARIO, colores=(MORADO, DORADO),
+                       nivel_max=SACRIFICIO_NIVEL_MAX, efecto=_efecto_sacrificio, texto=_txt_sacrificio),
 }
 
 
@@ -253,16 +340,60 @@ class ColeccionTalismanes:
         self.anillos = {}
         self.totems = 0
         self.huecos = [None] * HUECOS          # id de anillo, TOTEM o None
+        self.durabilidad = {}                  # id -> durabilidad actual (solo anillos con "durabilidad")
 
     # ---- Conseguir
     def agregar_anillo(self, id_anillo):
-        """'nuevo' (nivel 1), 'mejorado' (+1 nivel) o 'maximo' (ya al máximo: devuelve monedas)."""
-        maximo = ANILLOS[id_anillo]["nivel_max"]
+        """'nuevo' (nivel 1), 'mejorado' (+1 nivel), 'reparado' (al máximo pero gastado: vuelve a su
+        durabilidad máxima) o 'maximo' (ya al máximo: devuelve monedas). Subir de nivel también repara."""
+        d = ANILLOS[id_anillo]
         nivel = self.anillos.get(id_anillo, 0)
-        if nivel >= maximo:
+        if nivel >= d["nivel_max"]:
+            if self.esta_gastado(id_anillo):
+                self.durabilidad[id_anillo] = self.durabilidad_max(id_anillo)
+                return "reparado"
             return "maximo"
         self.anillos[id_anillo] = nivel + 1
+        if "durabilidad" in d:
+            self.durabilidad[id_anillo] = self.durabilidad_max(id_anillo)
         return "nuevo" if nivel == 0 else "mejorado"
+
+    def puede_mejorar(self, id_anillo):
+        """True si conseguir otro igual sirve de algo (sube de nivel o lo repara)."""
+        return self.anillos.get(id_anillo, 0) < ANILLOS[id_anillo]["nivel_max"] or self.esta_gastado(id_anillo)
+
+    # ---- Durabilidad (Anillo de regeneración vital)
+    def durabilidad_max(self, id_anillo):
+        return ANILLOS[id_anillo]["durabilidad"](self.anillos[id_anillo])
+
+    def esta_gastado(self, id_anillo):
+        """True si un anillo con durabilidad no está al máximo (otro igual lo repararía)."""
+        if "durabilidad" not in ANILLOS[id_anillo] or id_anillo not in self.anillos:
+            return False
+        return self.durabilidad.get(id_anillo, 0) < self.durabilidad_max(id_anillo)
+
+    def esta_roto(self, id_anillo):
+        return "durabilidad" in ANILLOS[id_anillo] and self.durabilidad.get(id_anillo, 0) <= 0
+
+    def desgastar(self, id_anillo, cantidad):
+        """Gasta durabilidad de un anillo equipado. Devuelve True si se acaba de romper."""
+        if self.esta_roto(id_anillo):
+            return False
+        self.durabilidad[id_anillo] = max(0.0, round(self.durabilidad[id_anillo] - cantidad, 3))
+        return self.durabilidad[id_anillo] <= 0
+
+    # ---- Anillos permanentes (Anillo de brújula): no se pierden al morir
+    def permanentes(self):
+        """{id: (nivel, equipado)} de los anillos que sobreviven a la muerte."""
+        return {a: (n, self.esta_equipado(a)) for a, n in self.anillos.items() if ANILLOS[a].get("permanente")}
+
+    def conservar(self, permanentes):
+        """Devuelve a esta colección los permanentes de otra vida: el nivel más alto de las dos y,
+        si estaba equipado y hay un hueco libre, lo vuelve a equipar."""
+        for a, (n, equipado) in permanentes.items():
+            self.anillos[a] = max(n, self.anillos.get(a, 0))
+            if equipado and not self.esta_equipado(a) and None in self.huecos:
+                self.huecos[self.huecos.index(None)] = a
 
     def agregar_totem(self):
         """'nuevo' / 'mas' o 'maximo' (ya tienes 5: devuelve monedas)."""
@@ -322,7 +453,7 @@ class ColeccionTalismanes:
         """Suma de los efectos de los anillos equipados."""
         total = {}
         for h in self.equipados():
-            if h == TOTEM:
+            if h == TOTEM or self.esta_roto(h):
                 continue
             d = ANILLOS[h]
             for clave, valor in d["efecto"](self.anillos[h]).items():
